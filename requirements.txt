@@ -12,3 +12,5 @@ pydantic
 itsdangerous
 pypdf
 duckduckgo-search
+firebase-admin
+google-auth

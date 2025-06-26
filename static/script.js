@@ -59,6 +59,53 @@ function appendMessage(sender, text) {
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+// --- Firebase and Auth Elements ---
+const authContainer = document.getElementById('auth-container');
+const mainContainer = document.getElementById('main-container');
+const authForm = document.getElementById('auth-form');
+const emailInput = document.getElementById('email-input');
+const passwordInput = document.getElementById('password-input');
+const loginBtn = document.getElementById('login-btn');
+const registerBtn = document.getElementById('register-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const authError = document.getElementById('auth-error');
+
+// Initialize Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyD28pWvUJ7oj_SXBubkW3tFOP2v3Zc4gm4",
+    authDomain: "ai-writing-tool-bdebc.firebaseapp.com",
+    projectId: "ai-writing-tool-bdebc",
+    storageBucket: "ai-writing-tool-bdebc.appspot.com",
+    messagingSenderId: "983316185142",
+    appId: "1:983316185142:web:48e9907431ad5a4aa75897",
+    measurementId: "G-YSJ0737Z3P"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+
+let idToken = null;
+
+// Generate a simple session ID for each new chat session
+let sessionId = uuidv4();
+
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// Helper function to add auth token to fetch headers
+async function getAuthHeaders() {
+    if (!idToken) {
+        throw new Error("User not logged in.");
+    }
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+    };
+}
+
 // Handle chat form submission and keyboard events
 async function handleFormSubmit(e) {
     if (e) e.preventDefault();
@@ -84,15 +131,17 @@ async function handleFormSubmit(e) {
     abortController = new AbortController();
 
     try {
+        const headers = await getAuthHeaders();
         const res = await fetch('/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ 
                 message: text, 
                 model: getSelectedModel(),
-                search_web: webSearchCheckbox.checked
+                search_web: webSearchCheckbox.checked,
+                session_id: sessionId
             }),
-            signal: abortController.signal // Pass the signal to fetch
+            signal: abortController.signal
         });
         if (!res.body) {
             bubble.textContent = 'Streaming not supported by your browser.';
@@ -211,11 +260,13 @@ addToChatBtn.addEventListener('click', async () => {
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('model', getSelectedModel());
+        formData.append('session_id', sessionId);
         
         try {
+            const token = await fbAuth.currentUser.getIdToken();
             const res = await fetch('/upload', {
                 method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
             });
             const data = await res.json();
@@ -265,15 +316,15 @@ if (archiveBtn) {
         }
 
         try {
+            const headers = await getAuthHeaders();
             const model = modelSelect.value;
             const archiveName = archiveNameInput.value.trim();
 
             const response = await fetch('/archive', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({ 
+                    session_id: sessionId,
                     model: model,
                     archive_name: archiveName,
                     project_name: projectName
@@ -304,12 +355,11 @@ if (clearMemoryBtn) {
             archiveStatus.textContent = 'Clearing memory...';
             archiveStatus.style.color = 'black';
             try {
+                const headers = await getAuthHeaders();
                 const response = await fetch('/clear_memory', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({})
+                    headers: headers,
+                    body: JSON.stringify({ session_id: sessionId })
                 });
                 const data = await response.json();
                 if (response.ok) {
@@ -333,7 +383,8 @@ async function fetchArchives() {
     archivesStatus.textContent = 'Loading...';
     archivesStatus.style.color = 'black';
     try {
-        const response = await fetch(`/archives?t=${new Date().getTime()}`);
+        const headers = await getAuthHeaders();
+        const response = await fetch(`/archives`, { headers: headers });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -412,10 +463,15 @@ async function loadArchive(projectName, filename) {
     }
     archivesStatus.textContent = `Loading ${filename}...`;
     try {
+        const headers = await getAuthHeaders();
         const response = await fetch('/load_archive', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project_name: projectName, filename: filename })
+            headers: headers,
+            body: JSON.stringify({ 
+                session_id: sessionId,
+                project_name: projectName, 
+                filename: filename 
+            })
         });
         const data = await response.json();
         if (response.ok) {
@@ -437,7 +493,8 @@ async function loadArchive(projectName, filename) {
 
 async function loadChatHistory() {
     try {
-        const response = await fetch('/history');
+        const headers = await getAuthHeaders();
+        const response = await fetch(`/history?session_id=${sessionId}`, { headers: headers });
         const data = await response.json();
 
         if (response.ok && data.history) {
@@ -467,8 +524,48 @@ projectSelect.addEventListener('change', () => {
     }
 });
 
-// Initial setup on page load
-document.addEventListener('DOMContentLoaded', () => {
-    fetchArchives();
-    loadChatHistory();
+// --- Auth Logic ---
+fbAuth.onAuthStateChanged(async (user) => {
+    if (user) {
+        // User is signed in.
+        idToken = await user.getIdToken();
+        authContainer.style.display = 'none';
+        mainContainer.style.display = 'flex';
+        // Load user-specific data
+        fetchArchives();
+        loadChatHistory();
+    } else {
+        // User is signed out.
+        idToken = null;
+        authContainer.style.display = 'block';
+        mainContainer.style.display = 'none';
+    }
 });
+
+loginBtn.addEventListener('click', async () => {
+    try {
+        await fbAuth.signInWithEmailAndPassword(emailInput.value, passwordInput.value);
+        authError.textContent = '';
+    } catch (error) {
+        authError.textContent = error.message;
+    }
+});
+
+registerBtn.addEventListener('click', async () => {
+    try {
+        await fbAuth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value);
+        authError.textContent = '';
+    } catch (error) {
+        authError.textContent = error.message;
+    }
+});
+
+logoutBtn.addEventListener('click', async () => {
+    await fbAuth.signOut();
+    // Clear chat window and archives on logout
+    chatWindow.innerHTML = '';
+    archivesList.innerHTML = '';
+});
+
+// Initial setup on page load (now handled by onAuthStateChanged)
+// document.addEventListener('DOMContentLoaded', ...);

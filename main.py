@@ -1,107 +1,83 @@
 import os
-import pickle
 from datetime import datetime
-from typing import AsyncGenerator
-from uuid import uuid4
+from typing import AsyncGenerator, List
 import asyncio
+from uuid import uuid4
+import io
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Request, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from itsdangerous import URLSafeTimedSerializer
-from langchain.memory import ConversationBufferMemory
+from pydantic import BaseModel
+from starlette.responses import StreamingResponse
+from pypdf import PdfReader
+from duckduckgo_search import DDGS
+import firebase_admin
+from firebase_admin import credentials, firestore, storage, auth as firebase_auth
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from langchain_anthropic import ChatAnthropic
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
-from starlette.responses import StreamingResponse
-from pypdf import PdfReader
-import io
-from duckduckgo_search import DDGS
+from google.cloud.firestore_v1.query import Query
 
 load_dotenv()
 
-# Secret key for signing session cookies
-# In a production app, use a more secure key and load it from a secure location
-SECRET_KEY = os.getenv("SECRET_KEY", "your-default-secret-key")
-serializer = URLSafeTimedSerializer(SECRET_KEY)
+# Firebase-related initialization
+cred = credentials.Certificate("firebase_service_account.json")
+firebase_admin.initialize_app(cred, {
+    'storageBucket': os.getenv('STORAGE_BUCKET')
+})
+db = firestore.client()
+bucket = storage.bucket()
 
 main_app = FastAPI()
+
+# --- Authentication ---
+async def get_current_user(authorization: str = Header(...)):
+    """Verifies Firebase ID token from Authorization header and returns user data."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization scheme.")
+    
+    token = authorization.split("Bearer ")[1]
+    
+    try:
+        # Verify the token against the Firebase project.
+        decoded_token = id_token.verify_firebase_token(token, google_requests.Request())
+        return decoded_token
+    except ValueError as e:
+        # Token is invalid
+        raise HTTPException(status_code=401, detail=f"Invalid ID Token: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
 
 # Allow CORS for frontend
 main_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # In production, restrict this to your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# --- Pydantic Models ---
+class Message(BaseModel):
+    role: str
+    content: str
+
 class ChatRequest(BaseModel):
-    message: str
+    history: List[Message]
     model: str
     search_web: bool = False
 
 class ArchiveRequest(BaseModel):
+    history: List[Message]
     model: str
     archive_name: str | None = None
     project_name: str | None = "General"
-
-class ClearMemoryRequest(BaseModel):
-    pass
-
-class LoadArchiveRequest(BaseModel):
-    filename: str
-    project_name: str
-
-# Directory to store conversation memory files
-MEMORY_DIR = os.path.join(os.path.dirname(__file__), "conversation_memory")
-ARCHIVE_DIR = os.path.join(os.path.dirname(__file__), "archives")
-
-def get_session_id(request: Request, response: Response) -> str:
-    """Gets or creates a session ID."""
-    session_id = request.cookies.get("session_id")
-    if not session_id:
-        session_id = str(uuid4())
-        response.set_cookie(
-            key="session_id",
-            value=session_id,
-            httponly=True,
-            samesite="lax",
-            secure=False,  # Set to True in production with HTTPS
-        )
-    return session_id
-
-def get_memory_filepath(session_id: str) -> str:
-    """Returns the full path for a session's memory file."""
-    return os.path.join(MEMORY_DIR, f"{session_id}.pkl")
-
-def load_memory(session_id: str) -> ConversationBufferMemory:
-    """Loads a ConversationBufferMemory object from a file."""
-    filepath = get_memory_filepath(session_id)
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "rb") as f:
-                return pickle.load(f)
-        except (pickle.UnpicklingError, EOFError):
-            # Handle cases where the file is corrupted or empty
-            return ConversationBufferMemory(return_messages=True)
-    return ConversationBufferMemory(return_messages=True)
-
-def save_memory(session_id: str, memory: ConversationBufferMemory):
-    """Saves a ConversationBufferMemory object to a file."""
-    filepath = get_memory_filepath(session_id)
-    with open(filepath, "wb") as f:
-        pickle.dump(memory, f)
-
-def delete_memory(session_id: str):
-    """Deletes a session's memory file."""
-    filepath = get_memory_filepath(session_id)
-    if os.path.exists(filepath):
-        os.remove(filepath)
 
 # Load API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -115,7 +91,7 @@ def get_llm(model_name: str):
         return ChatOpenAI(
             openai_api_key=OPENAI_API_KEY,
             model_name=model_name,
-            max_tokens=16384, # Increased token limit
+            max_tokens=16384,
             temperature=0.7,
             streaming=True,
         )
@@ -123,7 +99,7 @@ def get_llm(model_name: str):
         return ChatAnthropic(
             anthropic_api_key=ANTHROPIC_API_KEY,
             model_name=model_name,
-            max_tokens_to_sample=16384, # Increased token limit
+            max_tokens_to_sample=16384,
             temperature=0.7,
             streaming=True,
         )
@@ -131,7 +107,7 @@ def get_llm(model_name: str):
         return ChatCohere(
             cohere_api_key=COHERE_API_KEY,
             model_name=model_name,
-            max_tokens=16384, # Increased token limit
+            max_tokens=16384,
             temperature=0.7,
             streaming=True,
         )
@@ -140,7 +116,7 @@ def get_llm(model_name: str):
             google_api_key=GOOGLE_API_KEY,
             model=model_name,
             temperature=0.7,
-            convert_system_message_to_human=True, # Gemini needs this
+            convert_system_message_to_human=True,
             streaming=True,
         )
     else:
@@ -148,46 +124,56 @@ def get_llm(model_name: str):
         return ChatOpenAI(
             openai_api_key=OPENAI_API_KEY,
             model_name="gpt-4o",
-            max_tokens=16384, # Increased token limit
+            max_tokens=16384,
             temperature=0.7,
             streaming=True,
         )
 
 @main_app.post("/chat")
-async def chat_endpoint(req: ChatRequest, request: Request, response: Response):
-    session_id = get_session_id(request, response)
-    memory = load_memory(session_id)
+async def chat_endpoint(req: ChatRequest, user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
     llm = get_llm(req.model)
+    
+    # The history is now sent from the client
+    history_messages = [message.dict() for message in req.history]
 
-    user_message = req.message
-    if req.search_web:
+    # If web search is enabled, prepend search results to the last user message
+    if req.search_web and history_messages and history_messages[-1]['role'] == 'user':
+        user_query = history_messages[-1]['content']
         try:
             with DDGS() as ddgs:
-                search_results = [r for r in ddgs.text(user_message, max_results=5)]
+                search_results = [r for r in ddgs.text(user_query, max_results=5)]
             
             if search_results:
-                context = "\n\n".join([f"Title: {res['title']}\nBody: {res['body']}" for res in search_results])
+                context = "\\n\\n".join([f"Title: {res['title']}\\nBody: {res['body']}" for res in search_results])
                 web_prompt = (
                     "The user has requested a web search. Here are the top results. "
-                    "Use this information to answer the user's query.\n\n"
-                    "--- BEGIN WEB SEARCH RESULTS ---\n"
-                    f"{context}\n"
-                    "--- END WEB SEARCH RESULTS ---\n"
+                    "Use this information to answer the user's query.\\n\\n"
+                    "--- BEGIN WEB SEARCH RESULTS ---\\n"
+                    f"{context}\\n"
+                    "--- END WEB SEARCH RESULTS ---\\n\\n"
+                    f"Original Query: {user_query}"
                 )
-                memory.chat_memory.add_user_message(web_prompt)
+                # Replace last user message with the one containing search results
+                history_messages[-1]['content'] = web_prompt
 
         except Exception as e:
             print(f"Web search failed: {e}")
 
-    # Add user message to memory
-    memory.chat_memory.add_user_message(user_message)
-
+    # Convert our special 'context' messages into 'user' messages for the LLM
+    llm_history = []
+    for msg in history_messages:
+        if msg.get('role') == 'context':
+            llm_history.append({'role': 'user', 'content': msg.get('content', '')})
+        else:
+            llm_history.append(msg)
+            
     async def bot_stream() -> AsyncGenerator[bytes, None]:
         response_accum = ""
         is_cancelled = False
         try:
-            # Pass the list of messages directly to the LLM
-            async for chunk in llm.astream(memory.chat_memory.messages):
+            # The LLM astream method expects a list of messages
+            async for chunk in llm.astream(llm_history): # Use the transformed history
                 token = chunk.content if hasattr(chunk, 'content') else str(chunk)
                 response_accum += token
                 yield token.encode('utf-8')
@@ -195,165 +181,281 @@ async def chat_endpoint(req: ChatRequest, request: Request, response: Response):
             is_cancelled = True
             print("Stream cancelled by client.")
         finally:
-            # Only save the full response if the stream was not cancelled
             if not is_cancelled and response_accum:
-                memory.chat_memory.add_ai_message(response_accum)
-                save_memory(session_id, memory)
+                # Save the full conversation history (including the AI's response)
+                final_history = history_messages + [{"role": "assistant", "content": response_accum}]
+                save_conversation(user_id, final_history)
 
-    return StreamingResponse(bot_stream(), media_type="text/plain", headers=response.headers)
+    return StreamingResponse(bot_stream(), media_type="text/plain")
 
 @main_app.post("/archive")
-async def archive_chat(req: ArchiveRequest, request: Request, response: Response):
-    session_id = get_session_id(request, response)
-    memory = load_memory(session_id)
-
-    if not memory.chat_memory.messages:
-        return JSONResponse(status_code=404, content={"error": "No chat session found to archive."})
+async def archive_chat(req: ArchiveRequest, user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    
+    if not req.history:
+        return JSONResponse(status_code=400, content={"error": "No chat history provided to archive."})
     
     project_name = req.project_name or "General"
-    project_dir = os.path.join(ARCHIVE_DIR, project_name)
-    os.makedirs(project_dir, exist_ok=True)
-
+    
     if req.archive_name:
-        # Sanitize the filename
         sanitized_name = "".join(c for c in req.archive_name if c.isalnum() or c in (' ', '_', '-')).rstrip()
-        filename = f"{sanitized_name}.md"
+        archive_id = f"{sanitized_name}.md"
     else:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"chat_archive_{timestamp}.md"
+        archive_id = f"chat_archive_{timestamp}.md"
 
-    filepath = os.path.join(project_dir, filename)
-    
-    archive_header = f"# Chat Archive - {filename}\n\n**Model:** `{req.model}`\n**Project:** `{project_name}`\n\n---\n\n"
-    archive_content = archive_header
-    for msg in memory.chat_memory.messages:
-        if msg.type == 'human':
-            if msg.content.startswith("[File uploaded:"):
-                archive_content += f"**System:**\n```\n{msg.content}\n```\n\n---\n\n"
-            else:
-                archive_content += f"**User:**\n{msg.content}\n\n---\n\n"
-        elif msg.type == 'ai':
-            archive_content += f"**Assistant:**\n{msg.content}\n\n---\n\n"
-            
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(archive_content)
+    db.collection("users").document(user_id).collection("archives").document(archive_id).set({
+        "projectName": project_name,
+        "model": req.model,
+        "messages": [msg.dict() for msg in req.history],
+        "archivedAt": firestore.SERVER_TIMESTAMP
+    })
         
-    return JSONResponse(content={"message": f"Chat archived to {filename}"})
+    return JSONResponse(content={"message": f"Chat archived to {archive_id} in project {project_name}"})
 
-@main_app.post("/clear_memory")
-async def clear_memory_endpoint(request: Request, response: Response):
-    """Clears the conversation history for a given session."""
-    session_id = get_session_id(request, response)
-    delete_memory(session_id)
-    return JSONResponse(status_code=200, content={"message": "Conversation history cleared."})
+@main_app.get("/archives")
+async def get_archives(user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    archives_ref = db.collection("users").document(user_id).collection("archives")
+    archives = archives_ref.stream()
 
+    project_archives = {}
+    for archive in archives:
+        data = archive.to_dict()
+        project = data.get("projectName", "General")
+        if project not in project_archives:
+            project_archives[project] = []
+        
+        archived_at = data.get("archivedAt")
+        if archived_at and hasattr(archived_at, 'isoformat'):
+            archived_at = archived_at.isoformat()
+
+        project_archives[project].append({
+            "id": archive.id,
+            "model": data.get("model"),
+            "archivedAt": archived_at
+        })
+
+    return JSONResponse(content=project_archives)
+
+@main_app.get("/archive/{archive_id}")
+async def get_archive_content(archive_id: str, user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    try:
+        doc_ref = db.collection("users").document(user_id).collection("archives").document(archive_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Archive not found")
+        
+        data = doc.to_dict()
+        # Convert timestamp to string before sending
+        archived_at = data.get("archivedAt")
+        if archived_at and hasattr(archived_at, 'isoformat'):
+             data['archivedAt'] = archived_at.isoformat()
+            
+        return JSONResponse(content=data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.get("/documents")
+async def get_documents(user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    try:
+        docs_ref = db.collection("users").document(user_id).collection("documents").order_by("uploadedAt", direction=Query.DESCENDING)
+        docs = docs_ref.stream()
+        documents = []
+        for doc in docs:
+            data = doc.to_dict()
+            uploaded_at = data.get("uploadedAt")
+            if uploaded_at and hasattr(uploaded_at, 'isoformat'):
+                data['uploadedAt'] = uploaded_at.isoformat()
+            documents.append(data)
+        return JSONResponse(content=documents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.get("/history")
+async def get_history(user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
+    doc = doc_ref.get()
+    if doc.exists:
+        return JSONResponse(content=doc.to_dict().get("messages", []))
+    return JSONResponse(content=[])
 
 # File upload endpoint
 @main_app.post("/upload")
-async def upload_file(request: Request, response: Response, file: UploadFile = File(...), model: str = Form(None)):
-    session_id = get_session_id(request, response)
+async def upload_file(user: dict = Depends(get_current_user), file: UploadFile = File(...)):
+    user_id = user['user_id']
     
     allowed_extensions = ('.md', '.txt', '.pdf')
-    if not file.filename.endswith(allowed_extensions):
-        return JSONResponse(status_code=400, content={"error": f"Only {', '.join(allowed_extensions)} files are allowed."})
+    if not file.filename or not file.filename.endswith(allowed_extensions):
+        raise HTTPException(status_code=400, detail=f"Only {', '.join(allowed_extensions)} files are allowed.")
 
-    content = ""
     try:
-        file_bytes = await file.read()
-        if file.filename.endswith('.pdf'):
-            pdf_stream = io.BytesIO(file_bytes)
-            reader = PdfReader(pdf_stream)
-            for page in reader.pages:
-                content += page.extract_text() or ""
-        else:
-            content = file_bytes.decode('utf-8', errors='ignore')
+        # Define storage path
+        file_path = f"{user_id}/documents/{file.filename}"
+        blob = bucket.blob(file_path)
+        
+        # Upload the file
+        file_content = await file.read()
+        blob.upload_from_string(
+            file_content,
+            content_type=file.content_type
+        )
+
+        # --- Text Extraction ---
+        text = ""
+        try:
+            if file.filename.lower().endswith(('.txt', '.md')):
+                text = file_content.decode('utf-8')
+            elif file.filename.lower().endswith('.pdf'):
+                reader = PdfReader(io.BytesIO(file_content))
+                text_pages = [page.extract_text() or "" for page in reader.pages]
+                text = "\\n".join(text_pages)
+        except Exception as e:
+            # If extraction fails, we still proceed, but the context will be empty.
+            print(f"Failed to extract text from {file.filename}: {e}")
+
+        # Save metadata to Firestore
+        doc_ref = db.collection("users").document(user_id).collection("documents").document(file.filename)
+        doc_data = {
+            "storagePath": file_path,
+            "filename": file.filename,
+            "contentType": file.content_type,
+            "size": len(file_content),
+            "uploadedAt": firestore.SERVER_TIMESTAMP,
+        }
+        doc_ref.set(doc_data)
+
+        # We can't get the server timestamp back immediately without another read,
+        # so we'll approximate it for the response. The value in the DB will be accurate.
+        doc_data['uploadedAt'] = datetime.now().isoformat()
+        
+        # This is the user-facing message that will be added to the chat
+        display_message = f"File '{file.filename}' has been successfully uploaded and saved."
+        context_message = {
+            "role": "context",
+            "content": text[:20000], # The actual text content for the LLM
+            "display_text": display_message # The simple message for the UI
+        }
+        
+        # Append a notification to the current conversation
+        history = get_conversation(user_id)
+        history.append(context_message)
+        save_conversation(user_id, history)
+        
+        return JSONResponse(content={
+            "message": f"File '{file.filename}' uploaded successfully.", 
+            "document": doc_data,
+            "context_message": context_message
+        })
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Failed to process file: {e}"})
+        # Log the real exception so we can see it in the server logs
+        import traceback, sys
+        print("UPLOAD ERROR:", repr(e), file=sys.stderr)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to upload file to storage: {e}")
+
+@main_app.get("/document/{filename}")
+async def get_document_content(filename: str, user: dict = Depends(get_current_user)):
+    """Return the text content of a stored document (txt, md, pdf)."""
+    user_id = user['user_id']
+    try:
+        # Lookup the document metadata to confirm it exists and get storage path
+        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
+        doc_snapshot = doc_ref.get()
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        doc_data = doc_snapshot.to_dict()
+        storage_path = doc_data["storagePath"]
+
+        blob = bucket.blob(storage_path)
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="File not found in storage.")
+
+        # Download and extract text depending on file type
+        if filename.lower().endswith(('.txt', '.md')):
+            text = blob.download_as_text()
+        elif filename.lower().endswith('.pdf'):
+            # For PDFs, download bytes then extract text with pypdf
+            pdf_bytes = blob.download_as_bytes()
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            text_pages = [page.extract_text() or "" for page in reader.pages]
+            text = "\n".join(text_pages)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type.")
+
+        return JSONResponse(content={
+            "filename": filename,
+            "content": text[:20000]  # safeguard: limit to 20k chars
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback, sys
+        print("GET DOCUMENT ERROR:", repr(e), file=sys.stderr)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to fetch document content.")
+
+@main_app.delete("/archive/{archive_id}")
+async def delete_archive(archive_id: str, user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    try:
+        doc_ref = db.collection("users").document(user_id).collection("archives").document(archive_id)
         
-    memory = load_memory(session_id)
-    # Add file content to memory as a user message with a clearer instruction
-    file_prompt = (
-        f"The user has uploaded a file named '{file.filename}'. Its content is provided below for context. "
-        "Use this content to answer any subsequent questions from the user.\n\n"
-        "--- BEGIN FILE CONTENT ---\n"
-        f"{content}\n"
-        "--- END FILE CONTENT ---"
-    )
-    memory.chat_memory.add_user_message(file_prompt)
-    save_memory(session_id, memory)
-    return JSONResponse(content={"message": f"File '{file.filename}' uploaded and its content is now in the conversation context."})
+        # Check if the document exists before trying to delete
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Archive not found.")
 
-@main_app.get("/archives")
-async def get_archives():
-    """Returns a list of saved chat archives, organized by project."""
-    if not os.path.exists(ARCHIVE_DIR):
-        return JSONResponse(content={})
-    
-    projects = {}
-    for project_name in os.listdir(ARCHIVE_DIR):
-        project_dir = os.path.join(ARCHIVE_DIR, project_name)
-        if os.path.isdir(project_dir):
-            archives = [
-                f for f in os.listdir(project_dir) 
-                if f.endswith('.md') and os.path.isfile(os.path.join(project_dir, f))
-            ]
-            if archives:
-                projects[project_name] = sorted(archives, reverse=True)
+        doc_ref.delete()
+        return JSONResponse(content={"message": f"Archive '{archive_id}' deleted successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete archive: {e}")
 
-    response = JSONResponse(content=projects)
-    # Add cache-busting headers for Chrome compatibility
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+@main_app.delete("/document/{filename}")
+async def delete_document(filename: str, user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    try:
+        # First, delete the Firestore metadata document
+        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
+        doc_snapshot = doc_ref.get()
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail="Document metadata not found.")
+        
+        doc_ref.delete()
 
-@main_app.post("/load_archive")
-async def load_archive(req: LoadArchiveRequest, request: Request, response: Response):
-    """Loads a chat archive into the current session memory."""
-    session_id = get_session_id(request, response)
-    filename = req.filename
-    project_name = req.project_name
-    
-    filepath = os.path.join(ARCHIVE_DIR, project_name, filename)
+        # Second, delete the actual file from Cloud Storage
+        storage_path = f"{user_id}/documents/{filename}"
+        blob = bucket.blob(storage_path)
+        if blob.exists():
+            blob.delete()
+        
+        return JSONResponse(content={"message": f"Document '{filename}' deleted successfully."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {e}")
 
-    if not os.path.exists(filepath):
-        return JSONResponse(status_code=404, content={"error": "Archive not found."})
-
-    with open(filepath, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    # Reconstruct memory from archive
-    memory = ConversationBufferMemory(return_messages=True)
-    # Simple parsing logic, assuming the format used in archive_chat
-    messages = content.split('\n\n---\n\n')
-    for msg_block in messages:
-        if msg_block.startswith('**User:**'):
-            memory.chat_memory.add_user_message(msg_block.replace('**User:**\n', ''))
-        elif msg_block.startswith('**Assistant:**'):
-            memory.chat_memory.add_ai_message(msg_block.replace('**Assistant:**\n', ''))
-        elif msg_block.startswith('**System:**'):
-            memory.chat_memory.add_user_message(msg_block.replace('**System:**\n```\n', '').replace('\n```', ''))
-
-    save_memory(session_id, memory)
-    return JSONResponse(content={"message": "Archive loaded successfully."})
-
-@main_app.get("/history")
-async def get_history(request: Request, response: Response):
-    """Gets the conversation history for a given session."""
-    session_id = get_session_id(request, response)
-    memory = load_memory(session_id)
-    history = [
-        {"type": msg.type, "content": msg.content}
-        for msg in memory.chat_memory.messages
-    ]
-    return JSONResponse(content={"history": history})
-
+main_app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 @main_app.get("/")
 def root():
     return FileResponse('static/index.html')
 
+# --- Firestore Data Functions ---
+def get_conversation(user_id: str) -> List[dict]:
+    """Loads the current conversation history from Firestore."""
+    doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
+    doc = doc_ref.get()
+    if doc.exists:
+        return doc.to_dict().get("messages", [])
+    return []
 
-# Mount static files
-main_app.mount("/static", StaticFiles(directory="static"), name="static")
+def save_conversation(user_id: str, messages: List[dict]):
+    """Saves the entire conversation history to Firestore."""
+    doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
+    doc_ref.set({"messages": messages, "updatedAt": firestore.SERVER_TIMESTAMP})

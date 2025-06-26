@@ -3,6 +3,51 @@ body {
     font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+#auth-container {
+    padding: 30px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    width: 320px;
+    text-align: center;
+}
+
+#auth-form input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+#auth-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+}
+
+#login-btn { background-color: #007bff; }
+#login-btn:hover { background-color: #0056b3; }
+#register-btn { background-color: #28a745; }
+#register-btn:hover { background-color: #218838; }
+
+#auth-error {
+    color: red;
+    min-height: 20px;
 }
 
 #main-container {
@@ -33,6 +78,9 @@ body {
 }
 
 #archives-panel h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 0;
     font-size: 1.2rem;
     color: #333;
@@ -257,4 +305,16 @@ button#stop-btn:disabled {
 
 #add-to-chat-btn:hover {
     background: #218838;
+}
+
+#logout-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #6c757d;
+}
+
+#logout-btn:hover {
+    color: #dc3545;
 }

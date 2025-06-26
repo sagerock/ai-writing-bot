@@ -8,9 +8,25 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-    <div id="main-container">
+    <div id="auth-container">
+        <h2>Login / Register</h2>
+        <form id="auth-form">
+            <input type="email" id="email-input" placeholder="Email" required />
+            <input type="password" id="password-input" placeholder="Password" required />
+            <div id="auth-buttons">
+                <button type="button" id="login-btn">Login</button>
+                <button type="button" id="register-btn">Register</button>
+            </div>
+            <p id="auth-error"></p>
+        </form>
+    </div>
+
+    <div id="main-container" style="display: none;">
         <div id="archives-panel">
-            <h2>Saved Chats</h2>
+            <h2>
+                Saved Chats
+                <button id="logout-btn" title="Logout">Logout</button>
+            </h2>
             <button id="refresh-archives-btn">Refresh</button>
             <span id="archives-status"></span>
             <ul id="archives-list"></ul>
@@ -80,6 +96,10 @@
     </div>
         </div>
     </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="/static/script.js"></script>
 </body>
 </html>
