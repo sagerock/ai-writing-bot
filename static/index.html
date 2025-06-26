@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangChain Chatbot</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div id="main-container">
+        <div id="archives-panel">
+            <h2>Saved Chats</h2>
+            <button id="refresh-archives-btn">Refresh</button>
+            <span id="archives-status"></span>
+            <ul id="archives-list"></ul>
+        </div>
+        <div id="chat-container">
+        <div id="model-area">
+            <label for="model-select"><b>Model:</b></label>
+            <select id="model-select">
+                <optgroup label="OpenAI">
+                    <option value="chatgpt-4o-latest">ChatGPT 4o (Latest)</option>
+                    <option value="gpt-4.1-2025-04-14">GPT-4.1</option>
+                    <option value="gpt-4.1-mini-2025-04-14">GPT-4.1 Mini</option>
+                    <option value="o3-2025-04-16">o3</option>
+                    <option value="o3-mini-2025-01-31">o3 Mini</option>
+                </optgroup>
+                <optgroup label="Anthropic">
+                    <option value="claude-opus-4-20250514">Claude Opus 4</option>
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                    <option value="claude-3-7-sonnet-20250219">Claude Sonnet 3.7</option>
+                    <option value="claude-3-5-sonnet-20241022">Claude Sonnet 3.5</option>
+                    <option value="claude-3-5-haiku-20241022">Claude Haiku 3.5</option>
+                    <option value="claude-3-opus-20240229">Claude Opus 3</option>
+                </optgroup>
+                <optgroup label="Cohere">
+                    <option value="command-r-plus">Command R+</option>
+                    <option value="command-r">Command R</option>
+                </optgroup>
+                <optgroup label="Google">
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                </optgroup>
+            </select>
+            <div id="web-search-toggle">
+                <label for="web-search-checkbox">Search Web</label>
+                <input type="checkbox" id="web-search-checkbox" />
+            </div>
+        </div>
+        <div id="upload-area">
+            <label for="file-input" class="file-upload-label">
+                <span>Upload Files</span>
+                <small>(.txt, .md, .pdf)</small>
+            </label>
+            <input type="file" id="file-input" accept=".md,.txt,.pdf" multiple style="display: none;" />
+            <div id="staged-files-area">
+                <ul id="staged-files-list"></ul>
+                <button type="button" id="add-to-chat-btn" style="display: none;">Add Selected to Chat</button>
+            </div>
+            <span id="upload-status"></span>
+        </div>
+        <div id="archive-area">
+            <input type="text" id="archive-name-input" placeholder="Optional: Name your chat..." />
+            <div id="project-controls">
+                <select id="project-select"></select>
+                <input type="text" id="new-project-input" placeholder="New project name..." style="display: none;" />
+            </div>
+            <button id="archive-btn" type="button">Save Chat</button>
+            <button id="clear-memory-btn" type="button">Clear Memory</button>
+            <span id="archive-status"></span>
+        </div>
+        <div id="chat-window"></div>
+        <form id="chat-form">
+            <textarea id="user-input" placeholder="Type your message... Shift+Enter for new line" rows="3"></textarea>
+            <div id="form-buttons">
+                <button type="submit">Send</button>
+                <button type="button" id="stop-btn" disabled>Stop</button>
+            </div>
+        </form>
+    </div>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+
+# Conversation memory files
+/conversation_memory/
+
+# OS-specific files
+.DS_Store 

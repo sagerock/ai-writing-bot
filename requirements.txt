@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+langchain>=0.1.20
+langchain-openai
+langchain-anthropic
+langchain-cohere
+langchain-google-genai
+openai
+python-dotenv
+python-multipart
+pydantic
+itsdangerous
+pypdf
+duckduckgo-search

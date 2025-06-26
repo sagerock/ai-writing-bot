@@ -1,0 +1,260 @@
+body {
+    background: #f4f7fa;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+#main-container {
+    display: flex;
+    max-width: 1600px;
+    margin: 20px auto;
+    height: 90vh;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#model-area {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+#archives-panel {
+    width: 280px;
+    background: #f8f9fa;
+    padding: 20px;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+}
+
+#archives-panel h2 {
+    margin-top: 0;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+#refresh-archives-btn {
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#refresh-archives-btn:hover {
+    background: #0056b3;
+}
+
+#archives-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+#archives-list li {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.9rem;
+}
+
+#archives-list li:hover {
+    background: #e9ecef;
+}
+
+#chat-container {
+    flex: 1;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Make code blocks wrap and not overflow */
+pre, code {
+    white-space: pre-wrap !important;
+    word-break: break-word;
+    overflow-x: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+#chat-window {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+.message {
+    margin-bottom: 16px;
+    display: flex;
+}
+.user {
+    justify-content: flex-end;
+}
+.bot {
+    justify-content: flex-start;
+}
+.bubble {
+    padding: 12px 18px;
+    border-radius: 20px;
+    max-width: 75%;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+.user .bubble {
+    background: #007bff;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+.bot .bubble {
+    background: #e9ecef;
+    color: #222;
+    border-bottom-left-radius: 4px;
+}
+#chat-form {
+    display: flex;
+    padding: 16px;
+    border-top: 1px solid #eee;
+    align-items: center;
+}
+#user-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    resize: vertical;
+    min-height: 24px;
+}
+#form-buttons {
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px;
+}
+button[type=submit], button#stop-btn {
+    padding: 10px 18px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+button[type=submit]:hover, button#stop-btn:hover {
+    background: #0056b3;
+}
+button#stop-btn {
+    background-color: #dc3545;
+    margin-top: 5px;
+}
+button#stop-btn:hover {
+    background-color: #c82333;
+}
+button#stop-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+#archive-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid #eee;
+}
+
+#project-controls {
+    display: flex;
+    gap: 5px;
+}
+
+#user-input, #archive-name-input, #new-project-input, #project-select {
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+#chat-form {
+    display: flex;
+    padding: 16px;
+    border-top: 1px solid #eee;
+    align-items: center;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    resize: vertical;
+    min-height: 24px;
+}
+
+#web-search-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#upload-area {
+    padding: 10px 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.file-upload-label {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.file-upload-label:hover {
+    background: #0056b3;
+}
+
+.file-upload-label small {
+    font-size: 0.8rem;
+    margin-left: 5px;
+}
+
+#staged-files-area {
+    margin-top: 10px;
+}
+
+#staged-files-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#staged-files-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+#add-to-chat-btn {
+    padding: 8px 12px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#add-to-chat-btn:hover {
+    background: #218838;
+}
