@@ -1,10 +1,10 @@
-# RomaLuma - AI Chat Application
+# RomaLume - AI Chat Application
 
 This is an AI chat application that allows users to interact with various large language models (LLMs) from different providers like OpenAI, Anthropic, Cohere, and Google. It features a persistent chat history, document uploads for context, and a credit-based usage system.
 
 ## Live URLs
 
-- **Frontend (Firebase)**: [https://romaluma.com](https://romaluma.com)
+- **Frontend (Firebase)**: [https://romalume.com](https://romalume.com)
 - **Backend (Render)**: [https://ai-writing-bot-backend.onrender.com](https://ai-writing-bot-backend.onrender.com)
 
 ## Key Features
@@ -93,7 +93,7 @@ This application is deployed using a hybrid approach, with the frontend and back
 
 The React frontend is hosted on **Firebase Hosting**, which provides a global CDN for fast delivery of static content.
 
-- **URL**: `https://romaluma.com`
+- **URL**: `https://romalume.com`
 - **Deployment Process**: To deploy changes to the frontend, follow these steps from your local machine:
 
   1.  **Navigate to the frontend directory**:
