@@ -1,6 +1,11 @@
-# Multi-Bot Chat Application
+# RomaLuma - AI Chat Application
 
-This is a multi-bot chat application that allows users to interact with various large language models (LLMs) from different providers like OpenAI, Anthropic, Cohere, and Google. It features a persistent chat history, document uploads for context, and a credit-based usage system.
+This is an AI chat application that allows users to interact with various large language models (LLMs) from different providers like OpenAI, Anthropic, Cohere, and Google. It features a persistent chat history, document uploads for context, and a credit-based usage system.
+
+## Live URLs
+
+- **Frontend (Firebase)**: [https://romaluma.com](https://romaluma.com)
+- **Backend (Render)**: [https://ai-writing-bot-backend.onrender.com](https://ai-writing-bot-backend.onrender.com)
 
 ## Key Features
 
@@ -79,3 +84,35 @@ Once the claim is set, the user will see the "Admin" link in the application hea
       ```
 
 The application will be available at `http://localhost:5173`.
+
+## Deployment & Hosting
+
+This application is deployed using a hybrid approach, with the frontend and backend hosted on separate, specialized platforms.
+
+### Frontend (Firebase Hosting)
+
+The React frontend is hosted on **Firebase Hosting**, which provides a global CDN for fast delivery of static content.
+
+- **URL**: `https://romaluma.com`
+- **Deployment Process**: To deploy changes to the frontend, follow these steps from your local machine:
+
+  1.  **Navigate to the frontend directory**:
+      ```bash
+      cd frontend
+      ```
+  2.  **Build the application for production**: This compiles and optimizes the React code into a `dist` folder.
+      ```bash
+      npm run build
+      ```
+  3.  **Deploy to Firebase**: This command uploads the contents of the `dist` folder to Firebase Hosting.
+      ```bash
+      firebase deploy
+      ```
+
+### Backend (Render)
+
+The Python FastAPI backend is hosted as a **Web Service on Render**.
+
+- **URL**: `https://ai-writing-bot-backend.onrender.com`
+- **Deployment Process**: Render is connected directly to the GitHub repository. **Any `git push` to the `main` branch will automatically trigger a new deployment.**
+- **Managing Environment Variables**: All secret keys (e.g., `OPENAI_API_KEY`) and the `firebase_service_account.json` are stored securely in the Render dashboard under the service's **Environment** tab. They are **not** checked into the Git repository. If you need to add or update a key, you must do so in the Render UI, which will trigger a new deployment.

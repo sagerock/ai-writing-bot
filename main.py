@@ -75,7 +75,9 @@ main_app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5173", 
         "http://localhost:5173",
-        "https://ai-writing-tool-bdebc.web.app"
+        "https://ai-writing-tool-bdebc.web.app",
+        "https://romaluma.com",
+        "https://www.romaluma.com"
     ], # Allow Vite dev server and deployed Firebase app
     allow_credentials=True,
     allow_methods=["*"],

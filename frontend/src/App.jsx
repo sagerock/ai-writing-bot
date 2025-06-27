@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Link, useNavigate } from 'react-router-dom'
+import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth'
 import Chat from './components/Chat'
@@ -7,6 +7,8 @@ import ArchivesPanel from './components/ArchivesPanel'
 import DocumentsPanel from './components/DocumentsPanel'
 import AccountPage from './components/AccountPage'
 import AdminPage from './components/AdminPage'
+import HomePage from './pages/HomePage'
+import AuthPage from './pages/AuthPage'
 import { API_URL } from './apiConfig'
 import './App.css'
 
@@ -25,19 +27,28 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+function ProtectedRoute({ user, children }) {
+    const location = useLocation();
+
+    if (!user) {
+        // Redirect them to the /login page, but save the current location they were
+        // trying to go to. This allows us to send them back there after they log in.
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
+}
+
 function App() {
     const [user, setUser] = useState(null);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(true);
     const [info, setInfo] = useState('');
+    const [error, setError] = useState('');
     const [history, setHistory] = useState([]);
     const [archives, setArchives] = useState({});
     const [archivesLoading, setArchivesLoading] = useState(false);
     const [archivesError, setArchivesError] = useState('');
     const [selectedDocument, setSelectedDocument] = useState(null);
-    const [showAccountPanel, setShowAccountPanel] = useState(false);
-    const [authView, setAuthView] = useState('login'); // 'login', 'forgotPassword'
     const navigate = useNavigate();
 
     const fetchArchives = async () => {
@@ -78,53 +89,10 @@ function App() {
                 setHistory([]);
                 setArchives({});
             }
+            setLoading(false);
         });
         return () => unsubscribe();
     }, []);
-
-    const handleRegister = async (e) => {
-        e.preventDefault();
-        setError('');
-        setInfo('');
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await sendEmailVerification(userCredential.user);
-            await signOut(auth); // Sign out to force login after verification
-            setAuthView('login');
-            setInfo('Verification email sent! Please check your inbox and click the link to activate your account.');
-        } catch (err) {
-            setError(err.message);
-        }
-    };
-
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        setInfo('');
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-        } catch (err) {
-            setError('Failed to log in. Please check your credentials.');
-        }
-    };
-
-    const handleForgotPassword = async (e) => {
-        e.preventDefault();
-        setError('');
-        setInfo('');
-        if (!email) {
-            setError('Please enter your email address.');
-            return;
-        }
-        try {
-            await sendPasswordResetEmail(auth, email);
-            setInfo('Password reset email sent. Please check your inbox.');
-            setAuthView('login'); // Switch back to login view
-        } catch (err) {
-            setError('Failed to send password reset email. Please check the email address.');
-            console.error(err);
-        }
-    };
 
     const handleResendVerification = async () => {
         setError('');
@@ -142,7 +110,7 @@ function App() {
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            navigate('/'); // Navigate to login/home after logout
+            navigate('/'); // Navigate to home after logout
         } catch (error) {
             setError('Failed to log out.');
         }
@@ -197,63 +165,18 @@ function App() {
         }
     };
 
-    const renderAuth = () => {
-        return (
-            <div className="auth-container">
-                <h2>Login or Register</h2>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email"
-                />
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Password"
-                />
-                <button onClick={handleLogin}>Login</button>
-                <button onClick={handleRegister}>Register</button>
-                {error && <p className="error">{error}</p>}
-                {info && <p className="success">{info}</p>}
-                <a href="#" className="forgot-password-link" onClick={() => setAuthView('forgotPassword')}>Forgot Password?</a>
-            </div>
-        );
-    };
-
-    const renderForgotPassword = () => {
-        return (
-            <div className="auth-container">
-                <h2>Reset Password</h2>
-                <p>Enter your email address to receive a password reset link.</p>
-                <form onSubmit={handleForgotPassword}>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="Email"
-                        autoFocus
-                    />
-                    <button type="submit">Send Reset Link</button>
-                </form>
-                {error && <p className="error">{error}</p>}
-                {info && <p className="success">{info}</p>}
-                <a href="#" className="forgot-password-link" onClick={() => setAuthView('login')}>Back to Login</a>
-            </div>
-        );
-    }
-
     const renderVerification = () => {
         return (
-            <div className="auth-container">
-                <h2>Please Verify Your Email</h2>
-                <p>You must verify your email address to continue. Please check your inbox for a verification link.</p>
-                <p>Logged in as: {user.email}</p>
-                <button onClick={handleResendVerification}>Resend Verification Email</button>
-                <button onClick={handleLogout}>Back to Login</button>
-                {error && <p className="error">{error}</p>}
-                {info && <p className="info-text">{info}</p>}
+            <div className="auth-page">
+                <div className="auth-container">
+                    <h2>Please Verify Your Email</h2>
+                    <p>You must verify your email address to continue. Please check your inbox for a verification link.</p>
+                    <p>Logged in as: {user.email}</p>
+                    <button onClick={handleResendVerification}>Resend Verification Email</button>
+                    <button onClick={handleLogout}>Back to Login</button>
+                    {error && <p className="error">{error}</p>}
+                    {info && <p className="info-text">{info}</p>}
+                </div>
             </div>
         );
     };
@@ -261,7 +184,7 @@ function App() {
     const renderChatInterface = () => (
         <div className="App">
             <header className="App-header">
-                <h1>Multi-bot Chat</h1>
+                <h1>RomaLuma</h1>
                 <div className="user-controls">
                     {user.displayName && <span>Welcome, {user.displayName}</span>}
                     {user.isAdmin && <Link to="/admin" className="account-button">Admin</Link>}
@@ -300,21 +223,20 @@ function App() {
         </div>
     );
 
-    if (!user) {
-        return (
-            <div className="auth-page">
-                {authView === 'forgotPassword' ? renderForgotPassword() : renderAuth()}
-            </div>
-        )
+    if (loading) {
+        return <div>Loading...</div>; // Or a spinner component
     }
 
-    if (!user.emailVerified) {
+    if (user && !user.emailVerified) {
         return renderVerification();
     }
 
     return (
         <Routes>
-            <Route path="/" element={renderChatInterface()} />
+            <Route path="/" element={user ? renderChatInterface() : <HomePage />} />
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/register" element={<AuthPage />} />
+            <Route path="/forgot-password" element={<AuthPage />} />
             <Route path="/account" element={<AccountPage auth={auth} />} />
             <Route path="/admin" element={<AdminPage auth={auth} />} />
         </Routes>

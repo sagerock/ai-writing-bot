@@ -1,0 +1,102 @@
+.home-page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: #333;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.home-header {
+  text-align: center;
+  padding: 4rem 2rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.home-header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.home-header p {
+  font-size: 1.25rem;
+  color: #6c757d;
+  margin-bottom: 2rem;
+}
+
+.cta-buttons .btn {
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-weight: 500;
+  margin: 0 0.5rem;
+  transition: all 0.2s ease-in-out;
+  display: inline-block;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  border: 1px solid #007bff;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: #007bff;
+  border: 1px solid #007bff;
+}
+
+.btn-secondary:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.features-section {
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.features-section h2 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 3rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  text-align: left;
+}
+
+.feature-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.feature-card p {
+  color: #495057;
+  line-height: 1.6;
+}
+
+.home-footer {
+  text-align: center;
+  padding: 2rem;
+  margin-top: 2rem;
+  color: #6c757d;
+  border-top: 1px solid #e9ecef;
+} 
