@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth'
 import Chat from './components/Chat'
@@ -236,12 +236,28 @@ function App() {
 
     return (
         <Routes>
-            <Route path="/" element={user ? renderChatInterface() : <HomePage />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/register" element={<AuthPage />} />
-            <Route path="/forgot-password" element={<AuthPage />} />
-            <Route path="/account" element={<AccountPage auth={auth} />} />
-            <Route path="/admin" element={<AdminPage auth={auth} />} />
+            {/* Public-only routes */}
+            <Route path="/" element={!user ? <HomePage /> : <Navigate to="/chat" />} />
+            <Route path="/login" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
+            <Route path="/register" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
+            <Route path="/forgot-password" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
+
+            {/* Protected routes */}
+            <Route path="/chat" element={
+                <ProtectedRoute user={user}>
+                    {renderChatInterface()}
+                </ProtectedRoute>
+            } />
+            <Route path="/account" element={
+                <ProtectedRoute user={user}>
+                    <AccountPage auth={auth} />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+                <ProtectedRoute user={user}>
+                    <AdminPage auth={auth} />
+                </ProtectedRoute>
+            } />
         </Routes>
     );
 }

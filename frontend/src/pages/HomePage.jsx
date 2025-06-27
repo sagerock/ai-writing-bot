@@ -38,7 +38,7 @@ const HomePage = () => {
       </main>
 
       <footer className="home-footer">
-        <p>© 2024 RomaLuma. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} RomaLuma. All rights reserved.</p>
       </footer>
     </div>
   );
