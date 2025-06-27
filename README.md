@@ -1,116 +1,81 @@
-# AI Writing Tool & Chatbot
+# Multi-Bot Chat Application
 
-This project is a full-stack web application designed to assist with the creative process of writing. It provides a versatile chat interface to interact with multiple leading Large Language Models (LLMs), manage and discuss documents, and securely save conversation archives, all tied to a robust user authentication system.
+This is a multi-bot chat application that allows users to interact with various large language models (LLMs) from different providers like OpenAI, Anthropic, Cohere, and Google. It features a persistent chat history, document uploads for context, and a credit-based usage system.
 
-The application has been architected with a modern technology stack, featuring a React frontend and a Python (FastAPI) backend, with Google Firebase handling user authentication, database, and storage needs.
+## Key Features
 
-## Features
+- **Multi-Bot Support**: Switch between different LLMs from various providers on the fly.
+- **Real-time Web Search**: Augment the LLM's knowledge with real-time web search results from SerpApi.
+- **Persistent Chat History**: Conversations are automatically saved and loaded.
+- **Document Upload**: Upload `.md`, `.txt`, and `.pdf` files to provide context to the LLM.
+- **Chat Archives**: Save important conversations as archives, organized by project.
+- **Credit System**: Users have a credit balance that decrements with each interaction.
+- **Admin Panel**: A management interface for administrators to manage users and system resources.
+- **Secure Authentication**: Built on Firebase for secure user authentication and management.
 
-*   **Multi-LLM Support**: Seamlessly switch between different AI models from OpenAI, Anthropic, Cohere, and Google.
-*   **Secure User Authentication**: Full email/password registration and login system, including email verification and password reset flows.
-*   **Persistent Document Storage**: Upload `.md`, `.txt`, and `.pdf` files directly to a personal, secure cloud storage space powered by Firebase Storage.
-*   **Document-Aware Chat**: Uploaded documents are automatically parsed and their content is injected into the chat's context, allowing for immediate discussion and analysis with the AI.
-*   **Cloud-Based Chat Archiving**: Save chat conversations to a personal, cloud-based archive on Google Firestore.
-*   **Account Management**: Users can update their display name, email, and password through a secure account management panel.
-*   **Modern Frontend**: A responsive and interactive UI built with React, Vite, and Firebase.
-*   **Asynchronous Backend**: A powerful and scalable backend built with FastAPI.
+## Admin Panel
+
+The application includes an admin panel for user management, accessible only to users with administrative privileges.
+
+### Admin Features
+
+- **List Users**: View a list of all registered users, their credit balance, and their current role.
+- **Update Credits**: Manually add or remove credits from any user's account.
+- **Manage Admin Roles**: Grant or revoke admin privileges for any user.
+
+### How to Grant Admin Privileges
+
+Admin access is controlled via Firebase custom claims. To make a user an admin, you must set an `admin: true` custom claim on their Firebase user account.
+
+A utility script, `set_admin.py`, is provided to simplify this process:
+
+1.  **Find the User UID**: Get the UID of the target user from the Firebase Console.
+2.  **Edit the Script**: Open `set_admin.py` and replace the placeholder UID with the target user's UID.
+3.  **Run the Script**: Execute the script from your terminal:
+    ```bash
+    python3 set_admin.py
+    ```
+
+Once the claim is set, the user will see the "Admin" link in the application header upon their next login and will have access to the admin panel.
 
 ## Technology Stack
 
-*   **Frontend**: React, Vite
-*   **Backend**: Python 3, FastAPI, Uvicorn
-*   **Database & Storage**: Google Firestore, Firebase Storage
-*   **Authentication**: Firebase Authentication
-*   **AI Integrations**: LangChain
-
-## Project Structure
-
-```
-.
-├── frontend/           # React frontend application
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── .env                # Backend environment variables (see setup)
-├── main.py             # FastAPI backend server
-├── requirements.txt    # Python dependencies
-└── firebase_service_account.json # Firebase Admin credentials (see setup)
-```
+- **Backend**: FastAPI (Python)
+- **Frontend**: React (with Vite)
+- **Database**: Firestore (for chat history, archives, and user data)
+- **Authentication**: Firebase Authentication
+- **Storage**: Firebase Cloud Storage (for document uploads)
+- **Web Search**: SerpApi
 
 ## Setup and Installation
 
-Follow these steps to get the application running locally.
-
-### 1. Firebase Project Setup
-
-1.  Create a new project in the [Firebase Console](https://console.firebase.google.com/).
-2.  **Authentication**: Go to the **Authentication** section, click "Get started," and enable the **Email/Password** sign-in provider.
-3.  **Firestore**: Go to the **Firestore Database** section, click "Create database," and start in **test mode** for now.
-4.  **Storage**: Go to the **Storage** section and click "Get started."
-5.  **Get Service Account Key**:
-    *   In your Firebase project, go to **Project settings** (the gear icon).
-    *   Go to the **Service accounts** tab.
-    *   Click **Generate new private key**.
-    *   A JSON file will be downloaded. Rename it to `firebase_service_account.json` and place it in the root of this project directory.
-
-### 2. Backend Setup
-
-1.  **Install Dependencies**: Make sure you have Python 3 and `pip` installed. Create and activate a virtual environment, then install the required packages.
+1.  **Clone the repository**:
     ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    ```
-2.  **Configure Environment Variables**:
-    *   Create a file named `.env` in the project root.
-    *   Add your Firebase Storage bucket name to it. You can find this in the Firebase Console under **Storage**. It will look like `<your-project-id>.appspot.com` or something similar if you created a custom one.
-    ```env
-    STORAGE_BUCKET="your-storage-bucket-name-here"
+    git clone <repository-url>
+    cd <repository-directory>
     ```
 
-### 3. Frontend Setup
+2.  **Backend Setup**:
+    - Navigate to the project root.
+    - Create a Python virtual environment: `python3 -m venv venv`
+    - Activate it: `source venv/bin/activate`
+    - Install dependencies: `pip install -r requirements.txt`
+    - Create a `.env` file and populate it with your API keys (see `.env.example`).
+    - Place your `firebase_service_account.json` in the root directory.
 
-1.  **Navigate to Frontend Directory**:
-    ```bash
-    cd frontend
-    ```
-2.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Configure Environment Variables**:
-    *   In the `frontend/` directory, create a file named `.env.local`.
-    *   Go to your Firebase project settings and find your web app's configuration details.
-    *   Add these keys to your `.env.local` file:
-    ```env
-    VITE_FIREBASE_API_KEY="your_api_key"
-    VITE_FIREBASE_AUTH_DOMAIN="your_auth_domain"
-    VITE_FIREBASE_PROJECT_ID="your_project_id"
-    VITE_FIREBASE_STORAGE_BUCKET="your_storage_bucket"
-    VITE_FIREBASE_MESSAGING_SENDER_ID="your_messaging_sender_id"
-    VITE_FIREBASE_APP_ID="your_app_id"
-    VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"
-    ```
+3.  **Frontend Setup**:
+    - Navigate to the `frontend` directory: `cd frontend`
+    - Install dependencies: `npm install`
+    - Create a `.env` file and add your Firebase client configuration (see `frontend/.env.example`).
 
-## How to Run
+4.  **Running the Application**:
+    - **Start the backend server** (from the root directory):
+      ```bash
+      python3 -m uvicorn main:main_app --reload
+      ```
+    - **Start the frontend development server** (from the `frontend` directory):
+      ```bash
+      npm run dev
+      ```
 
-You will need two separate terminal windows to run the backend and frontend servers simultaneously.
-
-**Terminal 1: Start the Backend**
-
-Navigate to the project root and run:
-```bash
-source venv/bin/activate
-python3 -m uvicorn main:main_app --reload
-```
-The backend will be running at `http://127.0.0.1:8000`.
-
-**Terminal 2: Start the Frontend**
-
-Navigate to the `frontend/` directory and run:
-```bash
-npm run dev
-```
-The frontend development server will start, usually at `http://localhost:5173`.
-
-Open your web browser and go to `http://localhost:5173` to use the application.
+The application will be available at `http://localhost:5173`.

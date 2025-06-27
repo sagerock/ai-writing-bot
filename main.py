@@ -4,6 +4,7 @@ from typing import AsyncGenerator, List
 import asyncio
 from uuid import uuid4
 import io
+import sys
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query
@@ -557,12 +558,6 @@ async def delete_document(filename: str, user: dict = Depends(get_current_user))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {e}")
 
-main_app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-@main_app.get("/")
-def root():
-    return FileResponse('static/index.html')
-
 # --- Firestore Data Functions ---
 def get_conversation(user_id: str) -> List[dict]:
     """Loads the current conversation history from Firestore."""
@@ -576,3 +571,70 @@ def save_conversation(user_id: str, messages: List[dict]):
     """Saves the entire conversation history to Firestore."""
     doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
     doc_ref.set({"messages": messages, "updatedAt": firestore.SERVER_TIMESTAMP})
+
+async def get_current_admin_user(user: dict = Depends(get_current_user)):
+    """Verifies that the current user is an admin."""
+    # The 'admin' claim is set by the set_admin.py script
+    # and is part of the user's ID token.
+    if not user.get("admin"):
+        raise HTTPException(status_code=403, detail="Forbidden: User does not have admin privileges.")
+    return user
+
+class CreditUpdate(BaseModel):
+    amount: int
+
+class RoleUpdate(BaseModel):
+    is_admin: bool
+
+@main_app.get("/admin/users", response_model=List[dict])
+async def list_users(_: dict = Depends(get_current_admin_user)):
+    """Lists all users from Firebase Auth and merges with Firestore data."""
+    try:
+        # Get all users from Firebase Authentication
+        auth_users = firebase_auth.list_users().iterate_all()
+        
+        users_list = []
+        for user in auth_users:
+            user_data = {
+                "uid": user.uid,
+                "email": user.email,
+                "displayName": user.display_name or "",
+                "isAdmin": user.custom_claims.get("admin", False) if user.custom_claims else False,
+                "credits": 0  # Default credits
+            }
+            
+            # Fetch credit data from Firestore
+            user_doc = db.collection("users").document(user.uid).get()
+            if user_doc.exists:
+                user_data["credits"] = user_doc.to_dict().get("credits", 0)
+                
+            users_list.append(user_data)
+            
+        return users_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while fetching users: {e}")
+
+@main_app.post("/admin/users/{user_id}/credits")
+async def update_user_credits(user_id: str, credit_update: CreditUpdate, _: dict = Depends(get_current_admin_user)):
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_ref.set({"credits": firestore.Increment(credit_update.amount)}, merge=True)
+        return JSONResponse(content={"message": f"Credits for user {user_id} updated successfully."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.post("/admin/users/{user_id}/role")
+async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depends(get_current_admin_user)):
+    try:
+        # Set custom claims on the user
+        firebase_auth.set_custom_user_claims(user_id, {'admin': role_update.is_admin})
+        return JSONResponse(content={"message": f"Admin role for user {user_id} set to {role_update.is_admin}."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Static files should be mounted last, after all other routes are defined.
+main_app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+@main_app.get("/")
+def root():
+    return FileResponse('static/index.html')

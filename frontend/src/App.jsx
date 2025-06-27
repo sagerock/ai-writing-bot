@@ -6,6 +6,7 @@ import Chat from './components/Chat'
 import ArchivesPanel from './components/ArchivesPanel'
 import DocumentsPanel from './components/DocumentsPanel'
 import AccountPage from './components/AccountPage'
+import AdminPage from './components/AdminPage'
 import './App.css'
 
 // IMPORTANT: Replace with your app's Firebase project configuration
@@ -61,13 +62,16 @@ function App() {
     };
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser && !currentUser.emailVerified) {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                const idTokenResult = await currentUser.getIdTokenResult();
+                currentUser.isAdmin = idTokenResult.claims.admin === true;
                 setUser(currentUser);
-            } else if (currentUser) {
-                setUser(currentUser);
-                setInfo('');
-                fetchArchives();
+
+                if (currentUser.emailVerified) {
+                    setInfo('');
+                    fetchArchives();
+                }
             } else {
                 setUser(null);
                 setHistory([]);
@@ -259,6 +263,7 @@ function App() {
                 <h1>Multi-bot Chat</h1>
                 <div className="user-controls">
                     {user.displayName && <span>Welcome, {user.displayName}</span>}
+                    {user.isAdmin && <Link to="/admin" className="account-button">Admin</Link>}
                     <Link to="/account" className="account-button">My Account</Link>
                     <button onClick={handleLogout}>Logout</button>
                 </div>
@@ -295,10 +300,11 @@ function App() {
     );
 
     if (!user) {
-        if (authView === 'forgotPassword') {
-            return renderForgotPassword();
-        }
-        return renderAuth();
+        return (
+            <div className="auth-page">
+                {authView === 'forgotPassword' ? renderForgotPassword() : renderAuth()}
+            </div>
+        )
     }
 
     if (!user.emailVerified) {
@@ -309,6 +315,7 @@ function App() {
         <Routes>
             <Route path="/" element={renderChatInterface()} />
             <Route path="/account" element={<AccountPage auth={auth} />} />
+            <Route path="/admin" element={<AdminPage auth={auth} />} />
         </Routes>
     );
 }
