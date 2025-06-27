@@ -5,6 +5,11 @@
   min-height: 100vh;
 }
 
+.home-logo {
+  max-width: 150px;
+  margin-bottom: 1rem;
+}
+
 .home-header {
   text-align: center;
   padding: 4rem 2rem;

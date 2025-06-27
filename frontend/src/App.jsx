@@ -184,7 +184,10 @@ function App() {
     const renderChatInterface = () => (
         <div className="App">
             <header className="App-header">
-                <h1>RomaLuma</h1>
+                <div className="logo-container">
+                    <img src="/logo.png" alt="RomaLuma Logo" className="header-logo" />
+                    <h1>RomaLuma</h1>
+                </div>
                 <div className="user-controls">
                     {user.displayName && <span>Welcome, {user.displayName}</span>}
                     {user.isAdmin && <Link to="/admin" className="account-button">Admin</Link>}

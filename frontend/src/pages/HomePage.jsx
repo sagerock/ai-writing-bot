@@ -6,6 +6,7 @@ const HomePage = () => {
   return (
     <div className="home-page">
       <header className="home-header">
+        <img src="/logo.png" alt="RomaLuma Logo" className="home-logo" />
         <h1>Welcome to RomaLuma</h1>
         <p>Your intelligent assistant for research, writing, and discovery.</p>
         <div className="cta-buttons">
