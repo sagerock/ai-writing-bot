@@ -40,45 +40,43 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
 
     try {
       const token = await auth.currentUser.getIdToken();
-      const response = await fetch('http://127.0.0.1:8000/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          history: newHistory,
-          model: model,
-          search_web: searchWeb,
-        }),
-        signal: abortControllerRef.current.signal
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response from server.');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      // Using EventSource for streaming
+      const eventSource = new EventSource(`http://127.0.0.1:8000/chat_stream?token=${token}&model=${model}&search_web=${searchWeb}&history=${encodeURIComponent(JSON.stringify(newHistory))}`);
+      
       let assistantResponse = '';
       setHistory(prev => [...prev, { role: 'assistant', content: '' }]);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        assistantResponse += chunk;
+      eventSource.onmessage = (event) => {
+        if (event.data === "[DONE]") {
+            eventSource.close();
+            setLoading(false);
+            return;
+        }
+        assistantResponse += event.data;
         setHistory(prev => {
           const updatedHistory = [...prev];
           updatedHistory[updatedHistory.length - 1].content = assistantResponse;
           return updatedHistory;
         });
-      }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("EventSource failed:", err);
+        eventSource.close();
+        setLoading(false);
+        setHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error.' }]);
+      };
+      
+      abortControllerRef.current.signal.onabort = () => {
+        eventSource.close();
+        setLoading(false);
+      };
 
     } catch (error) {
       console.error("Error sending message:", error);
-      setHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error.' }]);
-    } finally {
+      if (error.name !== 'AbortError') {
+        setHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error.' }]);
+      }
       setLoading(false);
     }
   };
