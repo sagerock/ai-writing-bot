@@ -272,6 +272,7 @@ function App() {
                         loading={archivesLoading}
                         error={archivesError}
                         onLoadArchive={handleLoadArchive}
+                        onRefresh={fetchArchives}
                     />
                     <DocumentsPanel
                         onUploadSuccess={handleUploadSuccess}
