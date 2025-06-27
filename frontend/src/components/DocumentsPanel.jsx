@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_URL } from '../apiConfig';
 
 const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
     const [documents, setDocuments] = useState([]);
@@ -11,7 +12,7 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
         setError('');
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch('http://127.0.0.1:8000/documents', {
+            const response = await fetch(`${API_URL}/documents`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -37,7 +38,7 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
     
         try {
           const token = await auth.currentUser.getIdToken();
-          const response = await fetch('http://127.0.0.1:8000/upload', {
+          const response = await fetch(`${API_URL}/upload`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData,
@@ -71,7 +72,7 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
 
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`http://127.0.0.1:8000/document/${filename}`, {
+            const response = await fetch(`${API_URL}/document/${filename}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

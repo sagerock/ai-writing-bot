@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { marked } from 'marked';
 import ChatControls from './ChatControls';
 import ArchiveControls from './ArchiveControls';
+import { API_URL } from '../apiConfig';
 
 const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
   const [message, setMessage] = useState('');
@@ -41,7 +42,8 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
     try {
       const token = await auth.currentUser.getIdToken();
       // Using EventSource for streaming
-      const eventSource = new EventSource(`http://127.0.0.1:8000/chat_stream?token=${token}&model=${model}&search_web=${searchWeb}&history=${encodeURIComponent(JSON.stringify(newHistory))}`);
+      const encodedHistory = encodeURIComponent(JSON.stringify(newHistory));
+      const eventSource = new EventSource(`${API_URL}/chat_stream?token=${token}&model=${model}&search_web=${searchWeb}&history=${encodedHistory}`);
       
       let assistantResponse = '';
       setHistory(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -100,7 +102,7 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
     }
     try {
         const token = await auth.currentUser.getIdToken();
-        await fetch('http://127.0.0.1:8000/archive', {
+        await fetch(`${API_URL}/archive`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

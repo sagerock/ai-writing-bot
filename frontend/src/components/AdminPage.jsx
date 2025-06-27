@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../apiConfig';
 
 const AdminPage = ({ auth }) => {
     const [users, setUsers] = useState([]);
@@ -11,7 +12,7 @@ const AdminPage = ({ auth }) => {
         setError('');
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch('http://127.0.0.1:8000/admin/users', {
+            const response = await fetch(`${API_URL}/admin/users`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) {
@@ -42,7 +43,7 @@ const AdminPage = ({ auth }) => {
 
         try {
             const token = await auth.currentUser.getIdToken();
-            await fetch(`http://127.0.0.1:8000/admin/users/${userId}/credits`, {
+            await fetch(`${API_URL}/admin/users/${userId}/credits`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ amount: amountValue })
@@ -61,7 +62,7 @@ const AdminPage = ({ auth }) => {
 
         try {
             const token = await auth.currentUser.getIdToken();
-            await fetch(`http://127.0.0.1:8000/admin/users/${userId}/role`, {
+            await fetch(`${API_URL}/admin/users/${userId}/role`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ is_admin: isAdmin })

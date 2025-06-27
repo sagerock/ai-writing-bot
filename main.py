@@ -72,7 +72,11 @@ async def get_current_user_from_stream(token: str = Query(...)):
 # Allow CORS for frontend
 main_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"], # Allow Vite frontend
+    allow_origins=[
+        "http://127.0.0.1:5173", 
+        "http://localhost:5173",
+        "https://ai-writing-tool-bdebc.web.app"
+    ], # Allow Vite dev server and deployed Firebase app
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

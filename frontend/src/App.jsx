@@ -7,6 +7,7 @@ import ArchivesPanel from './components/ArchivesPanel'
 import DocumentsPanel from './components/DocumentsPanel'
 import AccountPage from './components/AccountPage'
 import AdminPage from './components/AdminPage'
+import { API_URL } from './apiConfig'
 import './App.css'
 
 // IMPORTANT: Replace with your app's Firebase project configuration
@@ -45,7 +46,7 @@ function App() {
         setArchivesError('');
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch('http://127.0.0.1:8000/archives', {
+            const response = await fetch(`${API_URL}/archives`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -154,7 +155,7 @@ function App() {
         setError('');
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`http://127.0.0.1:8000/archive/${archiveId}`, {
+            const response = await fetch(`${API_URL}/archive/${archiveId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) {
@@ -177,7 +178,7 @@ function App() {
     const handleSelectDocument = async (doc) => {
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`http://127.0.0.1:8000/document/${encodeURIComponent(doc.filename)}`, {
+            const response = await fetch(`${API_URL}/document/${encodeURIComponent(doc.filename)}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) {
