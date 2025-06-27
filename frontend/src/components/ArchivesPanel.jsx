@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../apiConfig';
 
 const ArchivesPanel = ({ auth, archives, loading, error, onLoadArchive, onRefresh }) => {
 
@@ -9,7 +10,7 @@ const ArchivesPanel = ({ auth, archives, loading, error, onLoadArchive, onRefres
 
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`http://127.0.0.1:8000/archive/${archiveId}`, {
+            const response = await fetch(`${API_URL}/archive/${archiveId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
