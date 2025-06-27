@@ -190,8 +190,7 @@ function App() {
             <div className="App">
                 <header className="App-header">
                     <div className="logo-container">
-                        <img src="/logo.png" alt="RomaLuma Logo" className="header-logo" />
-                        <h1>RomaLuma</h1>
+                        <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}

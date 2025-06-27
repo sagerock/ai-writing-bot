@@ -112,7 +112,7 @@ const AuthPage = () => {
   return (
     <div className="auth-page">
       <div className="auth-container">
-        <img src="/logo.png" alt="RomaLuma Logo" className="auth-logo" />
+        <img src="/logo.png" alt="RomaLume Logo" className="auth-logo" />
         {renderForm()}
         {error && <p className="error">{error}</p>}
         {info && <p className="success">{info}</p>}

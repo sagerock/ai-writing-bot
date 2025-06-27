@@ -17,11 +17,10 @@
 .logo-container {
     display: flex;
     align-items: center;
-    gap: 15px;
 }
 
 .header-logo {
-    height: 40px;
+    height: 60px;
 }
 
 .user-controls {

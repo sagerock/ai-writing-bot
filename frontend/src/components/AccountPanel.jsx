@@ -6,6 +6,7 @@ import {
     reauthenticateWithCredential, 
     EmailAuthProvider 
 } from 'firebase/auth';
+import { API_URL } from '../apiConfig';
 
 const AccountPanel = ({ auth }) => {
     const [displayName, setDisplayName] = useState(auth.currentUser?.displayName || '');
@@ -23,7 +24,7 @@ const AccountPanel = ({ auth }) => {
             if (!auth.currentUser) return;
             try {
                 const token = await auth.currentUser.getIdToken();
-                const response = await fetch('http://localhost:8000/user/credits', {
+                const response = await fetch(`${API_URL}/user/credits`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

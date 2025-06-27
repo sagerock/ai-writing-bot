@@ -6,8 +6,8 @@ const HomePage = () => {
   return (
     <div className="home-page">
       <header className="home-header">
-        <img src="/logo.png" alt="RomaLuma Logo" className="home-logo" />
-        <h1>Welcome to RomaLuma</h1>
+        <img src="/logo.png" alt="RomaLume Logo" className="home-logo" />
+        <h1>Welcome to RomaLume</h1>
         <p>Your intelligent assistant for research, writing, and discovery.</p>
         <div className="cta-buttons">
           <Link to="/login" className="btn btn-primary">Login</Link>
@@ -38,7 +38,7 @@ const HomePage = () => {
       </main>
 
       <footer className="home-footer">
-        <p>© {new Date().getFullYear()} RomaLuma. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} RomaLume. All rights reserved.</p>
       </footer>
     </div>
   );
