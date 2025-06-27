@@ -23,6 +23,8 @@ from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from google.cloud.firestore_v1.query import Query
+from google.cloud.firestore_v1.transaction import Transaction
+from google.cloud.firestore_v1.document import DocumentReference
 
 load_dotenv()
 
@@ -79,6 +81,9 @@ class ArchiveRequest(BaseModel):
     archive_name: str | None = None
     project_name: str | None = "General"
 
+class UserCredits(BaseModel):
+    credits: int
+
 # Load API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -132,33 +137,69 @@ def get_llm(model_name: str):
 @main_app.post("/chat")
 async def chat_endpoint(req: ChatRequest, user: dict = Depends(get_current_user)):
     user_id = user['user_id']
+    user_ref = db.collection("users").document(user_id)
+
+    # Use a transaction to safely read and update credits
+    transaction = db.transaction()
+    
+    @firestore.transactional
+    def check_and_update_credits(transaction: Transaction, user_ref: DocumentReference):
+        user_snapshot = user_ref.get(transaction=transaction)
+        
+        if not user_snapshot.exists:
+            # New user, give them 100 free credits and let them proceed.
+            initial_credits = 100
+            transaction.set(user_ref, {"credits": initial_credits - 1})
+            return initial_credits
+        
+        user_data = user_snapshot.to_dict()
+        credits = user_data.get("credits", 0)
+        
+        if credits <= 0:
+            raise HTTPException(status_code=402, detail="You have run out of credits. Please purchase more to continue.")
+
+        transaction.update(user_ref, {"credits": firestore.Increment(-1)})
+        return credits
+
+    try:
+        current_credits = check_and_update_credits(transaction, user_ref)
+    except HTTPException as e:
+        raise e  # Re-raise the HTTP exception if credits are insufficient
+
     llm = get_llm(req.model)
     
     # The history is now sent from the client
     history_messages = [message.dict() for message in req.history]
 
-    # If web search is enabled, prepend search results to the last user message
-    if req.search_web and history_messages and history_messages[-1]['role'] == 'user':
-        user_query = history_messages[-1]['content']
-        try:
-            with DDGS() as ddgs:
-                search_results = [r for r in ddgs.text(user_query, max_results=5)]
-            
-            if search_results:
-                context = "\\n\\n".join([f"Title: {res['title']}\\nBody: {res['body']}" for res in search_results])
-                web_prompt = (
-                    "The user has requested a web search. Here are the top results. "
-                    "Use this information to answer the user's query.\\n\\n"
-                    "--- BEGIN WEB SEARCH RESULTS ---\\n"
-                    f"{context}\\n"
-                    "--- END WEB SEARCH RESULTS ---\\n\\n"
-                    f"Original Query: {user_query}"
-                )
-                # Replace last user message with the one containing search results
-                history_messages[-1]['content'] = web_prompt
+    # If web search is enabled, find the last user message and prepend results
+    if req.search_web:
+        # Find the last actual user message to augment
+        last_user_msg_index = -1
+        for i in range(len(history_messages) - 1, -1, -1):
+            if history_messages[i]['role'] == 'user':
+                last_user_msg_index = i
+                break
 
-        except Exception as e:
-            print(f"Web search failed: {e}")
+        if last_user_msg_index != -1:
+            user_query = history_messages[last_user_msg_index]['content']
+            try:
+                search_results = [r async for r in DDGS().atext(user_query, max_results=5)]
+                
+                if search_results:
+                    context = "\\n\\n".join([f"Title: {res['title']}\\nBody: {res['body']}" for res in search_results])
+                    web_prompt = (
+                        "The user has requested a web search. Here are the top results. "
+                        "Use this information to answer the user's query.\\n\\n"
+                        "--- BEGIN WEB SEARCH RESULTS ---\\n"
+                        f"{context}\\n"
+                        "--- END WEB SEARCH RESULTS ---\\n\\n"
+                        f"Original Query: {user_query}"
+                    )
+                    # Replace the content of the last user message
+                    history_messages[last_user_msg_index]['content'] = web_prompt
+
+            except Exception as e:
+                print(f"Web search failed: {e}")
 
     # Convert our special 'context' messages into 'user' messages for the LLM
     llm_history = []
@@ -185,6 +226,7 @@ async def chat_endpoint(req: ChatRequest, user: dict = Depends(get_current_user)
                 # Save the full conversation history (including the AI's response)
                 final_history = history_messages + [{"role": "assistant", "content": response_accum}]
                 save_conversation(user_id, final_history)
+                # Note: Credits are decremented at the start of the request.
 
     return StreamingResponse(bot_stream(), media_type="text/plain")
 
@@ -282,6 +324,21 @@ async def get_history(user: dict = Depends(get_current_user)):
     if doc.exists:
         return JSONResponse(content=doc.to_dict().get("messages", []))
     return JSONResponse(content=[])
+
+@main_app.get("/user/credits")
+async def get_user_credits(user: dict = Depends(get_current_user)):
+    user_id = user['user_id']
+    user_ref = db.collection("users").document(user_id)
+    user_snapshot = user_ref.get()
+
+    if not user_snapshot.exists:
+        # This case should ideally not happen if user has interacted at least once.
+        # But as a fallback, we can say they have the initial free credits.
+        return JSONResponse(content={"credits": 100})
+    
+    user_data = user_snapshot.to_dict()
+    credits = user_data.get("credits", 0)
+    return JSONResponse(content={"credits": credits})
 
 # File upload endpoint
 @main_app.post("/upload")

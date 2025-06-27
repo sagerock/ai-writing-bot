@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     updateProfile, 
     updateEmail, 
@@ -7,15 +7,40 @@ import {
     EmailAuthProvider 
 } from 'firebase/auth';
 
-const AccountPanel = ({ auth, onClose }) => {
+const AccountPanel = ({ auth }) => {
     const [displayName, setDisplayName] = useState(auth.currentUser?.displayName || '');
     const [newEmail, setNewEmail] = useState(auth.currentUser?.email || '');
     const [newPassword, setNewPassword] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     
+    const [credits, setCredits] = useState(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
+
+    useEffect(() => {
+        const fetchCredits = async () => {
+            if (!auth.currentUser) return;
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch('http://localhost:8000/user/credits', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch credits.');
+                }
+                const data = await response.json();
+                setCredits(data.credits);
+            } catch (err) {
+                setError('Could not load credit balance.');
+                console.error(err);
+            }
+        };
+
+        fetchCredits();
+    }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
         setError('');
@@ -86,72 +111,78 @@ const AccountPanel = ({ auth, onClose }) => {
     
     if (needsReauth) {
         return (
-            <div className="modal-backdrop">
-                <div className="modal-content">
-                    <h3>Re-authenticate to Continue</h3>
-                    {error && <p className="error" style={{textAlign: 'center'}}>{error}</p>}
-                    <form onSubmit={handleReauthAndRetry} className="account-form">
-                        <label>Current Password:</label>
-                        <input 
-                            type="password"
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            autoFocus
-                        />
-                        <button type="submit">Confirm Password</button>
-                        <button type="button" onClick={() => { setNeedsReauth(null); setError(''); }}>Cancel</button>
-                    </form>
-                </div>
+            <div className="account-form-container">
+                <h3>Re-authenticate to Continue</h3>
+                {error && <p className="error" style={{textAlign: 'center'}}>{error}</p>}
+                <form onSubmit={handleReauthAndRetry} className="account-form">
+                    <label>Current Password:</label>
+                    <input 
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        autoFocus
+                    />
+                    <button type="submit">Confirm Password</button>
+                    <button type="button" onClick={() => { setNeedsReauth(null); setError(''); }}>Cancel</button>
+                </form>
             </div>
         );
     }
 
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>My Account</h2>
-                    <button className="close-modal-btn" onClick={onClose}>&times;</button>
-                </div>
-                {error && <p className="error">{error}</p>}
-                {success && <p className="success">{success}</p>}
+        <div className="account-form-container">
+            <h2>My Account</h2>
+            
+            {error && <p className="error">{error}</p>}
+            {success && <p className="success">{success}</p>}
 
-                <form onSubmit={handleUpdateProfile} className="account-form">
-                    <label>Display Name:</label>
-                    <input 
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Your Name"
-                    />
-                    <button type="submit">Update Name</button>
-                </form>
-
-                <hr />
-
-                <form onSubmit={(e) => {e.preventDefault(); handleActionRequiringReauth('email')}} className="account-form">
-                    <label>Email Address:</label>
-                    <input 
-                        type="email"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                    />
-                    <button type="submit">Update Email</button>
-                </form>
-                
-                <hr />
-                
-                <form onSubmit={(e) => {e.preventDefault(); handleActionRequiringReauth('password')}} className="account-form">
-                    <label>New Password:</label>
-                    <input 
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="New Password (min. 6 characters)"
-                    />
-                    <button type="submit">Update Password</button>
-                </form>
+            <div className="account-credits">
+                <h3>Your Credits</h3>
+                {credits !== null ? (
+                    <p>You have <strong>{credits}</strong> credits remaining.</p>
+                ) : (
+                    <p>Loading credits...</p>
+                )}
+                <button onClick={() => alert('Purchase functionality coming soon!')}>Buy More Credits</button>
             </div>
+
+            <hr />
+
+            <form onSubmit={handleUpdateProfile} className="account-form">
+                <label>Display Name:</label>
+                <input 
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your Name"
+                />
+                <button type="submit">Update Name</button>
+            </form>
+
+            <hr />
+
+            <form onSubmit={(e) => {e.preventDefault(); handleActionRequiringReauth('email')}} className="account-form">
+                <label>Email Address:</label>
+                <input 
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                />
+                <button type="submit">Update Email</button>
+            </form>
+            
+            <hr />
+            
+            <form onSubmit={(e) => {e.preventDefault(); handleActionRequiringReauth('password')}} className="account-form">
+                <label>New Password:</label>
+                <input 
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="New Password (min. 6 characters)"
+                />
+                <button type="submit">Update Password</button>
+            </form>
         </div>
     );
 };

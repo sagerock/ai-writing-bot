@@ -1,6 +1,55 @@
 /* The .App container itself doesn't need layout styles */
 .App {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.App-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.user-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-controls .account-button {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: 500;
+}
+.user-controls .account-button:hover {
+    text-decoration: underline;
+}
+
+.main-content {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden; /* Prevent panels from overflowing */
+}
+
+.left-panel {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid #ccc;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.chat-area {
+    flex-grow: 1;
+    display: flex; /* Make chat component take full height */
+    flex-direction: column;
+    height: 100%;
 }
 
 /* This is the two-column layout for when the user is logged in */
@@ -458,4 +507,74 @@
   border-radius: 4px;
   margin-bottom: 10px;
   text-align: center;
+}
+
+.account-page {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.account-nav {
+    margin-bottom: 2rem;
+}
+
+.account-nav a {
+    text-decoration: none;
+    color: #007bff;
+    font-size: 1.1rem;
+}
+.account-nav a:hover {
+    text-decoration: underline;
+}
+
+.account-form-container {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    border: 1px solid #e1e4e8;
+}
+
+.account-form-container h2 {
+    margin-top: 0;
+    border-bottom: 1px solid #e1e4e8;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.account-credits {
+    padding: 1rem;
+    background-color: #f6f8fa;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+.account-credits h3 {
+    margin-top: 0;
+}
+.account-credits p {
+    margin-bottom: 1rem;
+}
+.account-credits button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.account-credits button:hover {
+    background-color: #218838;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #e1e4e8;
+    margin: 1.5rem 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+  }
 }

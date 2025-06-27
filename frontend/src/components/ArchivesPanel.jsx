@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const ArchivesPanel = ({ auth, archives, loading, error, onSelectArchive, onLogout, onRefresh, onShowAccount }) => {
+const ArchivesPanel = ({ auth, archives, loading, error, onLoadArchive, onRefresh }) => {
 
     const handleDelete = async (archiveId) => {
         if (!window.confirm(`Are you sure you want to delete ${archiveId}?`)) {
@@ -32,11 +32,7 @@ const ArchivesPanel = ({ auth, archives, loading, error, onSelectArchive, onLogo
             <div className="archives-header">
                 <h2>Saved Chats</h2>
                 <div className="sidebar-controls">
-                    <button onClick={onShowAccount} title="My Account">👤</button>
-                    <button onClick={onRefresh} disabled={loading} title="Refresh Archives">
-                        {loading ? '...' : '🔄'}
-                    </button>
-                    <button onClick={onLogout} className="logout-button" title="Logout">🚪</button>
+                    {/* The refresh button is no longer needed here */}
                 </div>
             </div>
             <p className="info-text">
@@ -52,7 +48,7 @@ const ArchivesPanel = ({ auth, archives, loading, error, onSelectArchive, onLogo
                             <ul>
                                 {chatList.map(chat => (
                                     <li key={chat.id} className="archive-item">
-                                        <span className="archive-name" onClick={() => onSelectArchive(chat.id)}>{chat.id}</span>
+                                        <span className="archive-name" onClick={() => onLoadArchive(chat.id)}>{chat.id}</span>
                                         <button className="delete-btn" onClick={() => handleDelete(chat.id)}>🗑️</button>
                                     </li>
                                 ))}

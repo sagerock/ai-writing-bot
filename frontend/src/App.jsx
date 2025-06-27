@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route, Link, useNavigate } from 'react-router-dom'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth'
 import Chat from './components/Chat'
 import ArchivesPanel from './components/ArchivesPanel'
 import DocumentsPanel from './components/DocumentsPanel'
-import AccountPanel from './components/AccountPanel'
+import AccountPage from './components/AccountPage'
 import './App.css'
 
 // IMPORTANT: Replace with your app's Firebase project configuration
@@ -35,6 +36,7 @@ function App() {
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [showAccountPanel, setShowAccountPanel] = useState(false);
     const [authView, setAuthView] = useState('login'); // 'login', 'forgotPassword'
+    const navigate = useNavigate();
 
     const fetchArchives = async () => {
         if (!auth.currentUser) return;
@@ -82,7 +84,8 @@ function App() {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await sendEmailVerification(userCredential.user);
-            await signOut(auth);
+            await signOut(auth); // Sign out to force login after verification
+            setAuthView('login');
             setInfo('Verification email sent! Please check your inbox and click the link to activate your account.');
         } catch (err) {
             setError(err.message);
@@ -134,6 +137,7 @@ function App() {
     const handleLogout = async () => {
         try {
             await signOut(auth);
+            navigate('/'); // Navigate to login/home after logout
         } catch (error) {
             setError('Failed to log out.');
         }
@@ -249,43 +253,62 @@ function App() {
         );
     };
 
-    return (
+    const renderChatInterface = () => (
         <div className="App">
-            {showAccountPanel && <AccountPanel auth={auth} onClose={() => setShowAccountPanel(false)} />}
-
-            {!user ? 
-                (authView === 'login' ? renderAuth() : renderForgotPassword()) : 
-                !user.emailVerified ? renderVerification() : (
-                <div className="main-layout">
-                    <div className="sidebar">
-                        <ArchivesPanel
-                            auth={auth}
-                            archives={archives}
-                            loading={archivesLoading}
-                            error={archivesError}
-                            onSelectArchive={handleLoadArchive}
-                            onLogout={handleLogout}
-                            onRefresh={fetchArchives}
-                            onShowAccount={() => setShowAccountPanel(true)}
-                        />
-                        <DocumentsPanel
-                            auth={auth}
-                            onSelectDocument={handleSelectDocument}
-                            onUploadSuccess={handleUploadSuccess}
-                        />
-                    </div>
-                    <div className="chat-page-container">
-                        <Chat
-                            auth={auth}
-                            history={history}
-                            setHistory={setHistory}
-                            projectNames={Object.keys(archives)}
-                            onSaveSuccess={fetchArchives}
-                        />
-                    </div>
+            <header className="App-header">
+                <h1>Multi-bot Chat</h1>
+                <div className="user-controls">
+                    {user.displayName && <span>Welcome, {user.displayName}</span>}
+                    <Link to="/account" className="account-button">My Account</Link>
+                    <button onClick={handleLogout}>Logout</button>
                 </div>
-            )}
+            </header>
+
+            <div className="main-content">
+                <div className="left-panel">
+                    <ArchivesPanel 
+                        auth={auth}
+                        archives={archives}
+                        loading={archivesLoading}
+                        error={archivesError}
+                        onLoadArchive={handleLoadArchive}
+                    />
+                    <DocumentsPanel
+                        onUploadSuccess={handleUploadSuccess}
+                        onSelectDocument={handleSelectDocument}
+                        selectedDocument={selectedDocument}
+                        auth={auth}
+                    />
+                </div>
+                <div className="chat-area">
+                    <Chat 
+                        auth={auth}
+                        history={history} 
+                        setHistory={setHistory} 
+                        projectNames={Object.keys(archives)}
+                        onSaveSuccess={fetchArchives}
+                    />
+                </div>
+            </div>
         </div>
+    );
+
+    if (!user) {
+        if (authView === 'forgotPassword') {
+            return renderForgotPassword();
+        }
+        return renderAuth();
+    }
+
+    if (!user.emailVerified) {
+        return renderVerification();
+    }
+
+    return (
+        <Routes>
+            <Route path="/" element={renderChatInterface()} />
+            <Route path="/account" element={<AccountPage auth={auth} />} />
+        </Routes>
     );
 }
 
