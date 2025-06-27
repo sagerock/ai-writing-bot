@@ -181,50 +181,56 @@ function App() {
         );
     };
 
-    const renderChatInterface = () => (
-        <div className="App">
-            <header className="App-header">
-                <div className="logo-container">
-                    <img src="/logo.png" alt="RomaLuma Logo" className="header-logo" />
-                    <h1>RomaLuma</h1>
-                </div>
-                <div className="user-controls">
-                    {user.displayName && <span>Welcome, {user.displayName}</span>}
-                    {user.isAdmin && <Link to="/admin" className="account-button">Admin</Link>}
-                    <Link to="/account" className="account-button">My Account</Link>
-                    <button onClick={handleLogout}>Logout</button>
-                </div>
-            </header>
+    const renderChatInterface = () => {
+        if (!user) {
+            return null;
+        }
 
-            <div className="main-content">
-                <div className="left-panel">
-                    <ArchivesPanel 
-                        auth={auth}
-                        archives={archives}
-                        loading={archivesLoading}
-                        error={archivesError}
-                        onLoadArchive={handleLoadArchive}
-                        onRefresh={fetchArchives}
-                    />
-                    <DocumentsPanel
-                        onUploadSuccess={handleUploadSuccess}
-                        onSelectDocument={handleSelectDocument}
-                        selectedDocument={selectedDocument}
-                        auth={auth}
-                    />
-                </div>
-                <div className="chat-area">
-                    <Chat 
-                        auth={auth}
-                        history={history} 
-                        setHistory={setHistory} 
-                        projectNames={Object.keys(archives)}
-                        onSaveSuccess={fetchArchives}
-                    />
+        return (
+            <div className="App">
+                <header className="App-header">
+                    <div className="logo-container">
+                        <img src="/logo.png" alt="RomaLuma Logo" className="header-logo" />
+                        <h1>RomaLuma</h1>
+                    </div>
+                    <div className="user-controls">
+                        {user.displayName && <span>Welcome, {user.displayName}</span>}
+                        {user.isAdmin && <Link to="/admin" className="account-button">Admin</Link>}
+                        <Link to="/account" className="account-button">My Account</Link>
+                        <button onClick={handleLogout}>Logout</button>
+                    </div>
+                </header>
+
+                <div className="main-content">
+                    <div className="left-panel">
+                        <ArchivesPanel 
+                            auth={auth}
+                            archives={archives}
+                            loading={archivesLoading}
+                            error={archivesError}
+                            onLoadArchive={handleLoadArchive}
+                            onRefresh={fetchArchives}
+                        />
+                        <DocumentsPanel
+                            onUploadSuccess={handleUploadSuccess}
+                            onSelectDocument={handleSelectDocument}
+                            selectedDocument={selectedDocument}
+                            auth={auth}
+                        />
+                    </div>
+                    <div className="chat-area">
+                        <Chat 
+                            auth={auth}
+                            history={history} 
+                            setHistory={setHistory} 
+                            projectNames={Object.keys(archives)}
+                            onSaveSuccess={fetchArchives}
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     if (loading) {
         return <div>Loading...</div>; // Or a spinner component
