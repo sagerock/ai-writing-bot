@@ -4,6 +4,12 @@ import ChatControls from './ChatControls';
 import ArchiveControls from './ArchiveControls';
 import { API_URL } from '../apiConfig';
 
+// Configure marked to treat single line breaks as <br> tags (GitHub-style)
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
 const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,6 +18,7 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
   const [temperature, setTemperature] = useState(0.7);
   const abortControllerRef = useRef(null);
   const [copied, setCopied] = useState({});
+  const [forceRerender, setForceRerender] = useState(0);
 
   const handleCopy = (text, index) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -42,43 +49,85 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
 
     try {
       const token = await auth.currentUser.getIdToken();
-      // Using EventSource for streaming
-      const encodedHistory = encodeURIComponent(JSON.stringify(newHistory));
-      const eventSource = new EventSource(`${API_URL}/chat_stream?token=${token}&model=${model}&search_web=${searchWeb}&temperature=${temperature}&history=${encodedHistory}`);
-      
+
+      const response = await fetch(`${API_URL}/chat_stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          history: newHistory,
+          model: model,
+          search_web: searchWeb,
+          temperature: temperature,
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'An error occurred');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let assistantResponse = '';
-      setHistory(prev => [...prev, { role: 'assistant', content: '' }]);
+      setHistory(prev => [...prev, { role: 'assistant', content: '', streaming: true }]);
+      let buffer = '';
 
-      eventSource.onmessage = (event) => {
-        if (event.data === "[DONE]") {
-            eventSource.close();
+      const processStream = async () => {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            setHistory(prev => {
+              const updated = prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse, streaming: false } : msg);
+              console.log('After stream end:', updated[updated.length - 1]);
+              return updated;
+            });
             setLoading(false);
-            return;
-        }
-        assistantResponse += event.data;
-        setHistory(prev => {
-          const updatedHistory = [...prev];
-          updatedHistory[updatedHistory.length - 1].content = assistantResponse;
-          return updatedHistory;
-        });
-      };
+            setForceRerender(f => f + 1);
+            break;
+          }
 
-      eventSource.onerror = (err) => {
-        console.error("EventSource failed:", err);
-        eventSource.close();
-        setLoading(false);
-        setHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error.' }]);
+          buffer += decoder.decode(value, { stream: true });
+          
+          let msgEndIndex;
+          while ((msgEndIndex = buffer.indexOf('\n\n')) >= 0) {
+            const message = buffer.slice(0, msgEndIndex);
+            buffer = buffer.slice(msgEndIndex + 2);
+
+            if (message.startsWith('data: ')) {
+              const dataString = message.substring(6).trim();
+              if (!dataString) continue;
+
+              try {
+                const token = JSON.parse(dataString);
+                
+                if (token === '[DONE]') {
+                  setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse, streaming: false } : msg));
+                  setLoading(false);
+                  setForceRerender(f => f + 1);
+                  return;
+                }
+                
+                assistantResponse += token;
+                setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse } : msg));
+
+              } catch (e) {
+                console.error("Failed to parse JSON from stream:", dataString, e);
+              }
+            }
+          }
+        }
       };
       
-      abortControllerRef.current.signal.onabort = () => {
-        eventSource.close();
-        setLoading(false);
-      };
+      await processStream();
 
     } catch (error) {
       console.error("Error sending message:", error);
       if (error.name !== 'AbortError') {
-        setHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error.' }]);
+        setHistory(prev => [...prev, { role: 'assistant', content: `Sorry, I encountered an error: ${error.message}` }]);
       }
       setLoading(false);
     }
@@ -142,15 +191,19 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
         projectNames={projectNames} 
       />
       <div className="chat-container">
-        <div className="chat-window">
+        <div className="chat-window" key={forceRerender}>
           {history.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
               {msg.role === 'context' ? (
                 <p><em>{msg.display_text}</em></p>
               ) : msg.role === 'assistant' ? (
                 <>
-                  <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
-                  {msg.content && (
+                  {msg.streaming ? (
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{msg.content}</pre>
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
+                  )}
+                  {msg.content && !msg.streaming && (
                     <button 
                       className="copy-btn" 
                       onClick={() => handleCopy(msg.content, index)}

@@ -5,6 +5,7 @@ import asyncio
 from uuid import uuid4
 import io
 import sys
+import json
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query
@@ -47,18 +48,6 @@ async def get_current_user(authorization: str = Header(...)):
     
     token = authorization.split("Bearer ")[1]
     
-    try:
-        # Verify the token against the Firebase project.
-        decoded_token = id_token.verify_firebase_token(token, google_requests.Request())
-        return decoded_token
-    except ValueError as e:
-        # Token is invalid
-        raise HTTPException(status_code=401, detail=f"Invalid ID Token: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
-
-async def get_current_user_from_stream(token: str = Query(...)):
-    """Verifies Firebase ID token from a query parameter and returns user data."""
     try:
         # Verify the token against the Firebase project.
         decoded_token = id_token.verify_firebase_token(token, google_requests.Request())
@@ -258,8 +247,8 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         async for chunk in llm.astream(llm_history):
             token = chunk.content if hasattr(chunk, 'content') else str(chunk)
             response_accum += token
-            # SSE format requires "data: " prefix and to be double-newline terminated
-            yield f"data: {token.replace(chr(10), '<br>')}\n\n"
+            # Use JSON encoding to safely transport tokens with special characters
+            yield f"data: {json.dumps(token)}\n\n"
 
         final_history = history_messages + [{"role": "assistant", "content": response_accum}]
         save_conversation(user_id, final_history)
@@ -269,30 +258,11 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     finally:
         yield "data: [DONE]\n\n"
 
-@main_app.get("/chat_stream")
+@main_app.post("/chat_stream")
 async def chat_stream_endpoint(
-    model: str,
-    search_web: bool,
-    history: str,
-    temperature: float = 0.7,
-    user: dict = Depends(get_current_user_from_stream)
+    req: ChatRequest,
+    user: dict = Depends(get_current_user)
 ):
-    import json
-    from urllib.parse import unquote
-    
-    try:
-        history_data = json.loads(unquote(history))
-        history_messages = [Message(**item) for item in history_data]
-    except (json.JSONDecodeError, TypeError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid history format: {e}")
-
-    req = ChatRequest(
-        history=history_messages,
-        model=model,
-        search_web=search_web,
-        temperature=temperature
-    )
-    
     user_id = user['user_id']
     
     headers = {
