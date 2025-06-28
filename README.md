@@ -41,7 +41,27 @@ A utility script, `set_admin.py`, is provided to simplify this process:
     python3 set_admin.py
     ```
 
-Once the claim is set, the user will see the "Admin" link in the application header upon their next login and will have access to the admin panel.
+Once the claim is set, a user with admin privileges will see the "Admin" link in the application header upon their next login and will have access to the admin panel.
+
+## Utility Scripts
+
+This project includes several utility scripts to help with development and maintenance.
+
+### Checking Available LLM Models
+
+To ensure the model lists in the application are up-to-date, you can run the following scripts to fetch the currently available models from each provider:
+
+-   **OpenAI**:
+    ```bash
+    python3 list_openai_models.py
+    ```
+
+-   **Anthropic**:
+    ```bash
+    python3 list_anthropic_models.py
+    ```
+
+Before running these, make sure your API keys are set correctly in your `.env` file.
 
 ## Technology Stack
 
@@ -65,7 +85,13 @@ Once the claim is set, the user will see the "Admin" link in the application hea
     - Create a Python virtual environment: `python3 -m venv venv`
     - Activate it: `source venv/bin/activate`
     - Install dependencies: `pip install -r requirements.txt`
-    - Create a `.env` file and populate it with your API keys (see `.env.example`).
+    - Create a `.env` file and populate it with your API keys. You will need:
+        *   `OPENAI_API_KEY`
+        *   `ANTHROPIC_API_KEY`
+        *   `COHERE_API_KEY`
+        *   `GOOGLE_API_KEY`
+        *   `XAI_API_KEY`
+        *   `SERPAPI_API_KEY`
     - Place your `firebase_service_account.json` in the root directory.
 
 3.  **Frontend Setup**:

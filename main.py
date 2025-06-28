@@ -109,6 +109,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+XAI_API_KEY = os.getenv("XAI_API_KEY")
 
 def get_llm(model_name: str):
     """Factory function to get the LLM instance."""
@@ -124,7 +125,7 @@ def get_llm(model_name: str):
         return ChatAnthropic(
             anthropic_api_key=ANTHROPIC_API_KEY,
             model_name=model_name,
-            max_tokens_to_sample=16384,
+            max_tokens=16384,
             temperature=0.7,
             streaming=True,
         )
@@ -140,8 +141,18 @@ def get_llm(model_name: str):
         return ChatGoogleGenerativeAI(
             google_api_key=GOOGLE_API_KEY,
             model=model_name,
+            max_output_tokens=8192,
             temperature=0.7,
             convert_system_message_to_human=True,
+            streaming=True,
+        )
+    elif model_name.startswith("grok-"):
+        return ChatOpenAI(
+            openai_api_key=XAI_API_KEY,
+            model_name=model_name,
+            openai_api_base="https://api.x.ai/v1",
+            max_tokens=8192,
+            temperature=0.7,
             streaming=True,
         )
     else:
