@@ -114,57 +114,52 @@ XAI_API_KEY = os.getenv("XAI_API_KEY")
 
 def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
-    if model_name.startswith(("gpt-", "o3-", "chatgpt-")):
-        return ChatOpenAI(
-            openai_api_key=OPENAI_API_KEY,
-            model_name=model_name,
-            max_tokens=16384,
-            temperature=temperature,
-            streaming=True,
-        )
-    elif model_name.startswith("claude-"):
+    # Clamp temperature to the provider's supported range
+    if model_name.startswith("claude-") or model_name.startswith("command-") or model_name.startswith("gemini-"):
+        # Anthropic, Cohere, and Google support 0.0-1.0
+        temperature = max(0.0, min(1.0, float(temperature)))
+    else:
+        # OpenAI, xAI, etc. support up to 2.0, but we'll cap at 1.5 for better results
+        temperature = max(0.0, min(1.5, float(temperature)))
+
+    if model_name.startswith("claude-"):
         return ChatAnthropic(
-            anthropic_api_key=ANTHROPIC_API_KEY,
             model_name=model_name,
-            max_tokens=16384,
             temperature=temperature,
-            streaming=True,
+            max_tokens=4096,
+            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
         )
-    elif model_name.startswith("command-"):
-        return ChatCohere(
-            cohere_api_key=COHERE_API_KEY,
+    elif model_name.startswith(("gpt-", "o3-", "chatgpt-")):
+        return ChatOpenAI(
             model_name=model_name,
-            max_tokens=16384,
             temperature=temperature,
-            streaming=True,
-        )
-    elif model_name.startswith("gemini-"):
-        return ChatGoogleGenerativeAI(
-            google_api_key=GOOGLE_API_KEY,
-            model=model_name,
-            max_output_tokens=8192,
-            temperature=temperature,
-            convert_system_message_to_human=True,
-            streaming=True,
+            max_tokens=4096,
+            openai_api_key=os.getenv("OPENAI_API_KEY")
         )
     elif model_name.startswith("grok-"):
         return ChatOpenAI(
-            openai_api_key=XAI_API_KEY,
             model_name=model_name,
-            openai_api_base="https://api.x.ai/v1",
-            max_tokens=8192,
             temperature=temperature,
-            streaming=True,
+            max_tokens=4096,
+            openai_api_key=os.getenv("XAI_API_KEY"),
+            openai_api_base="https://api.x.ai/v1",
+        )
+    elif model_name.startswith("command-"):
+        return ChatCohere(
+            model=model_name,
+            temperature=temperature,
+            cohere_api_key=os.getenv("COHERE_API_KEY"),
+            max_tokens=4096
+        )
+    elif model_name.startswith("gemini-"):
+        return ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=temperature,
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            max_output_tokens=4096
         )
     else:
-        # Default to OpenAI if model is unknown or not specified
-        return ChatOpenAI(
-            openai_api_key=OPENAI_API_KEY,
-            model_name="gpt-4o",
-            max_tokens=16384,
-            temperature=temperature,
-            streaming=True,
-        )
+        raise ValueError(f"Unknown model provider for {model_name}")
 
 async def generate_chat_response(req: ChatRequest, user_id: str):
     user_ref = db.collection("users").document(user_id)

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, setTemperature }) => {
   const getCreativityLabel = (temp) => {
@@ -8,8 +8,29 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
     return "Wild";
   };
 
+  const getMaxTemperature = () => {
+    if (model.startsWith('claude-') || model.startsWith('command-') || model.startsWith('gemini-')) {
+      return 1.0;
+    }
+    return 1.5;
+  };
+
+  const handleTemperatureChange = (e) => {
+    const newTemp = parseFloat(e.target.value);
+    const maxTemp = getMaxTemperature();
+    setTemperature(Math.min(newTemp, maxTemp));
+  };
+
+  useEffect(() => {
+    localStorage.setItem('temperature', temperature);
+    const maxTemp = getMaxTemperature();
+    if (temperature > maxTemp) {
+      setTemperature(maxTemp);
+    }
+  }, [model, temperature, setTemperature]);
+
   return (
-    <div className="chat-controls">
+    <div className="chat-controls bg-white dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">
       <div className="control-group">
         <label htmlFor="model-select">Model:</label>
         <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -41,22 +62,20 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
         </select>
       </div>
       <div className="control-group">
-        <label htmlFor="creativity-slider">Creativity: {getCreativityLabel(temperature)}</label>
-        <input
-          id="creativity-slider"
-          type="range"
-          min="0.0"
-          max="2.0"
-          step="0.1"
-          value={temperature}
-          onChange={(e) => setTemperature(parseFloat(e.target.value))}
-          style={{ width: '100%' }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8em', color: '#666' }}>
-          <span>Focused</span>
-          <span>Balanced</span>
-          <span>Creative</span>
-          <span>Wild</span>
+        <div className="w-full">
+          <label htmlFor="creativity-slider" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Creativity: <span className="font-bold">{getCreativityLabel(temperature)}</span> ({temperature.toFixed(1)})
+          </label>
+          <input
+            id="creativity-slider"
+            type="range"
+            min="0"
+            max={getMaxTemperature()}
+            step="0.1"
+            value={temperature}
+            onChange={handleTemperatureChange}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+          />
         </div>
       </div>
       <div className="control-group">
