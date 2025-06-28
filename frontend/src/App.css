@@ -671,7 +671,50 @@ hr {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .main-layout {
+  /* Make the main container scrollable instead of individual panels */
+  .main-content {
     flex-direction: column;
+    overflow-y: auto; /* Allow scrolling of the entire content area */
+    flex-grow: 1;
+    height: auto;
+  }
+  .left-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ccc;
+    height: auto;
+    flex-shrink: 0; /* Prevent it from shrinking */
+  }
+  .chat-area {
+    width: 100%;
+    height: auto;
+    min-height: 60vh; /* Give it a large, guaranteed height */
+    flex-grow: 1; /* Allow it to grow and fill remaining space */
+    display: flex;
+    flex-direction: column;
+  }
+  .App-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 10px;
+  }
+  .user-controls {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .archives-panel, .documents-panel {
+    padding: 1rem;
+  }
+  .chat-input textarea {
+    font-size: 1.1em;
+    min-height: 48px;
+  }
+  .account-form-container, .admin-panel {
+    padding: 1rem;
+  }
+  .users-table th, .users-table td {
+    padding: 8px 6px;
   }
 }

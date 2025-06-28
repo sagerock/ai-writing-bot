@@ -142,3 +142,34 @@ The Python FastAPI backend is hosted as a **Web Service on Render**.
 - **URL**: `https://ai-writing-bot-backend.onrender.com`
 - **Deployment Process**: Render is connected directly to the GitHub repository. **Any `git push` to the `main` branch will automatically trigger a new deployment.**
 - **Managing Environment Variables**: All secret keys (e.g., `OPENAI_API_KEY`) and the `firebase_service_account.json` are stored securely in the Render dashboard under the service's **Environment** tab. They are **not** checked into the Git repository. If you need to add or update a key, you must do so in the Render UI, which will trigger a new deployment.
+
+## Pushing Changes to GitHub & Deploying to Render
+
+This project is set up so that any push to the `main` branch on GitHub will automatically trigger a deployment on Render.
+
+### How to Push Changes
+
+1. **Stage and Commit Your Changes**
+   ```bash
+   git add .
+   git commit -m "Describe your changes"
+   ```
+
+2. **Set Up GitHub Authentication (First Time Only)**
+   - Go to [GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+   - Click **Generate new token (classic)**
+   - Give it a name, set an expiration, and check the `repo` scope
+   - Click **Generate token** and copy it
+
+3. **Push to GitHub**
+   ```bash
+   git push origin main
+   ```
+   - When prompted for a username, enter your GitHub username
+   - When prompted for a password, paste your Personal Access Token (PAT)
+
+4. **Automatic Deployment**
+   - Render will detect the push to `main` and automatically deploy the backend.
+
+**Tip:**  
+To avoid entering your PAT every time, you can use a credential manager or switch your remote to SSH. See [GitHub Docs: Caching your GitHub credentials in Git](https://docs.github.com/en/get-started/getting-started-with-git/caching-your-github-credentials-in-git).
