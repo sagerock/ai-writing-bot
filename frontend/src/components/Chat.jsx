@@ -101,15 +101,15 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
               const dataString = message.substring(6).trim();
               if (!dataString) continue;
 
+              if (dataString === '[DONE]') {
+                setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse, streaming: false } : msg));
+                setLoading(false);
+                setForceRerender(f => f + 1);
+                return;
+              }
+
               try {
                 const token = JSON.parse(dataString);
-                
-                if (token === '[DONE]') {
-                  setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse, streaming: false } : msg));
-                  setLoading(false);
-                  setForceRerender(f => f + 1);
-                  return;
-                }
                 
                 assistantResponse += token;
                 setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse } : msg));

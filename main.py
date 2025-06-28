@@ -100,6 +100,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 XAI_API_KEY = os.getenv("XAI_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
@@ -132,6 +133,14 @@ def get_llm(model_name: str, temperature: float = 0.7):
             max_tokens=4096,
             openai_api_key=os.getenv("XAI_API_KEY"),
             openai_api_base="https://api.x.ai/v1",
+        )
+    elif model_name.startswith("deepseek-"):
+        return ChatOpenAI(
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=4096,
+            openai_api_key=os.getenv("DEEPSEEK_API_KEY"),
+            openai_api_base="https://api.deepseek.com",
         )
     elif model_name.startswith("command-"):
         return ChatCohere(

@@ -58,6 +58,10 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
               <option value="command-r-plus">Command R+</option>
               <option value="command-r">Command R</option>
             </optgroup>
+            <optgroup label="DeepSeek">
+              <option value="deepseek-chat">DeepSeek Chat</option>
+              <option value="deepseek-reasoner">DeepSeek Reasoner</option>
+            </optgroup>
             <optgroup label="xAI">
               <option value="grok-3-latest">Grok 3</option>
             </optgroup>
