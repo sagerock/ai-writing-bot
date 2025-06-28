@@ -9,6 +9,10 @@ let abortController = new AbortController();
 const modelSelect = document.getElementById('model-select');
 const webSearchCheckbox = document.getElementById('web-search-checkbox');
 
+// Creativity slider elements
+const creativitySlider = document.getElementById('creativity-slider');
+const creativityLabel = document.getElementById('creativity-label');
+
 // File upload elements
 const fileInput = document.getElementById('file-input');
 const uploadBtn = document.getElementById('upload-btn');
@@ -40,8 +44,36 @@ if (modelSelect) {
         localStorage.setItem('chatbot_model', modelSelect.value);
     });
 }
+
+// Save/load creativity setting from localStorage
+const savedTemperature = localStorage.getItem('chatbot_temperature');
+if (savedTemperature && creativitySlider) {
+    creativitySlider.value = savedTemperature;
+    updateCreativityLabel(parseFloat(savedTemperature));
+}
+if (creativitySlider) {
+    creativitySlider.addEventListener('input', (e) => {
+        const temp = parseFloat(e.target.value);
+        updateCreativityLabel(temp);
+        localStorage.setItem('chatbot_temperature', temp.toString());
+    });
+}
+
+function updateCreativityLabel(temp) {
+    let label = "Balanced";
+    if (temp <= 0.3) label = "Focused";
+    else if (temp <= 0.7) label = "Balanced";
+    else if (temp <= 1.2) label = "Creative";
+    else label = "Wild";
+    creativityLabel.textContent = label;
+}
+
 function getSelectedModel() {
     return modelSelect ? modelSelect.value : 'gpt-3.5-turbo';
+}
+
+function getSelectedTemperature() {
+    return creativitySlider ? parseFloat(creativitySlider.value) : 0.7;
 }
 
 function appendMessage(sender, text) {
@@ -139,6 +171,7 @@ async function handleFormSubmit(e) {
                 message: text, 
                 model: getSelectedModel(),
                 search_web: webSearchCheckbox.checked,
+                temperature: getSelectedTemperature(),
                 session_id: sessionId
             }),
             signal: abortController.signal

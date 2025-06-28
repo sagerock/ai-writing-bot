@@ -1,6 +1,13 @@
 import React from 'react';
 
-const ChatControls = ({ model, setModel, searchWeb, setSearchWeb }) => {
+const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, setTemperature }) => {
+  const getCreativityLabel = (temp) => {
+    if (temp <= 0.3) return "Focused";
+    if (temp <= 0.7) return "Balanced";
+    if (temp <= 1.2) return "Creative";
+    return "Wild";
+  };
+
   return (
     <div className="chat-controls">
       <div className="control-group">
@@ -32,6 +39,25 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb }) => {
             <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
           </optgroup>
         </select>
+      </div>
+      <div className="control-group">
+        <label htmlFor="creativity-slider">Creativity: {getCreativityLabel(temperature)}</label>
+        <input
+          id="creativity-slider"
+          type="range"
+          min="0.0"
+          max="2.0"
+          step="0.1"
+          value={temperature}
+          onChange={(e) => setTemperature(parseFloat(e.target.value))}
+          style={{ width: '100%' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8em', color: '#666' }}>
+          <span>Focused</span>
+          <span>Balanced</span>
+          <span>Creative</span>
+          <span>Wild</span>
+        </div>
       </div>
       <div className="control-group">
         <label>

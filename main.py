@@ -93,6 +93,7 @@ class ChatRequest(BaseModel):
     history: List[Message]
     model: str
     search_web: bool = False
+    temperature: float = 0.7
 
 class ArchiveRequest(BaseModel):
     history: List[Message]
@@ -111,14 +112,14 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 
-def get_llm(model_name: str):
+def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
     if model_name.startswith(("gpt-", "o3-", "chatgpt-")):
         return ChatOpenAI(
             openai_api_key=OPENAI_API_KEY,
             model_name=model_name,
             max_tokens=16384,
-            temperature=0.7,
+            temperature=temperature,
             streaming=True,
         )
     elif model_name.startswith("claude-"):
@@ -126,7 +127,7 @@ def get_llm(model_name: str):
             anthropic_api_key=ANTHROPIC_API_KEY,
             model_name=model_name,
             max_tokens=16384,
-            temperature=0.7,
+            temperature=temperature,
             streaming=True,
         )
     elif model_name.startswith("command-"):
@@ -134,7 +135,7 @@ def get_llm(model_name: str):
             cohere_api_key=COHERE_API_KEY,
             model_name=model_name,
             max_tokens=16384,
-            temperature=0.7,
+            temperature=temperature,
             streaming=True,
         )
     elif model_name.startswith("gemini-"):
@@ -142,7 +143,7 @@ def get_llm(model_name: str):
             google_api_key=GOOGLE_API_KEY,
             model=model_name,
             max_output_tokens=8192,
-            temperature=0.7,
+            temperature=temperature,
             convert_system_message_to_human=True,
             streaming=True,
         )
@@ -152,7 +153,7 @@ def get_llm(model_name: str):
             model_name=model_name,
             openai_api_base="https://api.x.ai/v1",
             max_tokens=8192,
-            temperature=0.7,
+            temperature=temperature,
             streaming=True,
         )
     else:
@@ -161,7 +162,7 @@ def get_llm(model_name: str):
             openai_api_key=OPENAI_API_KEY,
             model_name="gpt-4o",
             max_tokens=16384,
-            temperature=0.7,
+            temperature=temperature,
             streaming=True,
         )
 
@@ -198,7 +199,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
     
-    llm = get_llm(req.model)
+    llm = get_llm(req.model, req.temperature)
     history_messages = [message.dict() for message in req.history]
 
     if req.search_web:
@@ -278,6 +279,7 @@ async def chat_stream_endpoint(
     model: str,
     search_web: bool,
     history: str,
+    temperature: float = 0.7,
     user: dict = Depends(get_current_user_from_stream)
 ):
     import json
@@ -292,7 +294,8 @@ async def chat_stream_endpoint(
     req = ChatRequest(
         history=history_messages,
         model=model,
-        search_web=search_web
+        search_web=search_web,
+        temperature=temperature
     )
     
     user_id = user['user_id']

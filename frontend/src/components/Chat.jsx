@@ -9,6 +9,7 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState('chatgpt-4o-latest');
   const [searchWeb, setSearchWeb] = useState(false);
+  const [temperature, setTemperature] = useState(0.7);
   const abortControllerRef = useRef(null);
   const [copied, setCopied] = useState({});
 
@@ -43,7 +44,7 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
       const token = await auth.currentUser.getIdToken();
       // Using EventSource for streaming
       const encodedHistory = encodeURIComponent(JSON.stringify(newHistory));
-      const eventSource = new EventSource(`${API_URL}/chat_stream?token=${token}&model=${model}&search_web=${searchWeb}&history=${encodedHistory}`);
+      const eventSource = new EventSource(`${API_URL}/chat_stream?token=${token}&model=${model}&search_web=${searchWeb}&temperature=${temperature}&history=${encodedHistory}`);
       
       let assistantResponse = '';
       setHistory(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -132,6 +133,8 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
         setModel={setModel}
         searchWeb={searchWeb}
         setSearchWeb={setSearchWeb}
+        temperature={temperature}
+        setTemperature={setTemperature}
       />
       <ArchiveControls 
         onSave={handleSave} 
