@@ -52,8 +52,8 @@ const ArchiveControls = ({ onSave, onClear, projectNames = [] }) => {
                     autoFocus
                 />
             )}
-            <button onClick={handleSave}>Save Chat</button>
-            <button onClick={onClear}>Clear Memory</button>
+            <button onClick={handleSave} title="Save Chat">💾</button>
+            <button onClick={onClear} title="Clear Memory">♻️</button>
         </div>
     );
 };

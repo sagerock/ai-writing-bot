@@ -49,6 +49,8 @@ function App() {
     const [archivesLoading, setArchivesLoading] = useState(false);
     const [archivesError, setArchivesError] = useState('');
     const [selectedDocument, setSelectedDocument] = useState(null);
+    const [mobileArchivesOpen, setMobileArchivesOpen] = useState(false);
+    const [mobileDocumentsOpen, setMobileDocumentsOpen] = useState(false);
     const navigate = useNavigate();
 
     const fetchArchives = async () => {
@@ -194,28 +196,44 @@ function App() {
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
-                        {user.isAdmin && <Link to="/admin" className="account-button">Admin</Link>}
-                        <Link to="/account" className="account-button">My Account</Link>
+                        {user.isAdmin && <Link to="/admin" className="account-button" title="Admin">⚙️</Link>}
+                        <Link to="/account" className="account-button" title="My Account">👤</Link>
                         <button onClick={handleLogout}>Logout</button>
                     </div>
                 </header>
 
                 <div className="main-content">
                     <div className="left-panel">
-                        <ArchivesPanel 
-                            auth={auth}
-                            archives={archives}
-                            loading={archivesLoading}
-                            error={archivesError}
-                            onLoadArchive={handleLoadArchive}
-                            onRefresh={fetchArchives}
-                        />
-                        <DocumentsPanel
-                            onUploadSuccess={handleUploadSuccess}
-                            onSelectDocument={handleSelectDocument}
-                            selectedDocument={selectedDocument}
-                            auth={auth}
-                        />
+                        <div className="mobile-accordion">
+                            <button className="mobile-accordion-header" onClick={() => setMobileArchivesOpen(!mobileArchivesOpen)}>
+                                <h2>Saved Chats</h2>
+                                <span>{mobileArchivesOpen ? '−' : '+'}</span>
+                            </button>
+                            <div className={`mobile-accordion-panel ${mobileArchivesOpen ? 'is-open' : ''}`}>
+                                <ArchivesPanel 
+                                    auth={auth}
+                                    archives={archives}
+                                    loading={archivesLoading}
+                                    error={archivesError}
+                                    onLoadArchive={handleLoadArchive}
+                                    onRefresh={fetchArchives}
+                                />
+                            </div>
+                        </div>
+                        <div className="mobile-accordion">
+                            <button className="mobile-accordion-header" onClick={() => setMobileDocumentsOpen(!mobileDocumentsOpen)}>
+                                <h2>My Documents</h2>
+                                <span>{mobileDocumentsOpen ? '−' : '+'}</span>
+                            </button>
+                            <div className={`mobile-accordion-panel ${mobileDocumentsOpen ? 'is-open' : ''}`}>
+                                <DocumentsPanel
+                                    onUploadSuccess={handleUploadSuccess}
+                                    onSelectDocument={handleSelectDocument}
+                                    selectedDocument={selectedDocument}
+                                    auth={auth}
+                                />
+                            </div>
+                        </div>
                     </div>
                     <div className="chat-area">
                         <Chat 
