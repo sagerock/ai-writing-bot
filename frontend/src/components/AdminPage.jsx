@@ -89,7 +89,8 @@ const AdminPage = ({ auth }) => {
                             <th>UID</th>
                             <th>Email</th>
                             <th>Display Name</th>
-                            <th>Credits</th>
+                            <th>Credits Left</th>
+                            <th>Credits Used</th>
                             <th>Is Admin?</th>
                             <th>Actions</th>
                         </tr>
@@ -101,6 +102,7 @@ const AdminPage = ({ auth }) => {
                                 <td>{user.email}</td>
                                 <td>{user.displayName}</td>
                                 <td>{user.credits}</td>
+                                <td>{user.credits_used || 0}</td>
                                 <td>{user.isAdmin ? 'Yes' : 'No'}</td>
                                 <td>
                                     <button onClick={() => handleUpdateCredits(user.uid)}>Update Credits</button>

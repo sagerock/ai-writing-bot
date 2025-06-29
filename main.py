@@ -178,7 +178,10 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         
         if not user_snapshot.exists:
             initial_credits = 100
-            transaction.set(user_ref, {"credits": initial_credits - 1})
+            transaction.set(user_ref, {
+                "credits": initial_credits - 1,
+                "credits_used": 1
+            })
             return
         
         user_data = user_snapshot.to_dict()
@@ -187,7 +190,10 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         if credits <= 0:
             raise HTTPException(status_code=402, detail="You have run out of credits.")
 
-        transaction.update(user_ref, {"credits": firestore.Increment(-1)})
+        transaction.update(user_ref, {
+            "credits": firestore.Increment(-1),
+            "credits_used": firestore.Increment(1)
+        })
 
     try:
         check_and_update_credits(transaction, user_ref)
@@ -601,13 +607,16 @@ async def list_users(_: dict = Depends(get_current_admin_user)):
                 "email": user.email,
                 "displayName": user.display_name or "",
                 "isAdmin": user.custom_claims.get("admin", False) if user.custom_claims else False,
-                "credits": 0  # Default credits
+                "credits": 0,  # Default credits
+                "credits_used": 0 # Default used credits
             }
             
             # Fetch credit data from Firestore
             user_doc = db.collection("users").document(user.uid).get()
             if user_doc.exists:
-                user_data["credits"] = user_doc.to_dict().get("credits", 0)
+                firestore_data = user_doc.to_dict()
+                user_data["credits"] = firestore_data.get("credits", 0)
+                user_data["credits_used"] = firestore_data.get("credits_used", 0)
                 
             users_list.append(user_data)
             
