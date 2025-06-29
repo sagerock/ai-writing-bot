@@ -6,6 +6,9 @@ from uuid import uuid4
 import io
 import sys
 import json
+import socket
+
+os.environ["GRPC_DNS_RESOLVER"] = "native"  # Force gRPC to use system DNS
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query
@@ -30,11 +33,15 @@ from google.cloud.firestore_v1.document import DocumentReference
 
 load_dotenv()
 
+# Set longer timeout for Firebase connections
+socket.setdefaulttimeout(30)
+
 # Firebase-related initialization
 cred = credentials.Certificate("firebase_service_account.json")
-firebase_admin.initialize_app(cred, {
-    'storageBucket': os.getenv('STORAGE_BUCKET')
-})
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred, {
+        'storageBucket': os.getenv('STORAGE_BUCKET')
+    })
 db = firestore.client()
 bucket = storage.bucket()
 
@@ -632,3 +639,7 @@ main_app.mount("/", StaticFiles(directory="static", html=True), name="static")
 @main_app.get("/")
 def root():
     return FileResponse('static/index.html')
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:main_app", host="127.0.0.1", port=8000, reload=True)

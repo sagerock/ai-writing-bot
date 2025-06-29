@@ -111,6 +111,52 @@ Before running these, make sure your API keys are set correctly in your `.env` f
 
 The application will be available at `http://localhost:5173`.
 
+## Local Development
+
+When working on the application locally, you need to run both the backend and frontend servers. Here's the step-by-step process:
+
+### Prerequisites
+- Ensure you have all API keys configured in your `.env` file
+- Make sure `firebase_service_account.json` is in the root directory
+- Firebase project should be in test mode for development
+
+### Running Locally
+
+1. **Activate the Python virtual environment and start the backend**:
+   ```bash
+   # From the project root directory
+   source venv/bin/activate
+   python main.py
+   ```
+   
+   The backend will start on `http://127.0.0.1:8000`
+
+   **Alternative method**: You can also use uvicorn directly:
+   ```bash
+   python -m uvicorn main:main_app --reload --host 127.0.0.1 --port 8000
+   ```
+
+2. **In a new terminal, start the frontend development server**:
+   ```bash
+   # Navigate to the frontend directory
+   cd frontend
+   
+   # Start the development server
+   npm run dev
+   ```
+   
+   The frontend will be available at `http://localhost:5173`
+
+### Troubleshooting Local Development
+
+- **Firebase calls not working**: Ensure your Firebase project is in test mode and that the `firebase_service_account.json` file is correctly placed in the root directory.
+- **Backend not responding**: Make sure the virtual environment is activated before running `python main.py`.
+- **CORS errors**: The backend is configured to allow requests from `http://localhost:5173`. If you're using a different port, update the CORS settings in `main.py`.
+
+## Troubleshooting
+
+For common issues and their solutions, please refer to the [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) file. This guide contains detailed explanations for problems like Firebase connection timeouts.
+
 ## Deployment & Hosting
 
 This application is deployed using a hybrid approach, with the frontend and backend hosted on separate, specialized platforms.
