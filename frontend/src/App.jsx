@@ -52,6 +52,24 @@ function App() {
     const [mobileArchivesOpen, setMobileArchivesOpen] = useState(false);
     const [mobileDocumentsOpen, setMobileDocumentsOpen] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const path = location.pathname;
+        let title = "RomaLume - ";
+        if (path === '/') {
+            title += "Your intelligent assistant for research, writing, and discovery.";
+        } else if (path === '/chat') {
+            title += "Chat";
+        } else if (path === '/account') {
+            title += "My Account";
+        } else if (path === '/admin') {
+            title += "Admin Panel";
+        } else if (path === '/login' || path === '/signup') {
+            title += "Login & Signup";
+        }
+        document.title = title;
+    }, [location]);
 
     const fetchArchives = async () => {
         if (!auth.currentUser) return;
