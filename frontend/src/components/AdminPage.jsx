@@ -6,6 +6,16 @@ const AdminPage = ({ auth }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    
+    // Email functionality
+    const [emailForm, setEmailForm] = useState({
+        subject: '',
+        content: '',
+        email_type: 'feature_updates',
+        preview: false
+    });
+    const [emailPreview, setEmailPreview] = useState(null);
+    const [sendingEmail, setSendingEmail] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -74,6 +84,62 @@ const AdminPage = ({ auth }) => {
         }
     };
 
+    const handleEmailPreview = async () => {
+        if (!emailForm.subject || !emailForm.content) {
+            alert('Please fill in both subject and content.');
+            return;
+        }
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/email/preview?email_type=${emailForm.email_type}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to get email preview.');
+            }
+            const data = await response.json();
+            setEmailPreview(data);
+        } catch (err) {
+            alert('Failed to get email preview: ' + err.message);
+        }
+    };
+
+    const handleSendEmail = async () => {
+        if (!emailForm.subject || !emailForm.content) {
+            alert('Please fill in both subject and content.');
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to send this email to ${emailPreview?.recipient_count || 0} users?`)) {
+            return;
+        }
+
+        setSendingEmail(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/email/send`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify(emailForm)
+            });
+            if (!response.ok) {
+                throw new Error('Failed to send email.');
+            }
+            const result = await response.json();
+            alert(`Email sent successfully! ${result.message}`);
+            setEmailForm({ subject: '', content: '', email_type: 'feature_updates', preview: false });
+            setEmailPreview(null);
+        } catch (err) {
+            alert('Failed to send email: ' + err.message);
+        } finally {
+            setSendingEmail(false);
+        }
+    };
+
     return (
         <div className="admin-page">
             <nav className="account-nav">
@@ -116,6 +182,79 @@ const AdminPage = ({ auth }) => {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            <div className="admin-panel">
+                <h2>Send Email to Users</h2>
+                <div className="email-form">
+                    <div className="form-group">
+                        <label>Email Type:</label>
+                        <select 
+                            value={emailForm.email_type} 
+                            onChange={(e) => setEmailForm(prev => ({ ...prev, email_type: e.target.value }))}
+                        >
+                            <option value="feature_updates">🚀 New Features & Updates</option>
+                            <option value="bug_fixes">🐛 Bug Fixes & Improvements</option>
+                            <option value="pricing_changes">💰 Pricing & Plan Changes</option>
+                            <option value="usage_tips">💡 Usage Tips & Best Practices</option>
+                            <option value="all">📢 All Users (Announcement)</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label>Subject:</label>
+                        <input 
+                            type="text" 
+                            value={emailForm.subject}
+                            onChange={(e) => setEmailForm(prev => ({ ...prev, subject: e.target.value }))}
+                            placeholder="Email subject..."
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Content:</label>
+                        <textarea 
+                            value={emailForm.content}
+                            onChange={(e) => setEmailForm(prev => ({ ...prev, content: e.target.value }))}
+                            placeholder="Email content (supports HTML)..."
+                            rows="8"
+                        />
+                    </div>
+
+                    <div className="email-actions">
+                        <button onClick={handleEmailPreview} disabled={sendingEmail}>
+                            Preview Recipients
+                        </button>
+                        <button 
+                            onClick={handleSendEmail} 
+                            disabled={sendingEmail || !emailPreview}
+                            className="send-button"
+                        >
+                            {sendingEmail ? 'Sending...' : 'Send Email'}
+                        </button>
+                    </div>
+
+                    {emailPreview && (
+                        <div className="email-preview">
+                            <h3>Email Preview</h3>
+                            <p><strong>Type:</strong> {emailPreview.email_type}</p>
+                            <p><strong>Recipients:</strong> {emailPreview.recipient_count} users</p>
+                            {emailPreview.recipients && emailPreview.recipients.length > 0 && (
+                                <div>
+                                    <p><strong>Sample Recipients:</strong></p>
+                                    <ul>
+                                        {emailPreview.recipients.slice(0, 5).map((user, index) => (
+                                            <li key={index}>{user.email} ({user.display_name})</li>
+                                        ))}
+                                        {emailPreview.recipients.length > 5 && (
+                                            <li>... and {emailPreview.recipients.length - 5} more</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

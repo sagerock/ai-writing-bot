@@ -15,6 +15,12 @@ const AccountPanel = ({ auth }) => {
     const [currentPassword, setCurrentPassword] = useState('');
     
     const [credits, setCredits] = useState(null);
+    const [emailPreferences, setEmailPreferences] = useState({
+        feature_updates: true,
+        bug_fixes: true,
+        pricing_changes: true,
+        usage_tips: true
+    });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
@@ -40,7 +46,27 @@ const AccountPanel = ({ auth }) => {
             }
         };
 
+        const fetchEmailPreferences = async () => {
+            if (!auth.currentUser) return;
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${API_URL}/user/email-preferences`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch email preferences.');
+                }
+                const data = await response.json();
+                setEmailPreferences(data);
+            } catch (err) {
+                console.error('Could not load email preferences:', err);
+            }
+        };
+
         fetchCredits();
+        fetchEmailPreferences();
     }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
@@ -109,7 +135,31 @@ const AccountPanel = ({ auth }) => {
             console.error(err);
         }
     };
-    
+
+    const handleEmailPreferencesUpdate = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/email-preferences`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(emailPreferences)
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update email preferences.');
+            }
+            setSuccess('Email preferences updated successfully!');
+        } catch (err) {
+            setError('Failed to update email preferences.');
+            console.error(err);
+        }
+    };
+
     if (needsReauth) {
         return (
             <div className="account-form-container">
@@ -183,6 +233,65 @@ const AccountPanel = ({ auth }) => {
                     placeholder="New Password (min. 6 characters)"
                 />
                 <button type="submit">Update Password</button>
+            </form>
+
+            <hr />
+
+            <form onSubmit={handleEmailPreferencesUpdate} className="account-form">
+                <h3>Email Preferences</h3>
+                <p>Choose which types of emails you'd like to receive:</p>
+                
+                <div className="email-preferences">
+                    <label className="checkbox-label">
+                        <input 
+                            type="checkbox"
+                            checked={emailPreferences.feature_updates}
+                            onChange={(e) => setEmailPreferences(prev => ({
+                                ...prev,
+                                feature_updates: e.target.checked
+                            }))}
+                        />
+                        🚀 New Features & Updates
+                    </label>
+                    
+                    <label className="checkbox-label">
+                        <input 
+                            type="checkbox"
+                            checked={emailPreferences.bug_fixes}
+                            onChange={(e) => setEmailPreferences(prev => ({
+                                ...prev,
+                                bug_fixes: e.target.checked
+                            }))}
+                        />
+                        🐛 Bug Fixes & Improvements
+                    </label>
+                    
+                    <label className="checkbox-label">
+                        <input 
+                            type="checkbox"
+                            checked={emailPreferences.pricing_changes}
+                            onChange={(e) => setEmailPreferences(prev => ({
+                                ...prev,
+                                pricing_changes: e.target.checked
+                            }))}
+                        />
+                        💰 Pricing & Plan Changes
+                    </label>
+                    
+                    <label className="checkbox-label">
+                        <input 
+                            type="checkbox"
+                            checked={emailPreferences.usage_tips}
+                            onChange={(e) => setEmailPreferences(prev => ({
+                                ...prev,
+                                usage_tips: e.target.checked
+                            }))}
+                        />
+                        💡 Usage Tips & Best Practices
+                    </label>
+                </div>
+                
+                <button type="submit">Update Email Preferences</button>
             </form>
         </div>
     );

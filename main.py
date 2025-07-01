@@ -30,6 +30,8 @@ from langchain_openai import ChatOpenAI
 from google.cloud.firestore_v1.query import Query
 from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.document import DocumentReference
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content, HtmlContent
 
 load_dotenv()
 
@@ -100,6 +102,18 @@ class ArchiveRequest(BaseModel):
 class UserCredits(BaseModel):
     credits: int
 
+class EmailPreferences(BaseModel):
+    feature_updates: bool = True
+    bug_fixes: bool = True
+    pricing_changes: bool = True
+    usage_tips: bool = True
+
+class EmailRequest(BaseModel):
+    subject: str
+    content: str
+    email_type: str  # "feature_updates", "bug_fixes", "pricing_changes", "usage_tips", "all"
+    preview: bool = False
+
 # Load API Keys
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -108,6 +122,7 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 
 def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
@@ -701,11 +716,221 @@ async def update_user_credits(user_id: str, credit_update: CreditUpdate, _: dict
 @main_app.post("/admin/users/{user_id}/role")
 async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depends(get_current_admin_user)):
     try:
-        # Set custom claims on the user
-        firebase_auth.set_custom_user_claims(user_id, {'admin': role_update.is_admin})
-        return JSONResponse(content={"message": f"Admin role for user {user_id} set to {role_update.is_admin}."})
+        firebase_auth.set_custom_user_claims(user_id, {"admin": role_update.is_admin})
+        return {"message": f"User role updated successfully. Admin: {role_update.is_admin}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Email Functionality ---
+def send_email(to_email: str, subject: str, html_content: str):
+    """Send email using SendGrid."""
+    if not SENDGRID_API_KEY:
+        raise HTTPException(status_code=500, detail="SendGrid API key not configured")
+    
+    try:
+        sg = SendGridAPIClient(api_key=SENDGRID_API_KEY)
+        from_email = Email("noreply@romalume.com")  # Update with your verified sender
+        to_email = To(to_email)
+        content = HtmlContent(html_content)
+        mail = Mail(from_email, to_email, subject, content)
+        response = sg.send(mail)
+        return response.status_code == 202
+    except Exception as e:
+        print(f"Email sending failed: {e}")
+        return False
+
+def get_email_template(email_type: str, subject: str, content: str) -> str:
+    """Generate HTML email template."""
+    base_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{subject}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+            .cta {{ background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }}
+            .type-badge {{ display: inline-block; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>RomaLume</h1>
+            <p>AI Writing Assistant</p>
+        </div>
+        <div class="content">
+            <div class="type-badge" style="background: {get_type_color(email_type)}; color: white;">
+                {get_type_label(email_type)}
+            </div>
+            {content}
+            <br><br>
+            <a href="https://ai-writing-tool-bdebc.web.app" class="cta">Open RomaLume</a>
+        </div>
+        <div class="footer">
+            <p>You're receiving this email because you're a RomaLume user.</p>
+            <p><a href="https://ai-writing-tool-bdebc.web.app/account">Manage Email Preferences</a></p>
+        </div>
+    </body>
+    </html>
+    """
+    return base_template
+
+def get_type_color(email_type: str) -> str:
+    """Get color for email type badge."""
+    colors = {
+        "feature_updates": "#28a745",
+        "bug_fixes": "#ffc107", 
+        "pricing_changes": "#dc3545",
+        "usage_tips": "#17a2b8",
+        "all": "#6c757d"
+    }
+    return colors.get(email_type, "#6c757d")
+
+def get_type_label(email_type: str) -> str:
+    """Get label for email type badge."""
+    labels = {
+        "feature_updates": "🚀 New Feature",
+        "bug_fixes": "🐛 Bug Fix", 
+        "pricing_changes": "💰 Pricing Update",
+        "usage_tips": "💡 Usage Tip",
+        "all": "📢 Announcement"
+    }
+    return labels.get(email_type, "📢 Announcement")
+
+async def get_users_for_email(email_type: str) -> List[dict]:
+    """Get users who should receive emails of this type."""
+    users_ref = db.collection("users")
+    users = []
+    
+    # Get all users from Firebase Auth
+    try:
+        page = firebase_auth.list_users()
+        for user in page.users:
+            # Get user preferences from Firestore
+            user_doc = users_ref.document(user.uid).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                email_prefs = user_data.get("email_preferences", {})
+                
+                # Check if user wants this type of email
+                if email_type == "all" or email_prefs.get(email_type, True):
+                    users.append({
+                        "uid": user.uid,
+                        "email": user.email,
+                        "display_name": user.display_name or user.email
+                    })
+            else:
+                # New user without preferences, default to True
+                users.append({
+                    "uid": user.uid,
+                    "email": user.email,
+                    "display_name": user.display_name or user.email
+                })
+    except Exception as e:
+        print(f"Error getting users: {e}")
+    
+    return users
+
+# --- Email Endpoints ---
+@main_app.get("/admin/email/preview")
+async def preview_email_recipients(email_type: str, _: dict = Depends(get_current_admin_user)):
+    """Preview which users would receive an email of this type."""
+    users = await get_users_for_email(email_type)
+    return {
+        "email_type": email_type,
+        "recipient_count": len(users),
+        "recipients": users[:10] if len(users) > 10 else users  # Show first 10 for preview
+    }
+
+@main_app.post("/admin/email/send")
+async def send_bulk_email(email_request: EmailRequest, _: dict = Depends(get_current_admin_user)):
+    """Send email to users based on type and preferences."""
+    if email_request.preview:
+        # Just return preview without sending
+        users = await get_users_for_email(email_request.email_type)
+        return {
+            "preview": True,
+            "recipient_count": len(users),
+            "recipients": users[:10] if len(users) > 10 else users
+        }
+    
+    # Get recipients
+    users = await get_users_for_email(email_request.email_type)
+    if not users:
+        raise HTTPException(status_code=400, detail="No recipients found for this email type")
+    
+    # Generate email template
+    html_content = get_email_template(email_request.email_type, email_request.subject, email_request.content)
+    
+    # Send emails
+    success_count = 0
+    failed_emails = []
+    
+    for user in users:
+        try:
+            success = send_email(user["email"], email_request.subject, html_content)
+            if success:
+                success_count += 1
+            else:
+                failed_emails.append(user["email"])
+        except Exception as e:
+            failed_emails.append(user["email"])
+            print(f"Failed to send email to {user['email']}: {e}")
+    
+    return {
+        "message": f"Email sent to {success_count} out of {len(users)} recipients",
+        "success_count": success_count,
+        "total_recipients": len(users),
+        "failed_emails": failed_emails
+    }
+
+@main_app.get("/user/email-preferences")
+async def get_user_email_preferences(user: dict = Depends(get_current_user)):
+    """Get user's email preferences."""
+    user_ref = db.collection("users").document(user["user_id"])
+    user_doc = user_ref.get()
+    
+    if user_doc.exists:
+        user_data = user_doc.to_dict()
+        email_prefs = user_data.get("email_preferences", {
+            "feature_updates": True,
+            "bug_fixes": True,
+            "pricing_changes": True,
+            "usage_tips": True
+        })
+        return email_prefs
+    else:
+        # Return default preferences for new users
+        return {
+            "feature_updates": True,
+            "bug_fixes": True,
+            "pricing_changes": True,
+            "usage_tips": True
+        }
+
+@main_app.post("/user/email-preferences")
+async def update_user_email_preferences(
+    preferences: EmailPreferences, 
+    user: dict = Depends(get_current_user)
+):
+    """Update user's email preferences."""
+    user_ref = db.collection("users").document(user["user_id"])
+    
+    # Update or create user document with email preferences
+    user_ref.set({
+        "email_preferences": {
+            "feature_updates": preferences.feature_updates,
+            "bug_fixes": preferences.bug_fixes,
+            "pricing_changes": preferences.pricing_changes,
+            "usage_tips": preferences.usage_tips
+        }
+    }, merge=True)
+    
+    return {"message": "Email preferences updated successfully"}
 
 # Static files should be mounted last, after all other routes are defined.
 main_app.mount("/", StaticFiles(directory="static", html=True), name="static")
