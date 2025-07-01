@@ -98,11 +98,7 @@ function App() {
                 const idTokenResult = await currentUser.getIdTokenResult();
                 currentUser.isAdmin = idTokenResult.claims.admin === true;
                 setUser(currentUser);
-
-                if (currentUser.emailVerified) {
-                    setInfo('');
-                    fetchProjects();
-                }
+                fetchProjects();
             } else {
                 setUser(null);
                 setHistory([]);
@@ -165,22 +161,6 @@ function App() {
     const handleSelectDocument = (contextMessage) => {
         // This function now just receives the prepared context message from ProjectsPanel
         setHistory(prev => [...prev, contextMessage]);
-    };
-
-    const renderVerification = () => {
-        return (
-            <div className="auth-page">
-                <div className="auth-container">
-                    <h2>Please Verify Your Email</h2>
-                    <p>You must verify your email address to continue. Please check your inbox for a verification link.</p>
-                    <p>Logged in as: {user.email}</p>
-                    <button onClick={handleResendVerification}>Resend Verification Email</button>
-                    <button onClick={handleLogout}>Back to Login</button>
-                    {error && <p className="error">{error}</p>}
-                    {info && <p className="info-text">{info}</p>}
-                </div>
-            </div>
-        );
     };
 
     const renderChatInterface = () => {
@@ -251,10 +231,6 @@ function App() {
 
     if (loading) {
         return <div>Loading...</div>; // Or a spinner component
-    }
-
-    if (user && !user.emailVerified) {
-        return renderVerification();
     }
 
     return (
