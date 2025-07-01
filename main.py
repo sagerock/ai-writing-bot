@@ -13,7 +13,7 @@ os.environ["GRPC_DNS_RESOLVER"] = "native"  # Force gRPC to use system DNS
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
@@ -30,8 +30,15 @@ from langchain_openai import ChatOpenAI
 from google.cloud.firestore_v1.query import Query
 from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.document import DocumentReference
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content, HtmlContent
+
+# Email functionality (optional)
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
+    print("Warning: SendGrid not available. Email functionality will be disabled.")
 
 load_dotenv()
 
@@ -724,23 +731,35 @@ async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depe
 # --- Email Functionality ---
 def send_email(to_email: str, subject: str, html_content: str):
     """Send email using SendGrid."""
-    if not SENDGRID_API_KEY:
-        raise HTTPException(status_code=500, detail="SendGrid API key not configured")
-    
+    if not SENDGRID_AVAILABLE:
+        print(f"Email not sent to {to_email}: SendGrid not configured")
+        return False
+        
     try:
-        sg = SendGridAPIClient(api_key=SENDGRID_API_KEY)
-        from_email = Email("noreply@romalume.com")  # Update with your verified sender
-        to_email = To(to_email)
-        content = HtmlContent(html_content)
-        mail = Mail(from_email, to_email, subject, content)
-        response = sg.send(mail)
+        sg = SendGridAPIClient(api_key=os.getenv('SENDGRID_API_KEY'))
+        message = Mail(
+            from_email=os.getenv('FROM_EMAIL', 'noreply@romalume.com'),
+            to_emails=to_email,
+            subject=subject,
+            html_content=html_content
+        )
+        response = sg.send(message)
         return response.status_code == 202
     except Exception as e:
-        print(f"Email sending failed: {e}")
+        print(f"Failed to send email to {to_email}: {e}")
         return False
 
-def get_email_template(email_type: str, subject: str, content: str) -> str:
+def get_email_template(email_type: str, subject: str, content: str, user_id: str = None) -> str:
     """Generate HTML email template."""
+    unsubscribe_links = ""
+    if user_id:
+        unsubscribe_links = f"""
+            <p style="font-size: 11px; color: #999; margin-top: 15px;">
+                <a href="https://ai-writing-bot-backend.onrender.com/unsubscribe/{user_id}?email_type={email_type}">Unsubscribe from {get_type_label(email_type)}</a> | 
+                <a href="https://ai-writing-bot-backend.onrender.com/unsubscribe/{user_id}">Unsubscribe from all emails</a>
+            </p>
+        """
+    
     base_template = f"""
     <!DOCTYPE html>
     <html>
@@ -773,6 +792,7 @@ def get_email_template(email_type: str, subject: str, content: str) -> str:
         <div class="footer">
             <p>You're receiving this email because you're a RomaLume user.</p>
             <p><a href="https://ai-writing-tool-bdebc.web.app/account">Manage Email Preferences</a></p>
+            {unsubscribe_links}
         </div>
     </body>
     </html>
@@ -863,15 +883,15 @@ async def send_bulk_email(email_request: EmailRequest, _: dict = Depends(get_cur
     if not users:
         raise HTTPException(status_code=400, detail="No recipients found for this email type")
     
-    # Generate email template
-    html_content = get_email_template(email_request.email_type, email_request.subject, email_request.content)
-    
     # Send emails
     success_count = 0
     failed_emails = []
     
     for user in users:
         try:
+            # Generate personalized email template for each user
+            html_content = get_email_template(email_request.email_type, email_request.subject, email_request.content, user["uid"])
+            
             success = send_email(user["email"], email_request.subject, html_content)
             if success:
                 success_count += 1
@@ -931,6 +951,131 @@ async def update_user_email_preferences(
     }, merge=True)
     
     return {"message": "Email preferences updated successfully"}
+
+@main_app.get("/unsubscribe/{user_id}")
+async def unsubscribe_user(user_id: str, email_type: str = None):
+    """Unsubscribe user from specific email type or all emails."""
+    try:
+        # Get user from Firebase Auth
+        user = firebase_auth.get_user(user_id)
+        user_ref = db.collection("users").document(user_id)
+        
+        # Get current preferences
+        user_doc = user_ref.get()
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            email_prefs = user_data.get("email_preferences", {
+                "feature_updates": True,
+                "bug_fixes": True,
+                "pricing_changes": True,
+                "usage_tips": True
+            })
+        else:
+            email_prefs = {
+                "feature_updates": True,
+                "bug_fixes": True,
+                "pricing_changes": True,
+                "usage_tips": True
+            }
+        
+        # Update preferences based on email_type
+        if email_type and email_type in email_prefs:
+            # Unsubscribe from specific type
+            email_prefs[email_type] = False
+            message = f"Unsubscribed from {email_type} emails"
+        else:
+            # Unsubscribe from all emails
+            for key in email_prefs:
+                email_prefs[key] = False
+            message = "Unsubscribed from all emails"
+        
+        # Save updated preferences
+        user_ref.set({
+            "email_preferences": email_prefs
+        }, merge=True)
+        
+        # Return HTML page with confirmation
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Unsubscribed - RomaLume</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; }}
+                .container {{ background: #f9f9f9; padding: 30px; border-radius: 10px; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; }}
+                .success {{ color: #28a745; font-size: 18px; margin: 20px 0; }}
+                .info {{ background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                .cta {{ background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }}
+                .preferences {{ text-align: left; background: white; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+                .preference-item {{ margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 3px; }}
+                .enabled {{ border-left: 4px solid #28a745; }}
+                .disabled {{ border-left: 4px solid #dc3545; opacity: 0.6; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>RomaLume</h1>
+                    <p>Email Preferences Updated</p>
+                </div>
+                
+                <div class="success">✅ {message}</div>
+                
+                <div class="info">
+                    <p><strong>Current Email Preferences:</strong></p>
+                </div>
+                
+                <div class="preferences">
+                    <div class="preference-item {'enabled' if email_prefs['feature_updates'] else 'disabled'}">
+                        🚀 <strong>New Features & Updates:</strong> {'Enabled' if email_prefs['feature_updates'] else 'Disabled'}
+                    </div>
+                    <div class="preference-item {'enabled' if email_prefs['bug_fixes'] else 'disabled'}">
+                        🐛 <strong>Bug Fixes & Improvements:</strong> {'Enabled' if email_prefs['bug_fixes'] else 'Disabled'}
+                    </div>
+                    <div class="preference-item {'enabled' if email_prefs['pricing_changes'] else 'disabled'}">
+                        💰 <strong>Pricing & Plan Changes:</strong> {'Enabled' if email_prefs['pricing_changes'] else 'Disabled'}
+                    </div>
+                    <div class="preference-item {'enabled' if email_prefs['usage_tips'] else 'disabled'}">
+                        💡 <strong>Usage Tips & Best Practices:</strong> {'Enabled' if email_prefs['usage_tips'] else 'Disabled'}
+                    </div>
+                </div>
+                
+                <p>You can change these preferences anytime in your account settings.</p>
+                
+                <a href="https://ai-writing-tool-bdebc.web.app/account" class="cta">Manage Email Preferences</a>
+                
+                <p style="margin-top: 30px; font-size: 12px; color: #666;">
+                    If you have any questions, please contact us at support@romalume.com
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_content)
+        
+    except Exception as e:
+        return HTMLResponse(content=f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Error - RomaLume</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
+                .error {{ color: #dc3545; }}
+            </style>
+        </head>
+        <body>
+            <h1>Error</h1>
+            <p class="error">Unable to process unsubscribe request.</p>
+            <p>Please contact support@romalume.com for assistance.</p>
+        </body>
+        </html>
+        """)
 
 # Static files should be mounted last, after all other routes are defined.
 main_app.mount("/", StaticFiles(directory="static", html=True), name="static")
