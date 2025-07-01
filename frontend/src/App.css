@@ -1,8 +1,9 @@
-/* The .App container itself doesn't need layout styles */
+/* The .App container ensures proper height for flexbox layout */
 .App {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Prevent whole app from scrolling */
 }
 
 .App-header {
@@ -12,6 +13,7 @@
     padding: 10px 20px;
     background-color: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .logo-container {
@@ -42,6 +44,7 @@
     display: flex;
     flex-grow: 1;
     overflow: hidden; /* Prevent panels from overflowing */
+    min-height: 0; /* Allow proper flex calculations */
 }
 
 .left-panel {
@@ -51,14 +54,16 @@
     background-color: #f9f9f9;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    min-height: 0; /* Allow flexbox children to shrink */
+    position: relative; /* Establish positioning context */
 }
 
 .chat-area {
     flex-grow: 1;
     display: flex; /* Make chat component take full height */
     flex-direction: column;
-    height: 100%;
+    min-height: 0; /* Allow flex shrinking */
+    overflow: hidden; /* Prevent overflow */
 }
 
 /* This is the two-column layout for when the user is logged in */
@@ -152,15 +157,14 @@
   height: 100vh;
 }
 
-.archives-panel, .documents-panel {
+.projects-panel {
   padding: 10px;
-  overflow-y: auto;
+  overflow-y: scroll; /* Force scrollbar to be visible */
   text-align: left;
-}
-
-.archives-panel {
-  flex-grow: 1; /* Allows this to take up space, pushing documents down */
-  border-bottom: 1px solid #ccc; /* Separator line */
+  flex-grow: 1;
+  min-height: 0; /* Allow scrolling in flex container */
+  height: 0; /* Force height calculation */
+  flex-basis: 0; /* Reset flex basis */
 }
 
 /* Left sidebar for saved chats */
@@ -181,102 +185,117 @@
   margin-top: 0;
 }
 
-.archives-list {
+.projects-list {
   list-style: none;
   padding: 0;
 }
 
-.archives-list summary {
+.projects-list summary {
   cursor: pointer;
   font-weight: bold;
   margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.archives-list ul {
-  list-style: none;
-  padding-left: 15px;
+.project-name {
+  flex-grow: 1;
 }
 
-.archives-list li li {
-  padding: 5px;
+.project-controls {
+  display: flex;
+  gap: 5px;
+  margin-left: 10px;
+}
+
+.project-controls .upload-btn {
+  background: none;
+  border: none;
   cursor: pointer;
-  border-radius: 4px;
+  font-size: 1.1rem;
+  padding: 2px 5px;
+  border-radius: 3px;
 }
 
-.archives-list li li:hover {
+.project-controls .upload-btn:hover {
   background-color: #e9e9e9;
 }
 
-/* Styling for the new Documents Panel */
-.documents-panel {
-    flex-shrink: 0; /* Prevents it from shrinking */
-    max-height: 40%; /* Or a fixed height like 300px */
+.project-controls .upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.documents-panel h3 {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0;
+.project-content {
+  list-style: none;
+  padding-left: 15px;
+  margin-top: 5px;
 }
 
-.documents-list {
-    list-style: none;
-    padding: 0;
+.project-item {
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  border-radius: 4px;
+  gap: 8px;
 }
 
-.documents-list li {
-    display: flex;
-    justify-content: space-between;
-    padding: 5px;
-    cursor: pointer;
-    border-radius: 4px;
+.project-item:hover {
+  background-color: #e9e9e9;
 }
 
-.documents-list li:hover {
-    background-color: #e9e9e9;
+.item-icon {
+  font-size: 0.9rem;
+  width: 20px;
+  flex-shrink: 0;
 }
 
-.doc-name {
-    font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 10px;
+.item-name {
+  flex-grow: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.doc-date {
-    font-size: 0.8em;
-    color: #6c757d;
-    white-space: nowrap;
-}
-
-.archive-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.archive-name {
-    cursor: pointer;
-    flex-grow: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.item-name:hover {
+  text-decoration: underline;
 }
 
 .delete-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 2px 5px;
-    font-size: 1.1em;
-    color: #6c757d;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 5px;
+  border-radius: 3px;
+  opacity: 0.6;
+  flex-shrink: 0;
 }
 
 .delete-btn:hover {
-    color: #dc3545; /* Red on hover */
+  background-color: #dc3545;
+  color: white;
+  opacity: 1;
 }
+
+.empty-project {
+  color: #6c757d;
+  font-style: italic;
+  padding: 5px;
+  font-size: 0.9rem;
+}
+
+.document-item .item-icon {
+  color: #007bff;
+}
+
+.chat-item .item-icon {
+  color: #28a745;
+}
+
+/* Legacy styles cleaned up - using unified projects panel now */
 
 /* Modal styles */
 .modal-backdrop {
@@ -353,7 +372,7 @@
     cursor: pointer;
     padding: 5px;
 }
-.archives-header {
+.projects-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -373,9 +392,9 @@
 
 .chat-controls {
   display: flex;
-  gap: 20px;
+  gap: 15px;
   align-items: center;
-  padding: 15px;
+  padding: 8px 15px;
   background: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
   flex-wrap: wrap;
@@ -383,56 +402,25 @@
 
 .control-group {
   display: flex;
-  flex-direction: column;
-  min-width: 150px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .control-group label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #495057;
-  margin-bottom: 5px;
+  font-size: 0.8rem;
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
 .control-group select {
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  background: white;
-  font-size: 0.9rem;
+  padding: 6px 10px;
 }
 
 .control-group input[type="range"] {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: #e9ecef;
-  outline: none;
-  margin-bottom: 5px;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.control-group input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #007bff;
-  cursor: pointer;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.control-group input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #007bff;
-  cursor: pointer;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  width: 150px;
+  margin: 0;
 }
 
 .control-group input[type="checkbox"] {
@@ -443,9 +431,9 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: none;
   background-color: #f9f9f9;
 }
 
@@ -474,6 +462,8 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 100%;
+  min-height: 0; /* Allow proper flex calculations */
   overflow: hidden;
   background-color: #fff;
 }
@@ -485,6 +475,7 @@
   background-color: #f0f0f0; /* Slightly different background */
   display: flex;
   flex-direction: column;
+  min-height: 0; /* Allow proper flex shrinking */
 }
 
 .message {
@@ -808,8 +799,9 @@ hr {
   }
 
   .mobile-accordion .mobile-accordion-panel.is-open {
-    max-height: 1000px; /* Adjust as needed */
+    max-height: 400px; /* Constrain height to enable scrolling */
     padding: 1rem;
+    overflow-y: auto; /* Enable scrolling for mobile */
   }
   
   /* Hide the desktop titles from Archives/Documents panels on mobile */
@@ -821,6 +813,11 @@ hr {
 
 /* On desktop, hide the accordion buttons and just show the content */
 @media (min-width: 769px) {
+  .mobile-accordion {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
   .mobile-accordion .mobile-accordion-header {
     display: none;
   }
@@ -829,5 +826,171 @@ hr {
     overflow: visible !important;
     padding: 0 !important;
     border: none !important;
+    height: 100% !important;
+    flex-grow: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+
+.chat-controls-wrapper {
+  padding: 0;
+  margin: 0;
+}
+
+.mobile-accordion-panel {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+@media (min-width: 769px) {
+  .chat-controls {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none;
+    border-bottom: none;
+  }
+  .archive-controls {
+    padding: 0 0 0 8px;
+    gap: 6px;
+    background: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-controls {
+    padding: 8px 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+  }
+  .archive-controls {
+    padding: 6px 10px;
+    gap: 8px;
+    background: #f9f9f9;
+  }
+}
+
+.chat-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 8px;
+  margin: 0;
+  flex-wrap: nowrap;
+  min-height: 0;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.hamburger {
+  font-size: 2rem;
+  background: none;
+  border: none;
+  margin-top: 4px;
+  margin-right: 16px;
+  z-index: 1001;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: inline-block;
+    position: static;
+  }
+  .logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Mobile drawer styles */
+.mobile-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100%;
+  background-color: #f9f9f9;
+  border-right: 1px solid #ccc;
+  z-index: 1001;
+  overflow-y: auto;
+  transform: translateX(-100%);
+  animation: slideIn 0.3s ease-out forwards;
+  padding: 0;
+}
+
+/* Ensure ProjectsPanel content is visible in mobile drawer */
+.mobile-drawer .projects-panel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #f9f9f9;
+}
+
+.mobile-drawer .projects-panel h2 {
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.mobile-drawer .projects-list {
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-drawer .project-content {
+  margin: 0;
+  padding-left: 15px;
+}
+
+@keyframes slideIn {
+  to {
+    transform: translateX(0);
+  }
+}
+
+.close-drawer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 3px;
+  z-index: 1002;
+}
+
+.close-drawer:hover {
+  background-color: #e9e9e9;
+}
+
+/* Ensure hamburger is visible on mobile */
+@media (max-width: 768px) {
+  .hamburger {
+    display: inline-block !important;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: 10px;
+  }
+  
+  .logo-container {
+    display: flex;
+    align-items: center;
   }
 }

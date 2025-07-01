@@ -3,8 +3,7 @@ import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-r
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth'
 import Chat from './components/Chat'
-import ArchivesPanel from './components/ArchivesPanel'
-import DocumentsPanel from './components/DocumentsPanel'
+import ProjectsPanel from './components/ProjectsPanel'
 import AccountPage from './components/AccountPage'
 import AdminPage from './components/AdminPage'
 import HomePage from './pages/HomePage'
@@ -45,14 +44,14 @@ function App() {
     const [info, setInfo] = useState('');
     const [error, setError] = useState('');
     const [history, setHistory] = useState([]);
-    const [archives, setArchives] = useState({});
-    const [archivesLoading, setArchivesLoading] = useState(false);
-    const [archivesError, setArchivesError] = useState('');
-    const [selectedDocument, setSelectedDocument] = useState(null);
-    const [mobileArchivesOpen, setMobileArchivesOpen] = useState(false);
-    const [mobileDocumentsOpen, setMobileDocumentsOpen] = useState(false);
+    const [projects, setProjects] = useState({});
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [projectsError, setProjectsError] = useState('');
+    const [mobileProjectsDrawerOpen, setMobileProjectsDrawerOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+
+    const isMobile = window.innerWidth <= 768;
 
     useEffect(() => {
         const path = location.pathname;
@@ -71,25 +70,25 @@ function App() {
         document.title = title;
     }, [location]);
 
-    const fetchArchives = async () => {
+    const fetchProjects = async () => {
         if (!auth.currentUser) return;
-        setArchivesLoading(true);
-        setArchivesError('');
+        setProjectsLoading(true);
+        setProjectsError('');
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/archives`, {
+            const response = await fetch(`${API_URL}/projects`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch archives.');
+                throw new Error('Failed to fetch projects.');
             }
             const data = await response.json();
-            setArchives(data);
+            setProjects(data);
         } catch (err) {
-            setArchivesError(err.message);
+            setProjectsError(err.message);
         } finally {
-            setArchivesLoading(false);
+            setProjectsLoading(false);
         }
     };
 
@@ -102,12 +101,12 @@ function App() {
 
                 if (currentUser.emailVerified) {
                     setInfo('');
-                    fetchArchives();
+                    fetchProjects();
                 }
             } else {
                 setUser(null);
                 setHistory([]);
-                setArchives({});
+                setProjects({});
             }
             setLoading(false);
         });
@@ -163,26 +162,9 @@ function App() {
         setHistory(prev => [...prev, contextMessage]);
     };
 
-    const handleSelectDocument = async (doc) => {
-        try {
-            const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/document/${encodeURIComponent(doc.filename)}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) {
-                throw new Error('Failed to load document.');
-            }
-            const data = await response.json();
-            const contextMessage = {
-                role: 'context',
-                content: data.content,
-                display_text: `Loaded document: ${doc.filename}`
-            };
-            setHistory(prev => [...prev, contextMessage]);
-            setSelectedDocument(doc.filename);
-        } catch (err) {
-            alert(err.message);
-        }
+    const handleSelectDocument = (contextMessage) => {
+        // This function now just receives the prepared context message from ProjectsPanel
+        setHistory(prev => [...prev, contextMessage]);
     };
 
     const renderVerification = () => {
@@ -211,6 +193,11 @@ function App() {
                 <header className="App-header">
                     <div className="logo-container">
                         <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />
+                        {isMobile && (
+                            <button className="hamburger" onClick={() => setMobileProjectsDrawerOpen(true)}>
+                                &#9776;
+                            </button>
+                        )}
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
@@ -221,45 +208,40 @@ function App() {
                 </header>
 
                 <div className="main-content">
-                    <div className="left-panel">
-                        <div className="mobile-accordion">
-                            <button className="mobile-accordion-header" onClick={() => setMobileArchivesOpen(!mobileArchivesOpen)}>
-                                <h2>Saved Chats</h2>
-                                <span>{mobileArchivesOpen ? '−' : '+'}</span>
-                            </button>
-                            <div className={`mobile-accordion-panel ${mobileArchivesOpen ? 'is-open' : ''}`}>
-                                <ArchivesPanel 
+                    {/* Desktop left panel */}
+                    {!isMobile && (
+                        <div className="left-panel">
+                            <ProjectsPanel 
+                                auth={auth}
+                                onLoadArchive={handleLoadArchive}
+                                onSelectDocument={handleSelectDocument}
+                                onUploadSuccess={handleUploadSuccess}
+                            />
+                        </div>
+                    )}
+                    {/* Mobile drawer for projects */}
+                    {isMobile && mobileProjectsDrawerOpen && (
+                        <>
+                            <div className="mobile-drawer-backdrop" onClick={() => setMobileProjectsDrawerOpen(false)} />
+                            <div className="mobile-drawer">
+                                {console.log('Mobile drawer projects:', projects)}
+                                <ProjectsPanel 
                                     auth={auth}
-                                    archives={archives}
-                                    loading={archivesLoading}
-                                    error={archivesError}
                                     onLoadArchive={handleLoadArchive}
-                                    onRefresh={fetchArchives}
-                                />
-                            </div>
-                        </div>
-                        <div className="mobile-accordion">
-                            <button className="mobile-accordion-header" onClick={() => setMobileDocumentsOpen(!mobileDocumentsOpen)}>
-                                <h2>My Documents</h2>
-                                <span>{mobileDocumentsOpen ? '−' : '+'}</span>
-                            </button>
-                            <div className={`mobile-accordion-panel ${mobileDocumentsOpen ? 'is-open' : ''}`}>
-                                <DocumentsPanel
-                                    onUploadSuccess={handleUploadSuccess}
                                     onSelectDocument={handleSelectDocument}
-                                    selectedDocument={selectedDocument}
-                                    auth={auth}
+                                    onUploadSuccess={handleUploadSuccess}
                                 />
+                                <button className="close-drawer" onClick={() => setMobileProjectsDrawerOpen(false)}>×</button>
                             </div>
-                        </div>
-                    </div>
+                        </>
+                    )}
                     <div className="chat-area">
                         <Chat 
                             auth={auth}
                             history={history} 
                             setHistory={setHistory} 
-                            projectNames={Object.keys(archives)}
-                            onSaveSuccess={fetchArchives}
+                            projectNames={Object.keys(projects)}
+                            onSaveSuccess={fetchProjects}
                         />
                     </div>
                 </div>

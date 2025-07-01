@@ -348,6 +348,62 @@ async def get_archives(user: dict = Depends(get_current_user)):
 
     return JSONResponse(content=project_archives)
 
+@main_app.get("/projects")
+async def get_projects(user: dict = Depends(get_current_user)):
+    """Get all projects with their chats and documents organized together."""
+    user_id = user['user_id']
+    try:
+        # Get archives
+        archives_ref = db.collection("users").document(user_id).collection("archives")
+        archives = archives_ref.stream()
+
+        # Get documents
+        docs_ref = db.collection("users").document(user_id).collection("documents")
+        docs = docs_ref.stream()
+
+        projects = {}
+
+        # Process archives
+        for archive in archives:
+            data = archive.to_dict()
+            project = data.get("projectName", "General")
+            if project not in projects:
+                projects[project] = {"chats": [], "documents": []}
+            
+            archived_at = data.get("archivedAt")
+            if archived_at and hasattr(archived_at, 'isoformat'):
+                archived_at = archived_at.isoformat()
+
+            projects[project]["chats"].append({
+                "id": archive.id,
+                "model": data.get("model"),
+                "archivedAt": archived_at,
+                "type": "chat"
+            })
+
+        # Process documents
+        for doc in docs:
+            data = doc.to_dict()
+            project = data.get("projectName", "General")
+            if project not in projects:
+                projects[project] = {"chats": [], "documents": []}
+            
+            uploaded_at = data.get("uploadedAt")
+            if uploaded_at and hasattr(uploaded_at, 'isoformat'):
+                uploaded_at = uploaded_at.isoformat()
+
+            projects[project]["documents"].append({
+                "filename": data.get("filename"),
+                "contentType": data.get("contentType"),
+                "size": data.get("size"),
+                "uploadedAt": uploaded_at,
+                "type": "document"
+            })
+
+        return JSONResponse(content=projects)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @main_app.get("/archive/{archive_id}")
 async def get_archive_content(archive_id: str, user: dict = Depends(get_current_user)):
     user_id = user['user_id']
@@ -373,14 +429,22 @@ async def get_documents(user: dict = Depends(get_current_user)):
     try:
         docs_ref = db.collection("users").document(user_id).collection("documents").order_by("uploadedAt", direction=Query.DESCENDING)
         docs = docs_ref.stream()
-        documents = []
+        
+        project_documents = {}
         for doc in docs:
             data = doc.to_dict()
+            project = data.get("projectName", "General")  # Default to "General" for existing docs
+            
+            if project not in project_documents:
+                project_documents[project] = []
+            
             uploaded_at = data.get("uploadedAt")
             if uploaded_at and hasattr(uploaded_at, 'isoformat'):
                 data['uploadedAt'] = uploaded_at.isoformat()
-            documents.append(data)
-        return JSONResponse(content=documents)
+            
+            project_documents[project].append(data)
+        
+        return JSONResponse(content=project_documents)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -410,7 +474,7 @@ async def get_user_credits(user: dict = Depends(get_current_user)):
 
 # File upload endpoint
 @main_app.post("/upload")
-async def upload_file(user: dict = Depends(get_current_user), file: UploadFile = File(...)):
+async def upload_file(user: dict = Depends(get_current_user), file: UploadFile = File(...), project_name: str = Form("General")):
     user_id = user['user_id']
     
     allowed_extensions = ('.md', '.txt', '.pdf')
@@ -449,6 +513,7 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
             "filename": file.filename,
             "contentType": file.content_type,
             "size": len(file_content),
+            "projectName": project_name,
             "uploadedAt": firestore.SERVER_TIMESTAMP,
         }
         doc_ref.set(doc_data)

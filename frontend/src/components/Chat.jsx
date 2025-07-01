@@ -19,6 +19,14 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
   const abortControllerRef = useRef(null);
   const [copied, setCopied] = useState({});
   const [forceRerender, setForceRerender] = useState(0);
+  const chatWindowRef = useRef(null);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  }, [history, forceRerender]);
 
   const handleCopy = (text, index) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -177,21 +185,23 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
 
   return (
     <>
-      <ChatControls 
-        model={model}
-        setModel={setModel}
-        searchWeb={searchWeb}
-        setSearchWeb={setSearchWeb}
-        temperature={temperature}
-        setTemperature={setTemperature}
-      />
-      <ArchiveControls 
-        onSave={handleSave} 
-        onClear={handleClear} 
-        projectNames={projectNames} 
-      />
+      <div className="chat-controls-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 0, margin: 0 }}>
+        <ChatControls 
+          model={model}
+          setModel={setModel}
+          searchWeb={searchWeb}
+          setSearchWeb={setSearchWeb}
+          temperature={temperature}
+          setTemperature={setTemperature}
+        />
+        <ArchiveControls 
+          onSave={handleSave} 
+          onClear={handleClear} 
+          projectNames={projectNames} 
+        />
+      </div>
       <div className="chat-container">
-        <div className="chat-window" key={forceRerender}>
+        <div className="chat-window" key={forceRerender} ref={chatWindowRef}>
           {history.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
               {msg.role === 'context' ? (
