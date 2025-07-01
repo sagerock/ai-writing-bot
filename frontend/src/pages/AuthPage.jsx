@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 
 // This component will handle Login, Registration, and Forgot Password
 const AuthPage = () => {
@@ -22,9 +22,8 @@ const AuthPage = () => {
     setInfo('');
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
-      await getAuth().signOut();
-      navigate('/login', { state: { info: 'Verification email sent! Please check your inbox and click the link to activate your account.' } });
+      // User is now automatically signed in and can access the app immediately
+      // The onAuthStateChanged listener in App.jsx will handle navigation to the main app
     } catch (err) {
       setError(err.message);
     }
