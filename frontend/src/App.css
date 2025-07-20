@@ -49,6 +49,8 @@
 
 .left-panel {
     width: 280px;
+    min-width: 200px;
+    max-width: 500px;
     flex-shrink: 0;
     border-right: 1px solid #ccc;
     background-color: #f9f9f9;
@@ -56,6 +58,8 @@
     flex-direction: column;
     min-height: 0; /* Allow flexbox children to shrink */
     position: relative; /* Establish positioning context */
+    resize: horizontal;
+    overflow: auto;
 }
 
 .chat-area {
@@ -254,9 +258,11 @@
 .item-name {
   flex-grow: 1;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
+  padding: 2px 0;
 }
 
 .item-name:hover {
@@ -993,6 +999,57 @@ hr {
     display: flex;
     align-items: center;
   }
+}
+
+/* New Project Modal Styles */
+.new-project-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.new-project-form input[type="text"] {
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.new-project-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.new-project-actions button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.new-project-actions button:first-child {
+    background-color: #007bff;
+    color: white;
+}
+
+.new-project-actions button:first-child:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.new-project-actions button:first-child:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.new-project-actions button:last-child {
+    background-color: #6c757d;
+    color: white;
+}
+
+.new-project-actions button:last-child:hover {
+    background-color: #545b62;
 }
 
 /* Email preferences styles */

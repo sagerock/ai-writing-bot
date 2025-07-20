@@ -728,6 +728,203 @@ async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depe
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@main_app.get("/admin/debug/user/{user_id}/credits")
+async def debug_user_credits(user_id: str, _: dict = Depends(get_current_admin_user)):
+    """
+    Debug endpoint for investigating credit issues for a specific user.
+    Returns detailed information about the user's credit status.
+    """
+    try:
+        # Get user data from Firestore
+        user_ref = db.collection("users").document(user_id)
+        user_doc = user_ref.get()
+        
+        # Get user data from Firebase Auth
+        auth_user_data = None
+        try:
+            auth_user = firebase_auth.get_user(user_id)
+            auth_user_data = {
+                "email": auth_user.email,
+                "display_name": auth_user.display_name,
+                "email_verified": auth_user.email_verified,
+                "disabled": auth_user.disabled,
+                "custom_claims": auth_user.custom_claims
+            }
+        except Exception as auth_error:
+            print(f"Auth error for user {user_id}: {auth_error}")
+
+        # Simulate the credit check logic
+        transaction = db.transaction()
+        
+        @firestore.transactional
+        def simulate_credit_check(transaction: Transaction, user_ref):
+            user_snapshot = user_ref.get(transaction=transaction)
+            
+            if not user_snapshot.exists:
+                return {
+                    "status": "new_user",
+                    "would_get_initial_credits": True,
+                    "initial_credits_amount": 100
+                }
+            
+            user_data = user_snapshot.to_dict()
+            credits = user_data.get("credits", 0)
+            
+            return {
+                "status": "existing_user",
+                "current_credits": credits,
+                "credits_type": type(credits).__name__,
+                "would_pass_check": credits > 0,
+                "credits_after_use": credits - 1 if credits > 0 else credits
+            }
+        
+        credit_simulation = simulate_credit_check(transaction, user_ref)
+        
+        # Prepare response
+        debug_info = {
+            "user_id": user_id,
+            "timestamp": datetime.now().isoformat(),
+            "firebase_auth": {
+                "exists": auth_user_data is not None,
+                "data": auth_user_data
+            },
+            "firestore": {
+                "document_exists": user_doc.exists,
+                "raw_data": user_doc.to_dict() if user_doc.exists else None
+            },
+            "credit_simulation": credit_simulation,
+            "diagnosis": {
+                "likely_issue": None,
+                "recommendations": []
+            }
+        }
+        
+        # Determine likely issues and recommendations
+        if not user_doc.exists:
+            debug_info["diagnosis"]["likely_issue"] = "User document doesn't exist in Firestore"
+            debug_info["diagnosis"]["recommendations"] = [
+                "User should make their first request to create the document with initial 100 credits",
+                "If they have made requests, there may be a database connectivity issue"
+            ]
+        elif not credit_simulation.get("would_pass_check", True):
+            debug_info["diagnosis"]["likely_issue"] = "User has 0 or negative credits"
+            debug_info["diagnosis"]["recommendations"] = [
+                "Add credits using the admin panel",
+                f"Current credits: {credit_simulation.get('current_credits', 'unknown')}"
+            ]
+        else:
+            debug_info["diagnosis"]["likely_issue"] = "Credits appear normal"
+            debug_info["diagnosis"]["recommendations"] = [
+                "Check client-side issues (browser cache, authentication)",
+                "Verify correct user ID is being used",
+                "Check API logs for other error messages"
+            ]
+
+        return JSONResponse(content=debug_info)
+        
+    except Exception as e:
+        print(f"Debug credit error: {e}")
+        raise HTTPException(status_code=500, detail=f"Debug failed: {str(e)}")
+
+@main_app.get("/admin/debug/credits/summary")
+async def debug_credits_summary(_: dict = Depends(get_current_admin_user)):
+    """
+    Debug endpoint that provides a summary of all users' credit status.
+    Useful for identifying widespread credit issues.
+    """
+    try:
+        # Get all users from Firebase Auth (limit to 100 for performance)
+        auth_users = firebase_auth.list_users(max_results=100).users
+        
+        summary = {
+            "total_users_checked": len(auth_users),
+            "users_with_credits": 0,
+            "users_out_of_credits": 0,
+            "users_no_firestore_data": 0,
+            "users_with_errors": 0,
+            "timestamp": datetime.now().isoformat(),
+            "sample_issues": []
+        }
+        
+        for user in auth_users:
+            try:
+                user_ref = db.collection("users").document(user.uid)
+                user_doc = user_ref.get()
+                
+                if not user_doc.exists:
+                    summary["users_no_firestore_data"] += 1
+                else:
+                    user_data = user_doc.to_dict()
+                    credits = user_data.get("credits", 0)
+                    
+                    if isinstance(credits, (int, float)):
+                        if credits > 0:
+                            summary["users_with_credits"] += 1
+                        else:
+                            summary["users_out_of_credits"] += 1
+                            if len(summary["sample_issues"]) < 5:
+                                summary["sample_issues"].append({
+                                    "user_id": user.uid,
+                                    "email": user.email,
+                                    "credits": credits,
+                                    "issue": "out_of_credits"
+                                })
+                    else:
+                        summary["users_with_errors"] += 1
+                        if len(summary["sample_issues"]) < 5:
+                            summary["sample_issues"].append({
+                                "user_id": user.uid,
+                                "email": user.email,
+                                "credits": credits,
+                                "issue": "invalid_credits_type"
+                            })
+                            
+            except Exception as user_error:
+                summary["users_with_errors"] += 1
+                print(f"Error checking user {user.uid}: {user_error}")
+        
+        return JSONResponse(content=summary)
+        
+    except Exception as e:
+        print(f"Debug credits summary error: {e}")
+        raise HTTPException(status_code=500, detail=f"Debug summary failed: {str(e)}")
+
+@main_app.post("/admin/debug/user/{user_id}/fix-credits")
+async def fix_user_credits(user_id: str, credit_amount: int, _: dict = Depends(get_current_admin_user)):
+    """
+    Emergency endpoint to fix a user's credits.
+    This bypasses the normal credit update endpoint to directly set credits.
+    """
+    try:
+        if credit_amount < 0:
+            raise HTTPException(status_code=400, detail="Credit amount must be non-negative")
+        
+        user_ref = db.collection("users").document(user_id)
+        user_ref.set({
+            "credits": credit_amount,
+            "credits_fixed_at": firestore.SERVER_TIMESTAMP,
+            "credits_fixed_by": "admin_debug_endpoint"
+        }, merge=True)
+        
+        # Verify the fix
+        updated_doc = user_ref.get()
+        if updated_doc.exists:
+            updated_credits = updated_doc.to_dict().get("credits")
+            return JSONResponse(content={
+                "message": f"Credits fixed successfully",
+                "user_id": user_id,
+                "new_credits": updated_credits,
+                "timestamp": datetime.now().isoformat()
+            })
+        else:
+            raise HTTPException(status_code=500, detail="Failed to verify credit fix")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Fix credits error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fix credits: {str(e)}")
+
 # --- Email Functionality ---
 def send_email(to_email: str, subject: str, html_content: str):
     """Send email using SendGrid."""

@@ -17,6 +17,12 @@ const AdminPage = ({ auth }) => {
     const [emailPreview, setEmailPreview] = useState(null);
     const [sendingEmail, setSendingEmail] = useState(false);
 
+    // Debug functionality
+    const [debugUserId, setDebugUserId] = useState('');
+    const [debugResult, setDebugResult] = useState(null);
+    const [debugLoading, setDebugLoading] = useState(false);
+    const [creditsSummary, setCreditsSummary] = useState(null);
+
     const fetchUsers = async () => {
         setLoading(true);
         setError('');
@@ -140,6 +146,99 @@ const AdminPage = ({ auth }) => {
         }
     };
 
+    const handleDebugUser = async () => {
+        if (!debugUserId.trim()) {
+            alert('Please enter a user ID');
+            return;
+        }
+
+        setDebugLoading(true);
+        setDebugResult(null);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/debug/user/${debugUserId}/credits`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to debug user credits');
+            }
+            const result = await response.json();
+            setDebugResult(result);
+        } catch (err) {
+            alert('Failed to debug user: ' + err.message);
+        } finally {
+            setDebugLoading(false);
+        }
+    };
+
+    const handleCreditsSummary = async () => {
+        setDebugLoading(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/debug/credits/summary`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to get credits summary');
+            }
+            const result = await response.json();
+            setCreditsSummary(result);
+        } catch (err) {
+            alert('Failed to get credits summary: ' + err.message);
+        } finally {
+            setDebugLoading(false);
+        }
+    };
+
+    const handleFixUserCredits = async (userId, credits) => {
+        const creditAmount = parseInt(prompt(`Enter the number of credits to set for user ${userId}:`, '100'));
+        if (isNaN(creditAmount) || creditAmount < 0) {
+            alert('Invalid credit amount');
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to set ${creditAmount} credits for user ${userId}?`)) {
+            return;
+        }
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/debug/user/${userId}/fix-credits?credit_amount=${creditAmount}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fix user credits');
+            }
+            const result = await response.json();
+            alert(`Credits fixed successfully! User now has ${result.new_credits} credits.`);
+            fetchUsers(); // Refresh users list
+        } catch (err) {
+            alert('Failed to fix credits: ' + err.message);
+        }
+    };
+
+    const debugSpecificUser = async (userId) => {
+        setDebugUserId(userId);
+        setDebugLoading(true);
+        setDebugResult(null);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/debug/user/${userId}/credits`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to debug user credits');
+            }
+            const result = await response.json();
+            setDebugResult(result);
+        } catch (err) {
+            alert('Failed to debug user: ' + err.message);
+        } finally {
+            setDebugLoading(false);
+        }
+    };
+
     return (
         <div className="admin-page">
             <nav className="account-nav">
@@ -172,6 +271,7 @@ const AdminPage = ({ auth }) => {
                                 <td>{user.isAdmin ? 'Yes' : 'No'}</td>
                                 <td>
                                     <button onClick={() => handleUpdateCredits(user.uid)}>Update Credits</button>
+                                    <button onClick={() => debugSpecificUser(user.uid)}>Debug</button>
                                     {!user.isAdmin ? (
                                         <button onClick={() => handleUpdateRole(user.uid, true)}>Make Admin</button>
                                     ) : (
@@ -250,6 +350,139 @@ const AdminPage = ({ auth }) => {
                                             <li>... and {emailPreview.recipients.length - 5} more</li>
                                         )}
                                     </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="admin-panel">
+                <h2>🔧 Credit System Debug Tools</h2>
+                
+                <div className="debug-section">
+                    <div className="form-group">
+                        <label>Debug Specific User:</label>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <input 
+                                type="text" 
+                                value={debugUserId}
+                                onChange={(e) => setDebugUserId(e.target.value)}
+                                placeholder="Enter User ID (UID)..."
+                                style={{ flex: 1 }}
+                            />
+                            <button onClick={handleDebugUser} disabled={debugLoading}>
+                                {debugLoading ? 'Debugging...' : 'Debug User'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <button onClick={handleCreditsSummary} disabled={debugLoading}>
+                            {debugLoading ? 'Loading...' : 'Get Credits Summary (All Users)'}
+                        </button>
+                    </div>
+
+                    {debugResult && (
+                        <div className="debug-result">
+                            <h3>Debug Result for User: {debugResult.user_id}</h3>
+                            <div className="debug-info">
+                                <div className="debug-section-item">
+                                    <h4>Firebase Auth Status:</h4>
+                                    <p>Exists: {debugResult.firebase_auth.exists ? '✅ Yes' : '❌ No'}</p>
+                                    {debugResult.firebase_auth.data && (
+                                        <div>
+                                            <p>Email: {debugResult.firebase_auth.data.email}</p>
+                                            <p>Verified: {debugResult.firebase_auth.data.email_verified ? 'Yes' : 'No'}</p>
+                                            <p>Disabled: {debugResult.firebase_auth.data.disabled ? 'Yes' : 'No'}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="debug-section-item">
+                                    <h4>Firestore Document:</h4>
+                                    <p>Exists: {debugResult.firestore.document_exists ? '✅ Yes' : '❌ No'}</p>
+                                    {debugResult.firestore.raw_data && (
+                                        <pre>{JSON.stringify(debugResult.firestore.raw_data, null, 2)}</pre>
+                                    )}
+                                </div>
+
+                                <div className="debug-section-item">
+                                    <h4>Credit Check Simulation:</h4>
+                                    <p>Status: {debugResult.credit_simulation.status}</p>
+                                    {debugResult.credit_simulation.current_credits !== undefined && (
+                                        <p>Current Credits: {debugResult.credit_simulation.current_credits}</p>
+                                    )}
+                                    <p>Would Pass Check: {debugResult.credit_simulation.would_pass_check ? '✅ Yes' : '❌ No'}</p>
+                                </div>
+
+                                <div className="debug-section-item diagnosis">
+                                    <h4>Diagnosis:</h4>
+                                    <p><strong>Issue:</strong> {debugResult.diagnosis.likely_issue}</p>
+                                    <div>
+                                        <strong>Recommendations:</strong>
+                                        <ul>
+                                            {debugResult.diagnosis.recommendations.map((rec, index) => (
+                                                <li key={index}>{rec}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    {debugResult.credit_simulation.current_credits <= 0 && (
+                                        <button 
+                                            onClick={() => handleFixUserCredits(debugResult.user_id)}
+                                            className="fix-credits-btn"
+                                            style={{ marginTop: '10px', backgroundColor: '#28a745', color: 'white' }}
+                                        >
+                                            🔧 Fix Credits
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {creditsSummary && (
+                        <div className="credits-summary">
+                            <h3>Credits Summary (All Users)</h3>
+                            <div className="summary-stats">
+                                <div className="stat-item">
+                                    <span>Total Users Checked:</span>
+                                    <span>{creditsSummary.total_users_checked}</span>
+                                </div>
+                                <div className="stat-item">
+                                    <span>Users With Credits:</span>
+                                    <span className="stat-good">{creditsSummary.users_with_credits}</span>
+                                </div>
+                                <div className="stat-item">
+                                    <span>Users Out of Credits:</span>
+                                    <span className="stat-warning">{creditsSummary.users_out_of_credits}</span>
+                                </div>
+                                <div className="stat-item">
+                                    <span>Users Without Data:</span>
+                                    <span className="stat-info">{creditsSummary.users_no_firestore_data}</span>
+                                </div>
+                                <div className="stat-item">
+                                    <span>Users With Errors:</span>
+                                    <span className="stat-error">{creditsSummary.users_with_errors}</span>
+                                </div>
+                            </div>
+
+                            {creditsSummary.sample_issues.length > 0 && (
+                                <div className="sample-issues">
+                                    <h4>Sample Issues Found:</h4>
+                                    {creditsSummary.sample_issues.map((issue, index) => (
+                                        <div key={index} className="issue-item">
+                                            <span>{issue.email} ({issue.user_id.substring(0, 8)}...)</span>
+                                            <span>Issue: {issue.issue}</span>
+                                            <span>Credits: {issue.credits}</span>
+                                            <button 
+                                                onClick={() => handleFixUserCredits(issue.user_id)}
+                                                className="fix-credits-btn-small"
+                                            >
+                                                Fix
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

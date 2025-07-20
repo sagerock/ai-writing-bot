@@ -6,7 +6,10 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [uploadingProject, setUploadingProject] = useState(null);
+    const [creatingNewProject, setCreatingNewProject] = useState(false);
+    const [newProjectName, setNewProjectName] = useState('');
     const fileInputRefs = useRef({});
+    const newProjectFileInputRef = useRef();
 
     const fetchProjects = async () => {
         setLoading(true);
@@ -26,6 +29,47 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleNewProjectUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file || !newProjectName.trim()) return;
+    
+        const projectName = newProjectName.trim();
+        setUploadingProject(projectName);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('project_name', projectName);
+    
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+    
+            if (!response.ok) {
+                throw new Error('File upload failed.');
+            }
+    
+            const result = await response.json();
+            
+            if (onUploadSuccess) {
+                onUploadSuccess(result.context_message);
+            }
+            fetchProjects(); // Refresh the list
+            setCreatingNewProject(false);
+            setNewProjectName('');
+    
+        } catch (error) {
+            setError("Upload failed.");
+            console.error("Error uploading file:", error);
+        } finally {
+            setUploadingProject(null);
+            // Clear the file input
+            event.target.value = null;
         }
     };
 
@@ -165,6 +209,7 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
             <div className="projects-header">
                 <h2>Projects</h2>
                 <div className="sidebar-controls">
+                    <button onClick={() => setCreatingNewProject(true)} title="Create New Project">➕</button>
                     <button onClick={fetchProjects} title="Refresh">🔄</button>
                 </div>
             </div>
@@ -174,10 +219,52 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
             {error && <p className="error">{error}</p>}
             {Object.keys(projects).length === 0 && !loading && <p>No projects found.</p>}
             
+            {/* New Project Creation Modal */}
+            {creatingNewProject && (
+                <div className="modal-backdrop" onClick={() => setCreatingNewProject(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Create New Project</h3>
+                            <button className="close-modal-btn" onClick={() => setCreatingNewProject(false)}>×</button>
+                        </div>
+                        <div className="new-project-form">
+                            <input
+                                type="text"
+                                placeholder="Enter project name"
+                                value={newProjectName}
+                                onChange={(e) => setNewProjectName(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && newProjectName.trim() && newProjectFileInputRef.current?.click()}
+                                autoFocus
+                            />
+                            <div className="new-project-actions">
+                                <button 
+                                    onClick={() => newProjectFileInputRef.current?.click()}
+                                    disabled={!newProjectName.trim() || uploadingProject === newProjectName}
+                                >
+                                    {uploadingProject === newProjectName ? 'Uploading...' : 'Upload First File'}
+                                </button>
+                                <button onClick={() => {
+                                    setCreatingNewProject(false);
+                                    setNewProjectName('');
+                                }}>Cancel</button>
+                            </div>
+                            <input 
+                                type="file" 
+                                ref={newProjectFileInputRef}
+                                onChange={(e) => handleNewProjectUpload(e)} 
+                                style={{ display: 'none' }} 
+                                disabled={uploadingProject === newProjectName}
+                                accept=".pdf,.txt,.md"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             <ul className="projects-list">
                 {Object.entries(projects).map(([projectName, projectData]) => (
                     <li key={projectName}>
-                        <details open>
+                        <details>
                             <summary>
                                 <span className="project-name">{projectName}</span>
                                 <div className="project-controls">

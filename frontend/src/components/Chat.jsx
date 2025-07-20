@@ -116,6 +116,15 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
                 return;
               }
 
+              // Check for error messages first
+              if (dataString.startsWith('ERROR:')) {
+                setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: dataString, streaming: false } : msg));
+                setLoading(false);
+                setError(dataString);
+                setForceRerender(f => f + 1);
+                return;
+              }
+
               try {
                 const token = JSON.parse(dataString);
                 
@@ -124,6 +133,11 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
 
               } catch (e) {
                 console.error("Failed to parse JSON from stream:", dataString, e);
+                // If it's not JSON and not an error, treat it as a plain text token
+                if (!dataString.includes('SyntaxError')) {
+                  assistantResponse += dataString;
+                  setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse } : msg));
+                }
               }
             }
           }
