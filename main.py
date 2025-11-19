@@ -50,11 +50,21 @@ socket.setdefaulttimeout(30)
 firebase_creds = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
 if firebase_creds:
     # Use environment variable (Render deployment)
-    import json
-    cred = credentials.Certificate(json.loads(firebase_creds))
+    try:
+        cred_dict = json.loads(firebase_creds)
+        cred = credentials.Certificate(cred_dict)
+        print("✓ Using Firebase credentials from environment variable")
+    except json.JSONDecodeError as e:
+        print(f"✗ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+        raise
 else:
     # Use local file (local development)
-    cred = credentials.Certificate("firebase_service_account.json")
+    try:
+        cred = credentials.Certificate("firebase_service_account.json")
+        print("✓ Using Firebase credentials from local file")
+    except FileNotFoundError:
+        print("✗ Error: firebase_service_account.json not found and FIREBASE_SERVICE_ACCOUNT_JSON env var not set")
+        raise
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred, {
