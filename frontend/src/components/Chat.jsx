@@ -13,7 +13,7 @@ marked.setOptions({
 const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState('chatgpt-4o-latest');
+  const [model, setModel] = useState('gpt-5-mini-2025-08-07'); // Default to GPT-5 Mini
   const [searchWeb, setSearchWeb] = useState(false);
   const [temperature, setTemperature] = useState(0.7);
   const abortControllerRef = useRef(null);

@@ -134,11 +134,14 @@ SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
     # Clamp temperature to the provider's supported range
-    if model_name.startswith("claude-") or model_name.startswith("command-") or model_name.startswith("gemini-"):
-        # Anthropic, Cohere, and Google support 0.0-1.0
+    if model_name.startswith("gpt-5"):
+        # GPT-5 models only support temperature = 1.0
+        temperature = 1.0
+    elif model_name.startswith("claude-") or model_name.startswith("command-") or model_name.startswith("gemini-") or model_name.startswith("sonar-"):
+        # Anthropic, Cohere, Google, and Perplexity support 0.0-1.0
         temperature = max(0.0, min(1.0, float(temperature)))
     else:
-        # OpenAI, xAI, etc. support up to 2.0, but we'll cap at 1.5 for better results
+        # OpenAI GPT-4, xAI, etc. support up to 2.0, but we'll cap at 1.5 for better results
         temperature = max(0.0, min(1.5, float(temperature)))
 
     if model_name.startswith("claude-"):
@@ -184,6 +187,15 @@ def get_llm(model_name: str, temperature: float = 0.7):
             temperature=temperature,
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             max_output_tokens=4096
+        )
+    elif model_name.startswith("sonar-"):
+        # Perplexity uses OpenAI-compatible API
+        return ChatOpenAI(
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=4096,
+            openai_api_key=os.getenv("PERPLEXITY_API_KEY"),
+            openai_api_base="https://api.perplexity.ai",
         )
     else:
         raise ValueError(f"Unknown model provider for {model_name}")

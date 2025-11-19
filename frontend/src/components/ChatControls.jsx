@@ -11,9 +11,15 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
   };
 
   const getMaxTemperature = () => {
+    // GPT-5 models only support temperature = 1
+    if (model.startsWith('gpt-5')) {
+      return 1.0;
+    }
+    // Claude, Cohere, and Gemini models max at 1.0
     if (model.startsWith('claude-') || model.startsWith('command-') || model.startsWith('gemini-')) {
       return 1.0;
     }
+    // Other models (GPT-4, etc.) can go up to 1.5
     return 1.5;
   };
 
@@ -41,33 +47,28 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
         <div className="control-group">
           <label htmlFor="model-select">Model:</label>
           <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
-            <optgroup label="OpenAI">
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4.1">GPT-4.1</option>
-              <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-              <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+            <optgroup label="OpenAI - GPT-5 Series">
+              <option value="gpt-5-nano-2025-08-07">GPT-5 Nano (Ultra-fast)</option>
+              <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Default)</option>
+              <option value="gpt-5-2025-08-07">GPT-5 (Premium)</option>
+              <option value="gpt-5-pro-2025-10-06">GPT-5 Pro (Advanced)</option>
+              <option value="gpt-5.1-2025-11-13">GPT-5.1 (Latest)</option>
+            </optgroup>
+            <optgroup label="OpenAI - GPT-4.1 Series">
+              <option value="gpt-4.1-nano-2025-04-14">GPT-4.1 Nano</option>
+              <option value="gpt-4.1-mini-2025-04-14">GPT-4.1 Mini</option>
+              <option value="gpt-4.1-2025-04-14">GPT-4.1</option>
             </optgroup>
             <optgroup label="Anthropic">
-              <option value="claude-opus-4-20250514">Claude 4 Opus</option>
-              <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
-              <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-              <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
-              <option value="claude-3-opus-20240229">Claude 3 Opus (Legacy)</option>
-            </optgroup>
-            <optgroup label="Cohere">
-              <option value="command-r-plus">Command R+</option>
-              <option value="command-r">Command R</option>
-            </optgroup>
-            <optgroup label="DeepSeek">
-              <option value="deepseek-chat">DeepSeek Chat</option>
-              <option value="deepseek-reasoner">DeepSeek Reasoner</option>
-            </optgroup>
-            <optgroup label="xAI">
-              <option value="grok-3-latest">Grok 3</option>
+              <option value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</option>
+              <option value="claude-opus-4-1-20250805">Claude Opus 4.1 (Research)</option>
             </optgroup>
             <optgroup label="Google">
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.5-flash">Gemini Flash (Fast)</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro (Educational)</option>
+            </optgroup>
+            <optgroup label="Perplexity">
+              <option value="sonar-pro">Sonar Pro (Real-time Search)</option>
             </optgroup>
           </select>
         </div>
