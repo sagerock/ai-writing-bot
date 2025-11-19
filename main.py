@@ -226,21 +226,16 @@ def is_gpt5_model(model_name: str) -> bool:
     return any(model_name.startswith(model) for model in gpt5_models)
 
 async def generate_gpt5_response(req: ChatRequest, user_id: str):
-    """Generate streaming response using OpenAI Responses API for GPT-5 models."""
+    """Generate streaming response for GPT-5 models using Chat Completions API with GPT-5 parameters."""
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # Convert history to input format
-    # GPT-5 uses "input" field instead of "messages"
-    input_text = ""
+    # Convert history to messages format
+    messages = []
     for msg in req.history:
-        role = msg.role
-        content = msg.content
-        if role == "user":
-            input_text += f"User: {content}\n"
-        elif role == "assistant":
-            input_text += f"Assistant: {content}\n"
-        elif role == "system":
-            input_text += f"{content}\n"
+        messages.append({
+            "role": msg.role,
+            "content": msg.content
+        })
 
     # Determine reasoning effort based on temperature
     # Map temperature to reasoning effort:
@@ -253,23 +248,32 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str):
         reasoning_effort = "medium"
 
     try:
-        # Use Responses API with streaming
-        response = await client.responses.create(
+        # Use Chat Completions API with GPT-5 specific parameters
+        # According to docs, GPT-5 models use reasoning_effort and verbosity instead of temperature
+        response = await client.chat.completions.create(
             model=req.model,
-            input=input_text.strip(),
-            reasoning={"effort": reasoning_effort},
-            text={"verbosity": "medium"},
+            messages=messages,
+            reasoning_effort=reasoning_effort,
+            verbosity="medium",
             stream=True
         )
 
         # Stream the response
+        full_response = ""
         async for chunk in response:
-            if hasattr(chunk, 'output_text') and chunk.output_text:
-                # Send the text token
-                yield json.dumps(chunk.output_text)
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if hasattr(delta, 'content') and delta.content:
+                    full_response += delta.content
+                    yield json.dumps(delta.content)
+
+        print(f"GPT-5 response complete: {len(full_response)} chars")
 
     except Exception as e:
-        print(f"Error in GPT-5 response: {str(e)}")
+        error_msg = f"Error in GPT-5 response: {str(e)}"
+        print(error_msg)
+        import traceback
+        traceback.print_exc()
         yield json.dumps(f"ERROR: {str(e)}")
 
 async def generate_chat_response(req: ChatRequest, user_id: str):
