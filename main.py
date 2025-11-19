@@ -27,6 +27,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from openai import AsyncOpenAI
 from google.cloud.firestore_v1.query import Query
 from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.document import DocumentReference
@@ -219,6 +220,58 @@ def get_llm(model_name: str, temperature: float = 0.7):
     else:
         raise ValueError(f"Unknown model provider for {model_name}")
 
+def is_gpt5_model(model_name: str) -> bool:
+    """Check if model is a GPT-5 family model that requires Responses API."""
+    gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1"]
+    return any(model_name.startswith(model) for model in gpt5_models)
+
+async def generate_gpt5_response(req: ChatRequest, user_id: str):
+    """Generate streaming response using OpenAI Responses API for GPT-5 models."""
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    # Convert history to input format
+    # GPT-5 uses "input" field instead of "messages"
+    input_text = ""
+    for msg in req.history:
+        role = msg.role
+        content = msg.content
+        if role == "user":
+            input_text += f"User: {content}\n"
+        elif role == "assistant":
+            input_text += f"Assistant: {content}\n"
+        elif role == "system":
+            input_text += f"{content}\n"
+
+    # Determine reasoning effort based on temperature
+    # Map temperature to reasoning effort:
+    # 0.0-0.3 -> none, 0.4-0.7 -> low, 0.8-1.0 -> medium
+    if req.temperature <= 0.3:
+        reasoning_effort = "none"
+    elif req.temperature <= 0.7:
+        reasoning_effort = "low"
+    else:
+        reasoning_effort = "medium"
+
+    try:
+        # Use Responses API with streaming
+        response = await client.responses.create(
+            model=req.model,
+            input=input_text.strip(),
+            reasoning={"effort": reasoning_effort},
+            text={"verbosity": "medium"},
+            stream=True
+        )
+
+        # Stream the response
+        async for chunk in response:
+            if hasattr(chunk, 'output_text') and chunk.output_text:
+                # Send the text token
+                yield json.dumps(chunk.output_text)
+
+    except Exception as e:
+        print(f"Error in GPT-5 response: {str(e)}")
+        yield json.dumps(f"ERROR: {str(e)}")
+
 async def generate_chat_response(req: ChatRequest, user_id: str):
     user_ref = db.collection("users").document(user_id)
 
@@ -257,7 +310,15 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
-    
+
+    # Check if this is a GPT-5 model that requires Responses API
+    if is_gpt5_model(req.model):
+        # Use the Responses API for GPT-5 models
+        async for token in generate_gpt5_response(req, user_id):
+            yield f"data: {token}\n\n"
+        yield "data: [DONE]\n\n"
+        return
+
     llm = get_llm(req.model, req.temperature)
     history_messages = [message.dict() for message in req.history]
 
