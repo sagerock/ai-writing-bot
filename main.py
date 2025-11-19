@@ -46,7 +46,16 @@ load_dotenv()
 socket.setdefaulttimeout(30)
 
 # Firebase-related initialization
-cred = credentials.Certificate("firebase_service_account.json")
+# Support both environment variable (for Render) and local file (for local dev)
+firebase_creds = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+if firebase_creds:
+    # Use environment variable (Render deployment)
+    import json
+    cred = credentials.Certificate(json.loads(firebase_creds))
+else:
+    # Use local file (local development)
+    cred = credentials.Certificate("firebase_service_account.json")
+
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred, {
         'storageBucket': os.getenv('STORAGE_BUCKET')
