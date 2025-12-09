@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import AsyncGenerator, List
 import asyncio
 from uuid import uuid4
@@ -311,6 +311,18 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         yield f"data: ERROR: {e.detail}\n\n"
         yield "data: [DONE]\n\n"
         return
+
+    # Log usage for analytics
+    try:
+        db.collection("usage_logs").add({
+            "user_id": user_id,
+            "model": req.model,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "date_key": datetime.now().strftime("%Y-%m-%d"),
+            "search_web": req.search_web
+        })
+    except Exception as e:
+        print(f"Failed to log usage: {e}")  # Don't fail the request if logging fails
 
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
@@ -1020,6 +1032,158 @@ async def fix_user_credits(user_id: str, credit_amount: int, _: dict = Depends(g
     except Exception as e:
         print(f"Fix credits error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fix credits: {str(e)}")
+
+# --- Analytics Endpoints ---
+
+# Cost estimates per request (in dollars, based on ~2K tokens average)
+MODEL_COSTS = {
+    "gpt-5-nano": 0.002,
+    "gpt-5-mini": 0.006,
+    "gpt-5-2025": 0.02,
+    "gpt-5-pro": 0.06,
+    "gpt-5.1": 0.03,
+    "gpt-4.1-nano": 0.002,
+    "gpt-4.1-mini": 0.004,
+    "gpt-4.1-2025": 0.02,
+    "claude-sonnet": 0.03,
+    "claude-opus": 0.15,
+    "gemini-2.5-flash": 0.002,
+    "gemini-2.5-pro": 0.014,
+    "sonar-pro": 0.01,
+}
+
+def estimate_cost(model: str, request_count: int) -> float:
+    """Estimate cost for a model based on request count."""
+    for prefix, cost in MODEL_COSTS.items():
+        if model.startswith(prefix):
+            return request_count * cost
+    return 0.0  # Unknown model
+
+@main_app.get("/admin/analytics/overview")
+async def get_analytics_overview(_: dict = Depends(get_current_admin_user)):
+    """Get high-level usage statistics."""
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        month_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        usage_logs = db.collection("usage_logs")
+
+        # Get all logs (for total count)
+        all_logs = list(usage_logs.stream())
+        total_requests = len(all_logs)
+
+        # Count by date ranges
+        today_count = 0
+        week_count = 0
+        month_count = 0
+        model_counts = {}
+        unique_users_today = set()
+
+        for log in all_logs:
+            data = log.to_dict()
+            date_key = data.get("date_key", "")
+            model = data.get("model", "unknown")
+            user_id = data.get("user_id", "")
+
+            # Count by model
+            model_counts[model] = model_counts.get(model, 0) + 1
+
+            if date_key == today:
+                today_count += 1
+                unique_users_today.add(user_id)
+            if date_key >= week_ago:
+                week_count += 1
+            if date_key >= month_ago:
+                month_count += 1
+
+        # Find top model
+        top_model = max(model_counts, key=model_counts.get) if model_counts else "N/A"
+        top_model_count = model_counts.get(top_model, 0)
+
+        return {
+            "total_requests_all_time": total_requests,
+            "total_requests_today": today_count,
+            "total_requests_this_week": week_count,
+            "total_requests_this_month": month_count,
+            "active_users_today": len(unique_users_today),
+            "top_model": top_model,
+            "top_model_requests": top_model_count
+        }
+    except Exception as e:
+        print(f"Analytics overview error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
+
+@main_app.get("/admin/analytics/daily")
+async def get_daily_analytics(
+    days: int = Query(default=30, le=90),
+    _: dict = Depends(get_current_admin_user)
+):
+    """Get daily request counts for the past N days."""
+    try:
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+        usage_logs = db.collection("usage_logs")
+        logs = list(usage_logs.where("date_key", ">=", start_date).stream())
+
+        # Aggregate by date
+        daily_data = {}
+        for log in logs:
+            data = log.to_dict()
+            date_key = data.get("date_key", "")
+            model = data.get("model", "unknown")
+
+            if date_key not in daily_data:
+                daily_data[date_key] = {"date": date_key, "total_requests": 0, "requests_by_model": {}}
+
+            daily_data[date_key]["total_requests"] += 1
+            daily_data[date_key]["requests_by_model"][model] = daily_data[date_key]["requests_by_model"].get(model, 0) + 1
+
+        # Sort by date
+        result = sorted(daily_data.values(), key=lambda x: x["date"])
+        return result
+    except Exception as e:
+        print(f"Daily analytics error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get daily analytics: {str(e)}")
+
+@main_app.get("/admin/analytics/models")
+async def get_model_analytics(
+    days: int = Query(default=30, le=90),
+    _: dict = Depends(get_current_admin_user)
+):
+    """Get usage breakdown by model with cost estimates."""
+    try:
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+        usage_logs = db.collection("usage_logs")
+        logs = list(usage_logs.where("date_key", ">=", start_date).stream())
+
+        # Aggregate by model
+        model_counts = {}
+        total_requests = 0
+
+        for log in logs:
+            data = log.to_dict()
+            model = data.get("model", "unknown")
+            model_counts[model] = model_counts.get(model, 0) + 1
+            total_requests += 1
+
+        # Build result with percentages and costs
+        result = []
+        for model, count in sorted(model_counts.items(), key=lambda x: x[1], reverse=True):
+            percentage = (count / total_requests * 100) if total_requests > 0 else 0
+            estimated_cost = estimate_cost(model, count)
+            result.append({
+                "model": model,
+                "total_requests": count,
+                "percentage": round(percentage, 1),
+                "estimated_cost": round(estimated_cost, 2)
+            })
+
+        return result
+    except Exception as e:
+        print(f"Model analytics error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get model analytics: {str(e)}")
 
 # --- Email Functionality ---
 def send_email(to_email: str, subject: str, html_content: str):

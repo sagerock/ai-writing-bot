@@ -23,6 +23,13 @@ const AdminPage = ({ auth }) => {
     const [debugLoading, setDebugLoading] = useState(false);
     const [creditsSummary, setCreditsSummary] = useState(null);
 
+    // Analytics functionality
+    const [analyticsOverview, setAnalyticsOverview] = useState(null);
+    const [dailyData, setDailyData] = useState([]);
+    const [modelData, setModelData] = useState([]);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [timeRange, setTimeRange] = useState(30);
+
     const fetchUsers = async () => {
         setLoading(true);
         setError('');
@@ -47,8 +54,42 @@ const AdminPage = ({ auth }) => {
     useEffect(() => {
         if (auth.currentUser) {
             fetchUsers();
+            fetchAnalytics();
         }
     }, [auth.currentUser]);
+
+    useEffect(() => {
+        if (auth.currentUser) {
+            fetchAnalytics();
+        }
+    }, [timeRange]);
+
+    const fetchAnalytics = async () => {
+        setAnalyticsLoading(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+
+            const [overviewRes, dailyRes, modelRes] = await Promise.all([
+                fetch(`${API_URL}/admin/analytics/overview`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${API_URL}/admin/analytics/daily?days=${timeRange}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${API_URL}/admin/analytics/models?days=${timeRange}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+
+            if (overviewRes.ok) setAnalyticsOverview(await overviewRes.json());
+            if (dailyRes.ok) setDailyData(await dailyRes.json());
+            if (modelRes.ok) setModelData(await modelRes.json());
+        } catch (err) {
+            console.error('Failed to fetch analytics:', err);
+        } finally {
+            setAnalyticsLoading(false);
+        }
+    };
 
     const handleUpdateCredits = async (userId, amount) => {
         const amountValue = parseInt(prompt(`Enter the amount of credits to add or remove (e.g., 50 or -10) for ${userId}:`));
@@ -239,11 +280,118 @@ const AdminPage = ({ auth }) => {
         }
     };
 
+    // Calculate max for chart scaling
+    const maxDailyRequests = Math.max(...dailyData.map(d => d.total_requests), 1);
+
+    // Calculate total estimated cost
+    const totalEstimatedCost = modelData.reduce((sum, m) => sum + m.estimated_cost, 0);
+
     return (
         <div className="admin-page">
             <nav className="account-nav">
                 <Link to="/">&larr; Back to Chat</Link>
             </nav>
+
+            {/* Analytics Dashboard - First Panel */}
+            <div className="admin-panel analytics-panel">
+                <h2>Usage Analytics</h2>
+
+                <div className="analytics-controls">
+                    <select value={timeRange} onChange={e => setTimeRange(parseInt(e.target.value))}>
+                        <option value={7}>Last 7 days</option>
+                        <option value={30}>Last 30 days</option>
+                        <option value={90}>Last 90 days</option>
+                    </select>
+                    <button onClick={fetchAnalytics} disabled={analyticsLoading}>
+                        {analyticsLoading ? 'Loading...' : 'Refresh'}
+                    </button>
+                </div>
+
+                {/* Overview Cards */}
+                <div className="analytics-cards">
+                    <div className="stat-card">
+                        <h3>Total Requests</h3>
+                        <span className="stat-value">{analyticsOverview?.total_requests_all_time || 0}</span>
+                    </div>
+                    <div className="stat-card">
+                        <h3>Today</h3>
+                        <span className="stat-value">{analyticsOverview?.total_requests_today || 0}</span>
+                    </div>
+                    <div className="stat-card">
+                        <h3>This Week</h3>
+                        <span className="stat-value">{analyticsOverview?.total_requests_this_week || 0}</span>
+                    </div>
+                    <div className="stat-card">
+                        <h3>This Month</h3>
+                        <span className="stat-value">{analyticsOverview?.total_requests_this_month || 0}</span>
+                    </div>
+                    <div className="stat-card">
+                        <h3>Active Today</h3>
+                        <span className="stat-value">{analyticsOverview?.active_users_today || 0}</span>
+                    </div>
+                    <div className="stat-card cost-card">
+                        <h3>Est. Cost ({timeRange}d)</h3>
+                        <span className="stat-value">${totalEstimatedCost.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                {/* Daily Trend Chart */}
+                {dailyData.length > 0 && (
+                    <div className="daily-trend">
+                        <h3>Daily Requests (Last {timeRange} days)</h3>
+                        <div className="simple-chart">
+                            {dailyData.map(day => (
+                                <div
+                                    key={day.date}
+                                    className="chart-bar"
+                                    style={{ height: `${(day.total_requests / maxDailyRequests) * 100}%` }}
+                                    title={`${day.date}: ${day.total_requests} requests`}
+                                >
+                                    <span className="chart-tooltip">{day.total_requests}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="chart-labels">
+                            <span>{dailyData[0]?.date || ''}</span>
+                            <span>{dailyData[dailyData.length - 1]?.date || ''}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Model Breakdown Table */}
+                {modelData.length > 0 && (
+                    <div className="model-breakdown">
+                        <h3>Usage by Model</h3>
+                        <table className="users-table">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Requests</th>
+                                    <th>% of Total</th>
+                                    <th>Est. Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {modelData.map(model => (
+                                    <tr key={model.model}>
+                                        <td>{model.model}</td>
+                                        <td>{model.total_requests}</td>
+                                        <td>{model.percentage}%</td>
+                                        <td>${model.estimated_cost.toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {analyticsOverview?.top_model && analyticsOverview.top_model !== 'N/A' && (
+                    <p className="top-model-note">
+                        Top model: <strong>{analyticsOverview.top_model}</strong> ({analyticsOverview.top_model_requests} requests)
+                    </p>
+                )}
+            </div>
+
             <div className="admin-panel">
                 <h1>Admin Panel</h1>
                 {loading && <p>Loading users...</p>}
