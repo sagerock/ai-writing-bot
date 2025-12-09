@@ -12,7 +12,7 @@ python-multipart==0.0.6
 pydantic
 itsdangerous
 pypdf==3.17.4
-serpapi
+duckduckgo-search>=6.0.0
 firebase-admin==6.2.0
 google-auth
 requests

@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from pypdf import PdfReader
-import serpapi
+from duckduckgo_search import DDGS
 import firebase_admin
 from firebase_admin import credentials, firestore, storage, auth as firebase_auth
 from google.oauth2 import id_token
@@ -142,7 +142,6 @@ class EmailRequest(BaseModel):
     preview: bool = False
 
 # Load API Keys
-SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
@@ -348,34 +347,24 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         if last_user_msg_index != -1:
             user_query = history_messages[last_user_msg_index]['content']
             try:
-                # Use SerpApi for reliable, real-time Google search results
-                client = serpapi.Client(api_key=SERPAPI_API_KEY)
-                search_params = {
-                    "q": user_query,
-                    "engine": "google",
-                    "google_domain": "google.com",
-                    "gl": "us",
-                    "hl": "en"
-                }
-                results = await asyncio.to_thread(client.search, search_params)
-                
+                # Use DuckDuckGo for free web search
+                ddgs = DDGS()
+                results = await asyncio.to_thread(ddgs.text, user_query, max_results=5)
+
                 # Extract relevant information from the results
                 search_snippets = []
-                if "answer_box" in results and "snippet" in results["answer_box"]:
-                    search_snippets.append(f"Answer Box: {results['answer_box']['snippet']}")
-                if "news_results" in results:
-                    for news in results["news_results"][:3]:
-                        search_snippets.append(f"News: {news.get('title', '')} - {news.get('snippet', '')} ({news.get('source', '')})")
-                if "organic_results" in results:
-                    for organic in results["organic_results"][:3]:
-                        search_snippets.append(f"Result: {organic.get('title', '')} - {organic.get('snippet', '')}")
+                for result in results:
+                    title = result.get('title', '')
+                    body = result.get('body', '')
+                    href = result.get('href', '')
+                    search_snippets.append(f"Result: {title} - {body}")
 
                 if search_snippets:
                     today = datetime.now().strftime('%B %d, %Y')
                     context = "\n\n".join(search_snippets)
-                    
+
                     web_prompt = (
-                        f"Today is {today}. The user has requested a web search. Here are the top Google search results. "
+                        f"Today is {today}. The user has requested a web search. Here are the top search results. "
                         "Use this information to provide a timely and accurate answer.\n\n"
                         "--- BEGIN WEB SEARCH RESULTS ---\n"
                         f"{context}\n"
@@ -385,7 +374,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                     history_messages[last_user_msg_index]['content'] = web_prompt
 
             except Exception as e:
-                print(f"SerpApi search failed: {e}")
+                print(f"DuckDuckGo search failed: {e}")
 
     llm_history = []
     for msg in history_messages:
