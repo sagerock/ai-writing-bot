@@ -1116,7 +1116,7 @@ async def get_analytics_overview(_: dict = Depends(get_current_admin_user)):
 
 @main_app.get("/admin/analytics/daily")
 async def get_daily_analytics(
-    days: int = Query(default=30, le=90),
+    days: int = 30,
     _: dict = Depends(get_current_admin_user)
 ):
     """Get daily request counts for the past N days."""
@@ -1148,7 +1148,7 @@ async def get_daily_analytics(
 
 @main_app.get("/admin/analytics/models")
 async def get_model_analytics(
-    days: int = Query(default=30, le=90),
+    days: int = 30,
     _: dict = Depends(get_current_admin_user)
 ):
     """Get usage breakdown by model with cost estimates."""
