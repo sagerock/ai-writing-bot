@@ -5,8 +5,23 @@ import './HomePage.css';
 const HomePage = () => {
   return (
     <div className="home-page">
+      {/* Navigation Bar */}
+      <nav className="home-nav">
+        <div className="nav-container">
+          <Link to="/" className="nav-logo">
+            <img src="/logo.png" alt="RomaLume" />
+          </Link>
+          <div className="nav-links">
+            <a href="#features">Features</a>
+            <a href="#use-cases">Use Cases</a>
+            <Link to="/login" className="nav-link">Login</Link>
+            <Link to="/register" className="nav-btn">Get Started</Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
       <header className="home-header">
-        <img src="/logo.png" alt="RomaLume Logo" className="home-logo" />
         <h1>Write Better. Faster.</h1>
         <p className="tagline">One tool. Multiple AI models. Unlimited possibilities.</p>
         <p className="sub-tagline">Access GPT-5, Claude, Gemini, and more — all in one place.</p>
@@ -18,7 +33,7 @@ const HomePage = () => {
       </header>
 
       {/* Use Cases Section */}
-      <section className="use-cases-section">
+      <section className="use-cases-section" id="use-cases">
         <h2>Built for Professionals Who Write</h2>
         <div className="use-cases-grid">
           <div className="use-case-card">
@@ -45,7 +60,7 @@ const HomePage = () => {
       </section>
 
       {/* Features Section */}
-      <main className="features-section">
+      <main className="features-section" id="features">
         <h2>Why RomaLume?</h2>
         <div className="features-grid">
           <div className="feature-card">

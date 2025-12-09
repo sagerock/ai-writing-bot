@@ -5,11 +5,61 @@
   min-height: 100vh;
 }
 
-.home-logo {
-  max-width: 120px;
-  margin-bottom: 1.5rem;
+/* Navigation Bar */
+.home-nav {
+  background-color: white;
+  border-bottom: 1px solid #e9ecef;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo img {
+  height: 50px;
+  width: auto;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: #555;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+
+.nav-links a:hover {
+  color: #667eea;
+}
+
+.nav-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.nav-btn:hover {
+  opacity: 0.9;
+  color: white !important;
+}
+
+/* Hero Section */
 .home-header {
   text-align: center;
   padding: 5rem 2rem 4rem;
@@ -263,6 +313,22 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .nav-container {
+    padding: 0.75rem 1rem;
+  }
+
+  .nav-links {
+    gap: 1rem;
+  }
+
+  .nav-links a:not(.nav-btn) {
+    display: none;
+  }
+
+  .nav-logo img {
+    height: 32px;
+  }
+
   .home-header {
     padding: 3rem 1.5rem 2.5rem;
   }

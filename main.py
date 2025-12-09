@@ -1119,12 +1119,16 @@ async def get_daily_analytics(
     days: int = 30,
     _: dict = Depends(get_current_admin_user)
 ):
-    """Get daily request counts for the past N days."""
+    """Get daily request counts for the past N days. Use days=0 for all time."""
     try:
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-
         usage_logs = db.collection("usage_logs")
-        logs = list(usage_logs.where("date_key", ">=", start_date).stream())
+
+        if days == 0:
+            # All time - no date filter
+            logs = list(usage_logs.stream())
+        else:
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            logs = list(usage_logs.where("date_key", ">=", start_date).stream())
 
         # Aggregate by date
         daily_data = {}
@@ -1151,12 +1155,16 @@ async def get_model_analytics(
     days: int = 30,
     _: dict = Depends(get_current_admin_user)
 ):
-    """Get usage breakdown by model with cost estimates."""
+    """Get usage breakdown by model with cost estimates. Use days=0 for all time."""
     try:
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-
         usage_logs = db.collection("usage_logs")
-        logs = list(usage_logs.where("date_key", ">=", start_date).stream())
+
+        if days == 0:
+            # All time - no date filter
+            logs = list(usage_logs.stream())
+        else:
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            logs = list(usage_logs.where("date_key", ">=", start_date).stream())
 
         # Aggregate by model
         model_counts = {}

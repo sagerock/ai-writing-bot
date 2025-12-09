@@ -301,6 +301,7 @@ const AdminPage = ({ auth }) => {
                         <option value={7}>Last 7 days</option>
                         <option value={30}>Last 30 days</option>
                         <option value={90}>Last 90 days</option>
+                        <option value={0}>All Time</option>
                     </select>
                     <button onClick={fetchAnalytics} disabled={analyticsLoading}>
                         {analyticsLoading ? 'Loading...' : 'Refresh'}
@@ -330,7 +331,7 @@ const AdminPage = ({ auth }) => {
                         <span className="stat-value">{analyticsOverview?.active_users_today || 0}</span>
                     </div>
                     <div className="stat-card cost-card">
-                        <h3>Est. Cost ({timeRange}d)</h3>
+                        <h3>Est. Cost ({timeRange === 0 ? 'All Time' : `${timeRange}d`})</h3>
                         <span className="stat-value">${totalEstimatedCost.toFixed(2)}</span>
                     </div>
                 </div>
@@ -338,7 +339,7 @@ const AdminPage = ({ auth }) => {
                 {/* Daily Trend Chart */}
                 {dailyData.length > 0 && (
                     <div className="daily-trend">
-                        <h3>Daily Requests (Last {timeRange} days)</h3>
+                        <h3>Daily Requests ({timeRange === 0 ? 'All Time' : `Last ${timeRange} days`})</h3>
                         <div className="simple-chart">
                             {dailyData.map(day => (
                                 <div
