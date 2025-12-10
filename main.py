@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from pypdf import PdfReader
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 import firebase_admin
 from firebase_admin import credentials, firestore, storage, auth as firebase_auth
 from google.oauth2 import id_token
