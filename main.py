@@ -245,11 +245,14 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str):
     """Generate streaming response for GPT-5 models using Chat Completions API with GPT-5 parameters."""
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # Convert history to messages format
+    # Convert history to messages format (convert 'context' role to 'user' for API compatibility)
     messages = []
     for msg in req.history:
+        role = msg.role
+        if role == 'context':
+            role = 'user'  # API only accepts: system, assistant, user, function, tool, developer
         messages.append({
-            "role": msg.role,
+            "role": role,
             "content": msg.content
         })
 
