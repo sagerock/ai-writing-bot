@@ -365,7 +365,7 @@ const Chat = ({
               disabled={isUploading}
               title="Upload document"
             >
-              {isUploading ? '⏳' : '📎'}
+              {isUploading ? '...' : '+'}
             </button>
             <input
               type="file"
@@ -374,13 +374,14 @@ const Chat = ({
               style={{ display: 'none' }}
               accept=".pdf,.txt,.md"
             />
-            <button
-              className={`search-docs-btn ${searchDocs ? 'active' : ''}`}
-              onClick={() => setSearchDocs(!searchDocs)}
-              title={searchDocs ? "Document search ON" : "Document search OFF"}
-            >
-              📚
-            </button>
+            <label className="search-docs-toggle" title="Search your documents">
+              <input
+                type="checkbox"
+                checked={searchDocs}
+                onChange={() => setSearchDocs(!searchDocs)}
+              />
+              <span>Search files</span>
+            </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}

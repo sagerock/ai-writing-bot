@@ -1530,34 +1530,33 @@ hr {
     cursor: not-allowed;
 }
 
-.pill-input .search-docs-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: #999;
-    font-size: 16px;
-    cursor: pointer;
+.pill-input .search-docs-toggle {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: background 0.15s, color 0.15s;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
     flex-shrink: 0;
-    margin-right: 4px;
-    opacity: 0.6;
+    margin-right: 8px;
 }
 
-.pill-input .search-docs-btn:hover {
+.pill-input .search-docs-toggle:hover {
     background: #f0f0f0;
-    color: #333;
-    opacity: 1;
 }
 
-.pill-input .search-docs-btn.active {
-    background: #e8f4e8;
-    color: #28a745;
-    opacity: 1;
+.pill-input .search-docs-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #28a745;
+}
+
+.pill-input .search-docs-toggle span {
+    white-space: nowrap;
 }
 
 /* Action links below input */
