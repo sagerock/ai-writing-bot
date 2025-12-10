@@ -33,6 +33,8 @@ const Chat = ({
   const chatWindowRef = useRef(null);
   const [showNeuralLog, setShowNeuralLog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Update model/temperature when defaults change from settings
   useEffect(() => {
@@ -253,6 +255,51 @@ const Chat = ({
     }
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('project_name', 'General');
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('File upload failed.');
+      }
+
+      const result = await response.json();
+
+      // Add context message to chat showing the document was loaded
+      if (result.context_message) {
+        setHistory(prev => [...prev, {
+          role: 'context',
+          content: result.context_message.content,
+          display_text: `Uploaded: ${file.name}`
+        }]);
+      }
+
+      // Refresh projects panel if available
+      window.dispatchEvent(new Event('refresh-projects'));
+
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert('Failed to upload file.');
+    } finally {
+      setIsUploading(false);
+      // Clear the file input
+      event.target.value = null;
+    }
+  };
+
   // Simplified mode - ChatGPT-style centered layout
   if (simplifiedMode) {
     const hasMessages = history.length > 0;
@@ -310,6 +357,21 @@ const Chat = ({
         {/* Centered pill input */}
         <div className={`input-container ${hasMessages ? 'bottom' : 'centered'}`}>
           <div className="pill-input">
+            <button
+              className="attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              title="Upload document"
+            >
+              {isUploading ? '⏳' : '📎'}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              accept=".pdf,.txt,.md"
+            />
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
