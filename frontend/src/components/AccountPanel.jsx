@@ -21,9 +21,26 @@ const AccountPanel = ({ auth }) => {
         pricing_changes: true,
         usage_tips: true
     });
+    const [chatSettings, setChatSettings] = useState({
+        simplified_mode: true,
+        default_model: 'gpt-5-mini-2025-08-07',
+        default_temperature: 0.7,
+        always_ask_mode: false
+    });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
+
+    const MODEL_OPTIONS = [
+        { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 Nano (Fastest)' },
+        { value: 'gpt-5-mini-2025-08-07', label: 'GPT-5 Mini (Balanced)' },
+        { value: 'gpt-5-2025-08-07', label: 'GPT-5 (Advanced)' },
+        { value: 'gpt-5-pro', label: 'GPT-5 Pro (Most Capable)' },
+        { value: 'claude-sonnet-4-20250514', label: 'Claude 4.5 Sonnet' },
+        { value: 'claude-opus-4-20250514', label: 'Claude 4.1 Opus' },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    ];
 
     useEffect(() => {
         const fetchCredits = async () => {
@@ -65,8 +82,27 @@ const AccountPanel = ({ auth }) => {
             }
         };
 
+        const fetchChatSettings = async () => {
+            if (!auth.currentUser) return;
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${API_URL}/user/chat-settings`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setChatSettings(data);
+                }
+            } catch (err) {
+                console.error('Could not load chat settings:', err);
+            }
+        };
+
         fetchCredits();
         fetchEmailPreferences();
+        fetchChatSettings();
     }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
@@ -156,6 +192,30 @@ const AccountPanel = ({ auth }) => {
             setSuccess('Email preferences updated successfully!');
         } catch (err) {
             setError('Failed to update email preferences.');
+            console.error(err);
+        }
+    };
+
+    const handleChatSettingsUpdate = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/chat-settings`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(chatSettings)
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update chat settings.');
+            }
+            setSuccess('Chat settings updated! Refresh the page to see changes.');
+        } catch (err) {
+            setError('Failed to update chat settings.');
             console.error(err);
         }
     };
@@ -292,6 +352,73 @@ const AccountPanel = ({ auth }) => {
                 </div>
                 
                 <button type="submit">Update Email Preferences</button>
+            </form>
+
+            <hr />
+
+            <form onSubmit={handleChatSettingsUpdate} className="account-form chat-settings-section">
+                <h3>Chat Settings</h3>
+                <p>Customize your AI chat experience:</p>
+
+                <div className="chat-settings">
+                    <label className="toggle-label">
+                        <span className="toggle-text">
+                            <strong>Simplified Mode</strong>
+                            <small>Hide model selection and project panels for a cleaner experience</small>
+                        </span>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={chatSettings.simplified_mode}
+                                onChange={(e) => setChatSettings(prev => ({
+                                    ...prev,
+                                    simplified_mode: e.target.checked
+                                }))}
+                            />
+                            <span className="toggle-slider"></span>
+                        </div>
+                    </label>
+
+                    <label className="select-label">
+                        <span>Default AI Model</span>
+                        <select
+                            value={chatSettings.default_model}
+                            onChange={(e) => setChatSettings(prev => ({
+                                ...prev,
+                                default_model: e.target.value
+                            }))}
+                        >
+                            {MODEL_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="slider-label">
+                        <span>Default Creativity Level</span>
+                        <div className="slider-container">
+                            <input
+                                type="range"
+                                min="0"
+                                max="1.5"
+                                step="0.1"
+                                value={chatSettings.default_temperature}
+                                onChange={(e) => setChatSettings(prev => ({
+                                    ...prev,
+                                    default_temperature: parseFloat(e.target.value)
+                                }))}
+                            />
+                            <span className="slider-value">
+                                {chatSettings.default_temperature <= 0.3 ? 'Focused' :
+                                 chatSettings.default_temperature <= 0.7 ? 'Balanced' :
+                                 chatSettings.default_temperature <= 1.2 ? 'Creative' : 'Wild'}
+                                ({chatSettings.default_temperature})
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <button type="submit">Update Chat Settings</button>
             </form>
         </div>
     );

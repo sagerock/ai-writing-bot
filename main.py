@@ -141,6 +141,12 @@ class EmailRequest(BaseModel):
     email_type: str  # "feature_updates", "bug_fixes", "pricing_changes", "usage_tips", "all"
     preview: bool = False
 
+class UserChatSettings(BaseModel):
+    simplified_mode: bool = True
+    default_model: str = "gpt-5-mini-2025-08-07"
+    default_temperature: float = 0.7
+    always_ask_mode: bool = False
+
 # Load API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -1458,6 +1464,46 @@ async def update_user_email_preferences(
     }, merge=True)
     
     return {"message": "Email preferences updated successfully"}
+
+@main_app.get("/user/chat-settings")
+async def get_user_chat_settings(user: dict = Depends(get_current_user)):
+    """Get user's chat settings (simplified mode, default model, etc.)."""
+    user_id = user["user_id"]
+    user_ref = db.collection("users").document(user_id)
+    user_doc = user_ref.get()
+
+    # Default settings for new users
+    default_settings = {
+        "simplified_mode": True,
+        "default_model": "gpt-5-mini-2025-08-07",
+        "default_temperature": 0.7,
+        "always_ask_mode": False
+    }
+
+    if user_doc.exists:
+        user_data = user_doc.to_dict()
+        return user_data.get("chat_settings", default_settings)
+    return default_settings
+
+@main_app.post("/user/chat-settings")
+async def update_user_chat_settings(
+    settings: UserChatSettings,
+    user: dict = Depends(get_current_user)
+):
+    """Update user's chat settings."""
+    user_id = user["user_id"]
+    user_ref = db.collection("users").document(user_id)
+
+    user_ref.set({
+        "chat_settings": {
+            "simplified_mode": settings.simplified_mode,
+            "default_model": settings.default_model,
+            "default_temperature": settings.default_temperature,
+            "always_ask_mode": settings.always_ask_mode
+        }
+    }, merge=True)
+
+    return {"message": "Chat settings updated successfully"}
 
 @main_app.get("/unsubscribe/{user_id}")
 async def unsubscribe_user(user_id: str, email_type: str = None):

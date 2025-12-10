@@ -48,6 +48,12 @@ function App() {
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [projectsError, setProjectsError] = useState('');
     const [mobileProjectsDrawerOpen, setMobileProjectsDrawerOpen] = useState(false);
+    const [userSettings, setUserSettings] = useState({
+        simplifiedMode: true,
+        defaultModel: 'gpt-5-mini-2025-08-07',
+        defaultTemperature: 0.7,
+        alwaysAskMode: false
+    });
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -92,6 +98,27 @@ function App() {
         }
     };
 
+    const fetchUserSettings = async () => {
+        if (!auth.currentUser) return;
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/chat-settings`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setUserSettings({
+                    simplifiedMode: data.simplified_mode ?? true,
+                    defaultModel: data.default_model ?? 'gpt-5-mini-2025-08-07',
+                    defaultTemperature: data.default_temperature ?? 0.7,
+                    alwaysAskMode: data.always_ask_mode ?? false
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch user settings:', err);
+        }
+    };
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
@@ -99,10 +126,17 @@ function App() {
                 currentUser.isAdmin = idTokenResult.claims.admin === true;
                 setUser(currentUser);
                 fetchProjects();
+                fetchUserSettings();
             } else {
                 setUser(null);
                 setHistory([]);
                 setProjects({});
+                setUserSettings({
+                    simplifiedMode: true,
+                    defaultModel: 'gpt-5-mini-2025-08-07',
+                    defaultTemperature: 0.7,
+                    alwaysAskMode: false
+                });
             }
             setLoading(false);
         });
@@ -173,7 +207,7 @@ function App() {
                 <header className="App-header">
                     <div className="logo-container">
                         <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />
-                        {isMobile && (
+                        {isMobile && !userSettings.simplifiedMode && (
                             <button className="hamburger" onClick={() => setMobileProjectsDrawerOpen(true)}>
                                 &#9776;
                             </button>
@@ -188,10 +222,10 @@ function App() {
                 </header>
 
                 <div className="main-content">
-                    {/* Desktop left panel */}
-                    {!isMobile && (
+                    {/* Desktop left panel - hidden in simplified mode */}
+                    {!isMobile && !userSettings.simplifiedMode && (
                         <div className="left-panel">
-                            <ProjectsPanel 
+                            <ProjectsPanel
                                 auth={auth}
                                 onLoadArchive={handleLoadArchive}
                                 onSelectDocument={handleSelectDocument}
@@ -199,13 +233,12 @@ function App() {
                             />
                         </div>
                     )}
-                    {/* Mobile drawer for projects */}
-                    {isMobile && mobileProjectsDrawerOpen && (
+                    {/* Mobile drawer for projects - hidden in simplified mode */}
+                    {isMobile && mobileProjectsDrawerOpen && !userSettings.simplifiedMode && (
                         <>
                             <div className="mobile-drawer-backdrop" onClick={() => setMobileProjectsDrawerOpen(false)} />
                             <div className="mobile-drawer">
-                                {console.log('Mobile drawer projects:', projects)}
-                                <ProjectsPanel 
+                                <ProjectsPanel
                                     auth={auth}
                                     onLoadArchive={handleLoadArchive}
                                     onSelectDocument={handleSelectDocument}
@@ -215,13 +248,16 @@ function App() {
                             </div>
                         </>
                     )}
-                    <div className="chat-area">
-                        <Chat 
+                    <div className={`chat-area ${userSettings.simplifiedMode ? 'simplified' : ''}`}>
+                        <Chat
                             auth={auth}
-                            history={history} 
-                            setHistory={setHistory} 
+                            history={history}
+                            setHistory={setHistory}
                             projectNames={Object.keys(projects)}
                             onSaveSuccess={fetchProjects}
+                            simplifiedMode={userSettings.simplifiedMode}
+                            defaultModel={userSettings.defaultModel}
+                            defaultTemperature={userSettings.defaultTemperature}
                         />
                     </div>
                 </div>

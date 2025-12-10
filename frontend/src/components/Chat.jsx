@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { marked } from 'marked';
 import ChatControls from './ChatControls';
 import ArchiveControls from './ArchiveControls';
+import SimplifiedActions from './SimplifiedActions';
+import NeuralLogPanel from './NeuralLogPanel';
 import { API_URL } from '../apiConfig';
 
 // Configure marked to treat single line breaks as <br> tags (GitHub-style)
@@ -10,16 +12,36 @@ marked.setOptions({
   breaks: true,
 });
 
-const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
+const Chat = ({
+  auth,
+  history,
+  setHistory,
+  projectNames,
+  onSaveSuccess,
+  simplifiedMode = true,
+  defaultModel = 'gpt-5-mini-2025-08-07',
+  defaultTemperature = 0.7
+}) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState('gpt-5-mini-2025-08-07'); // Default to GPT-5 Mini
+  const [model, setModel] = useState(defaultModel);
   const [searchWeb, setSearchWeb] = useState(false);
-  const [temperature, setTemperature] = useState(0.7);
+  const [temperature, setTemperature] = useState(defaultTemperature);
   const abortControllerRef = useRef(null);
   const [copied, setCopied] = useState({});
   const [forceRerender, setForceRerender] = useState(0);
   const chatWindowRef = useRef(null);
+  const [showNeuralLog, setShowNeuralLog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Update model/temperature when defaults change from settings
+  useEffect(() => {
+    setModel(defaultModel);
+  }, [defaultModel]);
+
+  useEffect(() => {
+    setTemperature(defaultTemperature);
+  }, [defaultTemperature]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -197,23 +219,75 @@ const Chat = ({ auth, history, setHistory, projectNames, onSaveSuccess }) => {
     }
   };
 
+  const handleSimplifiedSave = async () => {
+    if (history.length === 0) {
+      alert("Cannot save an empty chat.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      await fetch(`${API_URL}/archive`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          history: history,
+          model: model,
+          archive_name: `Chat ${timestamp}`,
+          project_name: 'General',
+        }),
+      });
+      alert('Chat saved!');
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
+    } catch (error) {
+      console.error("Error saving chat:", error);
+      alert('Failed to save chat.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <>
-      <div className="chat-controls-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 0, margin: 0 }}>
-        <ChatControls 
-          model={model}
-          setModel={setModel}
+      {!simplifiedMode && (
+        <div className="chat-controls-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 0, margin: 0 }}>
+          <ChatControls
+            model={model}
+            setModel={setModel}
+            searchWeb={searchWeb}
+            setSearchWeb={setSearchWeb}
+            temperature={temperature}
+            setTemperature={setTemperature}
+          />
+          <ArchiveControls
+            onSave={handleSave}
+            onClear={handleClear}
+            projectNames={projectNames}
+          />
+        </div>
+      )}
+      {simplifiedMode && (
+        <SimplifiedActions
+          onSave={handleSimplifiedSave}
+          onClear={handleClear}
+          onToggleNeuralLog={() => setShowNeuralLog(!showNeuralLog)}
+          showNeuralLog={showNeuralLog}
+          isSaving={isSaving}
+        />
+      )}
+      {simplifiedMode && showNeuralLog && (
+        <NeuralLogPanel
+          currentModel={model}
+          currentTemperature={temperature}
           searchWeb={searchWeb}
-          setSearchWeb={setSearchWeb}
-          temperature={temperature}
-          setTemperature={setTemperature}
         />
-        <ArchiveControls 
-          onSave={handleSave} 
-          onClear={handleClear} 
-          projectNames={projectNames} 
-        />
-      </div>
+      )}
       <div className="chat-container">
         <div className="chat-window" key={forceRerender} ref={chatWindowRef}>
           {history.map((msg, index) => (
