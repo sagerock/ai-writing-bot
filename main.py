@@ -11,7 +11,7 @@ import socket
 os.environ["GRPC_DNS_RESOLVER"] = "native"  # Force gRPC to use system DNS
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query
+from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -717,9 +717,50 @@ async def get_user_credits(user: dict = Depends(get_current_user)):
     credits = user_data.get("credits", 0)
     return JSONResponse(content={"credits": credits})
 
-# Quick file upload - just extract text for chat context (no storage or indexing)
+# Background task to index document after quick upload
+def index_document_background(user_id: str, filename: str, text: str, file_content: bytes, content_type: str):
+    """Index document in Qdrant and save to Cloud Storage in the background."""
+    try:
+        # Upload to Cloud Storage
+        file_path = f"{user_id}/documents/{filename}"
+        blob = bucket.blob(file_path)
+        blob.upload_from_string(file_content, content_type=content_type)
+        print(f"Background: Uploaded {filename} to Cloud Storage")
+
+        # Index in Qdrant
+        indexed_chunks = 0
+        indexing_error = None
+        try:
+            rag = get_rag_service()
+            if rag and text:
+                indexed_chunks = rag.index_document(user_id, filename, text, "General")
+                print(f"Background: Indexed {filename} in Qdrant: {indexed_chunks} chunks")
+        except Exception as e:
+            print(f"Background: Failed to index in Qdrant: {e}")
+            indexing_error = str(e)
+
+        # Save metadata to Firestore
+        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
+        doc_data = {
+            "storagePath": file_path,
+            "filename": filename,
+            "contentType": content_type,
+            "size": len(file_content),
+            "projectName": "General",
+            "uploadedAt": firestore.SERVER_TIMESTAMP,
+            "indexed": indexed_chunks > 0,
+            "chunkCount": indexed_chunks,
+            "indexingError": indexing_error
+        }
+        doc_ref.set(doc_data)
+        print(f"Background: Saved metadata for {filename}")
+
+    except Exception as e:
+        print(f"Background indexing error for {filename}: {e}")
+
+# Quick file upload - extract text immediately, index in background
 @main_app.post("/upload_quick")
-async def upload_quick(user: dict = Depends(get_current_user), file: UploadFile = File(...)):
+async def upload_quick(background_tasks: BackgroundTasks, user: dict = Depends(get_current_user), file: UploadFile = File(...)):
     allowed_extensions = ('.md', '.txt', '.pdf')
     if not file.filename or not file.filename.endswith(allowed_extensions):
         raise HTTPException(status_code=400, detail=f"Only {', '.join(allowed_extensions)} files are allowed.")
@@ -736,13 +777,26 @@ async def upload_quick(user: dict = Depends(get_current_user), file: UploadFile 
             text_pages = [page.extract_text() or "" for page in reader.pages]
             text = "\n".join(text_pages)
 
-        # Truncate if too long (keep first 50k chars for context)
-        if len(text) > 50000:
-            text = text[:50000] + "\n\n[... document truncated for length ...]"
+        # Truncate for chat context if too long (keep first 50k chars)
+        display_text = text
+        if len(display_text) > 50000:
+            display_text = display_text[:50000] + "\n\n[... document truncated for length ...]"
+
+        # Schedule background indexing (uses full text, not truncated)
+        user_id = user['user_id']
+        content_type = file.content_type or 'application/octet-stream'
+        background_tasks.add_task(
+            index_document_background,
+            user_id,
+            file.filename,
+            text,  # Full text for indexing
+            file_content,
+            content_type
+        )
 
         return JSONResponse(content={
             "filename": file.filename,
-            "text": text,
+            "text": display_text,
             "size": len(file_content)
         })
 
