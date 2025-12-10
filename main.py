@@ -297,24 +297,12 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str):
                 )
             messages[last_user_msg_index]['content'] = web_prompt
 
-    # Determine reasoning effort based on temperature
-    # Map temperature to reasoning effort:
-    # 0.0-0.3 -> none, 0.4-0.7 -> low, 0.8-1.0 -> medium
-    if req.temperature <= 0.3:
-        reasoning_effort = "none"
-    elif req.temperature <= 0.7:
-        reasoning_effort = "low"
-    else:
-        reasoning_effort = "medium"
-
     try:
-        # Use Chat Completions API with GPT-5 specific parameters
-        # According to docs, GPT-5 models use reasoning_effort and verbosity instead of temperature
+        # Use standard Chat Completions API parameters
         response = await client.chat.completions.create(
             model=req.model,
             messages=messages,
-            reasoning_effort=reasoning_effort,
-            verbosity="medium",
+            temperature=req.temperature,
             stream=True
         )
 
