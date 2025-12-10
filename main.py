@@ -236,6 +236,51 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str):
             "content": msg.content
         })
 
+    # Handle web search for GPT-5 models
+    if req.search_web and messages:
+        # Find the last user message
+        last_user_msg_index = -1
+        for i in range(len(messages) - 1, -1, -1):
+            if messages[i]['role'] == 'user':
+                last_user_msg_index = i
+                break
+
+        if last_user_msg_index != -1:
+            user_query = messages[last_user_msg_index]['content']
+            search_snippets = []
+            try:
+                print(f"Starting DuckDuckGo search for GPT-5: {user_query[:100]}")
+                ddgs = DDGS()
+                results = list(ddgs.text(user_query, max_results=5))
+                print(f"DuckDuckGo returned {len(results)} results")
+
+                for result in results:
+                    title = result.get('title', '')
+                    body = result.get('body', '')
+                    search_snippets.append(f"Result: {title} - {body}")
+
+            except Exception as e:
+                print(f"DuckDuckGo search failed for GPT-5: {type(e).__name__}: {e}")
+
+            today = datetime.now().strftime('%B %d, %Y')
+            if search_snippets:
+                context = "\n\n".join(search_snippets)
+                web_prompt = (
+                    f"Today is {today}. The user has requested a web search. Here are the top search results. "
+                    "Use this information to provide a timely and accurate answer.\n\n"
+                    "--- BEGIN WEB SEARCH RESULTS ---\n"
+                    f"{context}\n"
+                    "--- END WEB SEARCH RESULTS ---\n\n"
+                    f"Original Query: {user_query}"
+                )
+            else:
+                web_prompt = (
+                    f"Today is {today}. The user requested a web search but it could not be completed. "
+                    "Please answer based on your knowledge and clearly note that you cannot provide real-time information.\n\n"
+                    f"Original Query: {user_query}"
+                )
+            messages[last_user_msg_index]['content'] = web_prompt
+
     # Determine reasoning effort based on temperature
     # Map temperature to reasoning effort:
     # 0.0-0.3 -> none, 0.4-0.7 -> low, 0.8-1.0 -> medium
