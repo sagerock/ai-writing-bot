@@ -12,7 +12,7 @@ python-multipart==0.0.6
 pydantic==2.10.3
 itsdangerous==2.2.0
 pypdf==3.17.4
-ddgs==6.3.5
+ddgs==9.9.3
 # Pin grpcio to version with Python 3.13 pre-built wheels
 grpcio==1.68.1
 grpcio-status==1.68.1
