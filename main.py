@@ -298,11 +298,10 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str):
             messages[last_user_msg_index]['content'] = web_prompt
 
     try:
-        # Use standard Chat Completions API parameters
+        # GPT-5 models only support default temperature (1), so don't pass it
         response = await client.chat.completions.create(
             model=req.model,
             messages=messages,
-            temperature=req.temperature,
             stream=True
         )
 
