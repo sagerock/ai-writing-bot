@@ -35,7 +35,8 @@ class RAGService:
         self.qdrant = QdrantClient(
             url=QDRANT_URL,
             api_key=QDRANT_API_KEY,
-            timeout=30
+            timeout=30,
+            prefer_grpc=False  # Use REST API to avoid grpcio compilation issues
         )
         self.openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.splitter = RecursiveCharacterTextSplitter(

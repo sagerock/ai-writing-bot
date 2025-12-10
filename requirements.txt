@@ -19,5 +19,5 @@ requests
 sendgrid==6.12.4
 google-cloud-storage==2.10.0
 anthropic>=0.25.0
-qdrant-client>=1.7.0
+qdrant-client>=1.7.0,<2.0.0
 tiktoken>=0.5.0
