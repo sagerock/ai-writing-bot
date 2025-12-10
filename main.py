@@ -19,6 +19,16 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from pypdf import PdfReader
 from ddgs import DDGS
+
+# RAG Service (lazy import to avoid startup failure if Qdrant unavailable)
+def get_rag_service():
+    """Get the RAG service singleton (lazy load)."""
+    try:
+        from rag_service import get_rag_service as _get_rag
+        return _get_rag()
+    except Exception as e:
+        print(f"Warning: RAG service unavailable: {e}")
+        return None
 import firebase_admin
 from firebase_admin import credentials, firestore, storage, auth as firebase_auth
 from google.oauth2 import id_token
@@ -331,11 +341,11 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     # Use a transaction to safely read and update credits
     transaction = db.transaction()
-    
+
     @firestore.transactional
     def check_and_update_credits(transaction: Transaction, user_ref: DocumentReference):
         user_snapshot = user_ref.get(transaction=transaction)
-        
+
         if not user_snapshot.exists:
             initial_credits = 100
             transaction.set(user_ref, {
@@ -343,10 +353,10 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 "credits_used": 1
             })
             return
-        
+
         user_data = user_snapshot.to_dict()
         credits = user_data.get("credits", 0)
-        
+
         if credits <= 0:
             raise HTTPException(status_code=402, detail="You have run out of credits.")
 
@@ -377,8 +387,51 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
 
+    # --- RAG: Search user's documents for relevant context ---
+    rag_context = ""
+    try:
+        rag = get_rag_service()
+        if rag:
+            # Find the last user message for search
+            last_user_msg = None
+            for msg in reversed(req.history):
+                if msg.role == 'user':
+                    last_user_msg = msg.content
+                    break
+
+            if last_user_msg:
+                results = rag.search(user_id, last_user_msg, top_k=5, score_threshold=0.7)
+
+                if results:
+                    context_parts = []
+                    for r in results:
+                        context_parts.append(f"[From: {r['filename']}]\n{r['chunk_text']}")
+                    rag_context = "\n\n---\n\n".join(context_parts)
+                    print(f"RAG found {len(results)} relevant chunks for user {user_id}")
+    except Exception as e:
+        print(f"RAG search failed (non-fatal): {e}")
+
     # Check if this is a GPT-5 model that requires Responses API
     if is_gpt5_model(req.model):
+        # For GPT-5 models, inject RAG context into request history
+        if rag_context:
+            # Create a modified request with RAG context
+            modified_history = list(req.history)
+            for i in range(len(modified_history) - 1, -1, -1):
+                if modified_history[i].role == 'user':
+                    original_query = modified_history[i].content
+                    modified_history[i] = Message(
+                        role='user',
+                        content=f"Based on the following relevant information from your documents:\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\n--- END CONTEXT ---\n\nUser question: {original_query}"
+                    )
+                    break
+            req = ChatRequest(
+                history=modified_history,
+                model=req.model,
+                search_web=req.search_web,
+                temperature=req.temperature
+            )
+
         # Use the Responses API for GPT-5 models
         async for token in generate_gpt5_response(req, user_id):
             yield f"data: {token}\n\n"
@@ -387,6 +440,14 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     llm = get_llm(req.model, req.temperature)
     history_messages = [message.dict() for message in req.history]
+
+    # Inject RAG context into the conversation for non-GPT5 models
+    if rag_context:
+        for i in range(len(history_messages) - 1, -1, -1):
+            if history_messages[i]['role'] == 'user':
+                original_query = history_messages[i]['content']
+                history_messages[i]['content'] = f"Based on the following relevant information from your documents:\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\n--- END CONTEXT ---\n\nUser question: {original_query}"
+                break
 
     if req.search_web:
         last_user_msg_index = -1
@@ -575,7 +636,10 @@ async def get_projects(user: dict = Depends(get_current_user)):
                 "contentType": data.get("contentType"),
                 "size": data.get("size"),
                 "uploadedAt": uploaded_at,
-                "type": "document"
+                "type": "document",
+                "indexed": data.get("indexed", False),
+                "chunkCount": data.get("chunkCount", 0),
+                "indexingError": data.get("indexingError")
             })
 
         return JSONResponse(content=projects)
@@ -635,6 +699,20 @@ async def get_history(user: dict = Depends(get_current_user)):
         return JSONResponse(content=doc.to_dict().get("messages", []))
     return JSONResponse(content=[])
 
+@main_app.get("/documents/indexed")
+async def get_indexed_documents(user: dict = Depends(get_current_user)):
+    """Get list of documents that are indexed in the vector store."""
+    user_id = user['user_id']
+    try:
+        rag = get_rag_service()
+        if rag:
+            indexed_docs = rag.get_user_indexed_documents(user_id)
+            return JSONResponse(content={"documents": indexed_docs})
+        return JSONResponse(content={"documents": [], "error": "RAG service unavailable"})
+    except Exception as e:
+        print(f"Failed to get indexed documents: {e}")
+        return JSONResponse(content={"documents": [], "error": str(e)})
+
 @main_app.get("/user/credits")
 async def get_user_credits(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
@@ -684,6 +762,18 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
             # If extraction fails, we still proceed, but the context will be empty.
             print(f"Failed to extract text from {file.filename}: {e}")
 
+        # Index document in Qdrant for RAG
+        indexed_chunks = 0
+        indexing_error = None
+        try:
+            rag = get_rag_service()
+            if rag and text:
+                indexed_chunks = rag.index_document(user_id, file.filename, text, project_name)
+                print(f"Indexed {file.filename} in Qdrant: {indexed_chunks} chunks")
+        except Exception as e:
+            print(f"Failed to index document in Qdrant: {e}")
+            indexing_error = str(e)
+
         # Save metadata to Firestore
         doc_ref = db.collection("users").document(user_id).collection("documents").document(file.filename)
         doc_data = {
@@ -693,6 +783,9 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
             "size": len(file_content),
             "projectName": project_name,
             "uploadedAt": firestore.SERVER_TIMESTAMP,
+            "indexed": indexed_chunks > 0,
+            "chunkCount": indexed_chunks,
+            "indexingError": indexing_error
         }
         doc_ref.set(doc_data)
 
@@ -793,7 +886,7 @@ async def delete_document(filename: str, user: dict = Depends(get_current_user))
         doc_snapshot = doc_ref.get()
         if not doc_snapshot.exists:
             raise HTTPException(status_code=404, detail="Document metadata not found.")
-        
+
         doc_ref.delete()
 
         # Second, delete the actual file from Cloud Storage
@@ -801,7 +894,15 @@ async def delete_document(filename: str, user: dict = Depends(get_current_user))
         blob = bucket.blob(storage_path)
         if blob.exists():
             blob.delete()
-        
+
+        # Third, delete from Qdrant (non-fatal if it fails)
+        try:
+            rag = get_rag_service()
+            if rag:
+                rag.delete_document(user_id, filename)
+        except Exception as e:
+            print(f"Failed to delete from Qdrant (non-fatal): {e}")
+
         return JSONResponse(content={"message": f"Document '{filename}' deleted successfully."})
     except HTTPException:
         raise

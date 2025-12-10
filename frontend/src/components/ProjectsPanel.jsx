@@ -298,6 +298,13 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
                                         <span className="item-name" onClick={() => handleSelectDocument(doc)}>
                                             {doc.filename}
                                         </span>
+                                        {doc.indexed ? (
+                                            <span className="indexed-badge" title={`${doc.chunkCount} chunks indexed for AI search`}>✓</span>
+                                        ) : doc.indexingError ? (
+                                            <span className="indexed-badge error" title={`Indexing failed: ${doc.indexingError}`}>⚠</span>
+                                        ) : (
+                                            <span className="indexed-badge pending" title="Not indexed for AI search">○</span>
+                                        )}
                                         <button className="delete-btn" onClick={() => handleDeleteDocument(doc.filename)}>🗑️</button>
                                     </li>
                                 ))}

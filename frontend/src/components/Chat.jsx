@@ -253,41 +253,123 @@ const Chat = ({
     }
   };
 
+  // Simplified mode - ChatGPT-style centered layout
+  if (simplifiedMode) {
+    const hasMessages = history.length > 0;
+
+    return (
+      <div className={`chat-simplified ${hasMessages ? 'has-messages' : 'empty'}`}>
+        {/* Neural Log Panel - only when toggled */}
+        {showNeuralLog && (
+          <NeuralLogPanel
+            currentModel={model}
+            currentTemperature={temperature}
+            searchWeb={searchWeb}
+          />
+        )}
+
+        {/* Empty state - centered welcome */}
+        {!hasMessages && (
+          <div className="welcome-container">
+            <h1 className="welcome-message">Ready when you are.</h1>
+          </div>
+        )}
+
+        {/* Messages - scrollable area */}
+        {hasMessages && (
+          <div className="chat-messages" ref={chatWindowRef}>
+            {history.map((msg, index) => (
+              <div key={index} className={`message ${msg.role}`}>
+                {msg.role === 'context' ? (
+                  <p><em>{msg.display_text}</em></p>
+                ) : msg.role === 'assistant' ? (
+                  <>
+                    {msg.streaming ? (
+                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{msg.content}</pre>
+                    ) : (
+                      <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
+                    )}
+                    {msg.content && !msg.streaming && (
+                      <button
+                        className="copy-btn"
+                        onClick={() => handleCopy(msg.content, index)}
+                        title="Copy to clipboard"
+                      >
+                        {copied[index] ? '✅' : '📋'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p>{msg.content}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Centered pill input */}
+        <div className={`input-container ${hasMessages ? 'bottom' : 'centered'}`}>
+          <div className="pill-input">
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Ask anything"
+              rows={1}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+            />
+            <button
+              className="send-btn"
+              onClick={handleSendMessage}
+              disabled={loading || !message.trim()}
+            >
+              {loading ? '...' : '→'}
+            </button>
+          </div>
+
+          {/* Minimal action links */}
+          <div className="action-links">
+            {loading && <button className="link-btn" onClick={handleStop}>Stop</button>}
+            <button className="link-btn" onClick={handleSimplifiedSave} disabled={isSaving || history.length === 0}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            {history.length > 0 && (
+              <button className="link-btn" onClick={handleClear}>Clear</button>
+            )}
+            <button
+              className={`link-btn ${showNeuralLog ? 'active' : ''}`}
+              onClick={() => setShowNeuralLog(!showNeuralLog)}
+            >
+              {showNeuralLog ? 'Hide Log' : 'Neural Log'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard mode - original layout
   return (
     <>
-      {!simplifiedMode && (
-        <div className="chat-controls-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 0, margin: 0 }}>
-          <ChatControls
-            model={model}
-            setModel={setModel}
-            searchWeb={searchWeb}
-            setSearchWeb={setSearchWeb}
-            temperature={temperature}
-            setTemperature={setTemperature}
-          />
-          <ArchiveControls
-            onSave={handleSave}
-            onClear={handleClear}
-            projectNames={projectNames}
-          />
-        </div>
-      )}
-      {simplifiedMode && (
-        <SimplifiedActions
-          onSave={handleSimplifiedSave}
-          onClear={handleClear}
-          onToggleNeuralLog={() => setShowNeuralLog(!showNeuralLog)}
-          showNeuralLog={showNeuralLog}
-          isSaving={isSaving}
-        />
-      )}
-      {simplifiedMode && showNeuralLog && (
-        <NeuralLogPanel
-          currentModel={model}
-          currentTemperature={temperature}
+      <div className="chat-controls-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 0, margin: 0 }}>
+        <ChatControls
+          model={model}
+          setModel={setModel}
           searchWeb={searchWeb}
+          setSearchWeb={setSearchWeb}
+          temperature={temperature}
+          setTemperature={setTemperature}
         />
-      )}
+        <ArchiveControls
+          onSave={handleSave}
+          onClear={handleClear}
+          projectNames={projectNames}
+        />
+      </div>
       <div className="chat-container">
         <div className="chat-window" key={forceRerender} ref={chatWindowRef}>
           {history.map((msg, index) => (
@@ -302,8 +384,8 @@ const Chat = ({
                     <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
                   )}
                   {msg.content && !msg.streaming && (
-                    <button 
-                      className="copy-btn" 
+                    <button
+                      className="copy-btn"
                       onClick={() => handleCopy(msg.content, index)}
                       title="Copy to clipboard"
                     >
