@@ -34,6 +34,7 @@ const Chat = ({
   const [showNeuralLog, setShowNeuralLog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchDocs, setSearchDocs] = useState(false);
   const fileInputRef = useRef(null);
 
   // Update model/temperature when defaults change from settings
@@ -92,6 +93,7 @@ const Chat = ({
           history: newHistory,
           model: model,
           search_web: searchWeb,
+          search_docs: searchDocs,
           temperature: temperature,
         }),
         signal: abortControllerRef.current.signal,
@@ -372,6 +374,13 @@ const Chat = ({
               style={{ display: 'none' }}
               accept=".pdf,.txt,.md"
             />
+            <button
+              className={`search-docs-btn ${searchDocs ? 'active' : ''}`}
+              onClick={() => setSearchDocs(!searchDocs)}
+              title={searchDocs ? "Document search ON" : "Document search OFF"}
+            >
+              📚
+            </button>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}

@@ -128,6 +128,7 @@ class ChatRequest(BaseModel):
     history: List[Message]
     model: str
     search_web: bool = False
+    search_docs: bool = False
     temperature: float = 0.7
 
 class ArchiveRequest(BaseModel):
@@ -374,29 +375,30 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
 
-    # --- RAG: Search user's documents for relevant context ---
+    # --- RAG: Search user's documents for relevant context (only if enabled) ---
     rag_context = ""
-    try:
-        rag = get_rag_service()
-        if rag:
-            # Find the last user message for search
-            last_user_msg = None
-            for msg in reversed(req.history):
-                if msg.role == 'user':
-                    last_user_msg = msg.content
-                    break
+    if req.search_docs:
+        try:
+            rag = get_rag_service()
+            if rag:
+                # Find the last user message for search
+                last_user_msg = None
+                for msg in reversed(req.history):
+                    if msg.role == 'user':
+                        last_user_msg = msg.content
+                        break
 
-            if last_user_msg:
-                results = rag.search(user_id, last_user_msg, top_k=5, score_threshold=0.7)
+                if last_user_msg:
+                    results = rag.search(user_id, last_user_msg, top_k=5, score_threshold=0.7)
 
-                if results:
-                    context_parts = []
-                    for r in results:
-                        context_parts.append(f"[From: {r['filename']}]\n{r['chunk_text']}")
-                    rag_context = "\n\n---\n\n".join(context_parts)
-                    print(f"RAG found {len(results)} relevant chunks for user {user_id}")
-    except Exception as e:
-        print(f"RAG search failed (non-fatal): {e}")
+                    if results:
+                        context_parts = []
+                        for r in results:
+                            context_parts.append(f"[From: {r['filename']}]\n{r['chunk_text']}")
+                        rag_context = "\n\n---\n\n".join(context_parts)
+                        print(f"RAG found {len(results)} relevant chunks for user {user_id}")
+        except Exception as e:
+            print(f"RAG search failed (non-fatal): {e}")
 
     # Check if this is a GPT-5 model that requires Responses API
     if is_gpt5_model(req.model):

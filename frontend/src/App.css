@@ -1530,6 +1530,36 @@ hr {
     cursor: not-allowed;
 }
 
+.pill-input .search-docs-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #999;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    margin-right: 4px;
+    opacity: 0.6;
+}
+
+.pill-input .search-docs-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+    opacity: 1;
+}
+
+.pill-input .search-docs-btn.active {
+    background: #e8f4e8;
+    color: #28a745;
+    opacity: 1;
+}
+
 /* Action links below input */
 .action-links {
     display: flex;
