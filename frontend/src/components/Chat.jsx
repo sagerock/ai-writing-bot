@@ -264,11 +264,11 @@ const Chat = ({
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('project_name', 'General');
 
     try {
       const token = await auth.currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/upload`, {
+      // Use quick upload - just extracts text, no storage/indexing
+      const response = await fetch(`${API_URL}/upload_quick`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -280,17 +280,14 @@ const Chat = ({
 
       const result = await response.json();
 
-      // Add context message to chat showing the document was loaded
-      if (result.context_message) {
+      // Add context message to chat with the extracted text
+      if (result.text) {
         setHistory(prev => [...prev, {
           role: 'context',
-          content: result.context_message.content,
-          display_text: `Uploaded: ${file.name}`
+          content: result.text,
+          display_text: `Uploaded: ${result.filename}`
         }]);
       }
-
-      // Refresh projects panel if available
-      window.dispatchEvent(new Event('refresh-projects'));
 
     } catch (error) {
       console.error("Error uploading file:", error);

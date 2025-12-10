@@ -717,7 +717,42 @@ async def get_user_credits(user: dict = Depends(get_current_user)):
     credits = user_data.get("credits", 0)
     return JSONResponse(content={"credits": credits})
 
-# File upload endpoint
+# Quick file upload - just extract text for chat context (no storage or indexing)
+@main_app.post("/upload_quick")
+async def upload_quick(user: dict = Depends(get_current_user), file: UploadFile = File(...)):
+    allowed_extensions = ('.md', '.txt', '.pdf')
+    if not file.filename or not file.filename.endswith(allowed_extensions):
+        raise HTTPException(status_code=400, detail=f"Only {', '.join(allowed_extensions)} files are allowed.")
+
+    try:
+        file_content = await file.read()
+
+        # Extract text
+        text = ""
+        if file.filename.lower().endswith(('.txt', '.md')):
+            text = file_content.decode('utf-8')
+        elif file.filename.lower().endswith('.pdf'):
+            reader = PdfReader(io.BytesIO(file_content))
+            text_pages = [page.extract_text() or "" for page in reader.pages]
+            text = "\n".join(text_pages)
+
+        # Truncate if too long (keep first 50k chars for context)
+        if len(text) > 50000:
+            text = text[:50000] + "\n\n[... document truncated for length ...]"
+
+        return JSONResponse(content={
+            "filename": file.filename,
+            "text": text,
+            "size": len(file_content)
+        })
+
+    except Exception as e:
+        import traceback, sys
+        print("QUICK UPLOAD ERROR:", repr(e), file=sys.stderr)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {e}")
+
+# File upload endpoint (full - saves to storage and indexes)
 @main_app.post("/upload")
 async def upload_file(user: dict = Depends(get_current_user), file: UploadFile = File(...), project_name: str = Form("General")):
     user_id = user['user_id']
