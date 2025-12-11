@@ -290,22 +290,23 @@ def is_gpt5_model(model_name: str) -> bool:
 # Model routing configuration
 ROUTING_MODELS = {
     "simple": "gpt-5-nano-2025-08-07",      # Quick facts, yes/no, definitions
-    "general": "gpt-5-mini-2025-08-07",     # General conversation, moderate tasks
-    "complex": "gpt-5-2025-08-07",          # Complex reasoning, coding, analysis
-    "creative": "claude-sonnet-4-5-20250929",  # Creative writing, storytelling
-    "research": "claude-opus-4-1-20250805", # Deep research, philosophy
-    "educational": "gemini-2.5-flash",      # Teaching, explanations
+    "general": "gpt-5-mini-2025-08-07",     # General conversation, chat
+    "coding": "gpt-5-2025-08-07",           # Code, debugging, technical
+    "writing": "claude-sonnet-4-5-20250929",  # Creative writing, poems, stories
+    "science": "gemini-2.5-flash",          # Science explanations, how things work
 }
 
-ROUTER_PROMPT = """Classify this user message into ONE category. Return ONLY the category name, nothing else.
+ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
 
 Categories:
-- simple: Quick facts, definitions, yes/no questions, basic lookups, greetings
-- general: General conversation, moderate tasks, summaries, everyday questions
-- complex: Complex reasoning, coding, debugging, multi-step analysis, math problems
-- creative: Creative writing, storytelling, poetry, marketing copy, tone-sensitive content
-- research: Deep research, philosophy, ethics, nuanced debate, academic analysis
-- educational: Teaching concepts, explaining how things work, step-by-step learning
+- simple: Greetings, yes/no questions, quick facts, definitions, "what is X"
+- general: Casual chat, opinions, advice, recommendations, everyday questions
+- coding: Programming, code, debugging, technical implementation, APIs, software
+- writing: Write/create poems, stories, essays, emails, marketing copy, any creative writing task
+- science: Explain science, physics, biology, chemistry, math concepts, how things work, educational explanations
+
+IMPORTANT: If the message asks to "write", "create", or "compose" something -> writing
+IMPORTANT: If the message asks to "explain" science/math/how something works -> science
 
 Message: "{message}"
 
