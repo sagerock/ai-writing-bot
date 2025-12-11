@@ -35,7 +35,7 @@ class RAGService:
         self.qdrant = QdrantClient(
             url=QDRANT_URL,
             api_key=QDRANT_API_KEY,
-            timeout=30,
+            timeout=120,  # Increased timeout for cross-cloud latency (Render -> Railway)
             prefer_grpc=False  # Use REST API to avoid grpcio compilation issues
         )
         self.openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
