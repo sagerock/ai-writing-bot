@@ -187,8 +187,31 @@ const Chat = ({
     }
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (window.confirm('Are you sure you want to clear the conversation?')) {
+        // Save conversation to mem0 before clearing (if there's meaningful content)
+        if (history.length >= 2) {
+            try {
+                const token = await auth.currentUser.getIdToken();
+                await fetch(`${API_URL}/save_memory`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        history: history,
+                        model: model,
+                        search_web: false,
+                        temperature: temperature,
+                    }),
+                });
+                console.log('Conversation saved to memory');
+            } catch (error) {
+                console.error('Failed to save memory:', error);
+                // Don't block clearing even if memory save fails
+            }
+        }
         setHistory([]);
     }
   };

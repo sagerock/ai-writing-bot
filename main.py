@@ -84,6 +84,21 @@ if not firebase_admin._apps:
 db = firestore.client()
 bucket = storage.bucket()
 
+# mem0 for universal user memory
+mem0_client = None
+try:
+    from mem0 import MemoryClient
+    mem0_api_key = os.getenv("MEM0_API_KEY")
+    if mem0_api_key:
+        mem0_client = MemoryClient(api_key=mem0_api_key)
+        print("✓ mem0 client initialized")
+    else:
+        print("⚠ MEM0_API_KEY not set - memory features disabled")
+except ImportError:
+    print("⚠ mem0ai not installed - memory features disabled")
+except Exception as e:
+    print(f"⚠ mem0 initialization failed: {e}")
+
 main_app = FastAPI()
 
 # --- Authentication ---
@@ -241,7 +256,7 @@ def is_gpt5_model(model_name: str) -> bool:
     gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
-async def generate_gpt5_response(req: ChatRequest, user_id: str):
+async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context: str = ""):
     """Generate streaming response for GPT-5 models using Chat Completions API with GPT-5 parameters."""
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -254,6 +269,13 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str):
         messages.append({
             "role": role,
             "content": msg.content
+        })
+
+    # Inject memory context as a system message
+    if memory_context:
+        messages.insert(0, {
+            "role": "system",
+            "content": f"You have the following memories about this user from previous conversations:\n{memory_context}\n\nUse this context to provide more personalized and relevant responses."
         })
 
     # Handle web search for GPT-5 models
@@ -403,6 +425,27 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         except Exception as e:
             print(f"RAG search failed (non-fatal): {e}")
 
+    # --- mem0: Retrieve relevant user memories ---
+    memory_context = ""
+    if mem0_client:
+        try:
+            # Find the last user message for memory search
+            last_user_msg = None
+            for msg in reversed(req.history):
+                if msg.role == 'user':
+                    last_user_msg = msg.content
+                    break
+
+            if last_user_msg:
+                memories = mem0_client.search(last_user_msg, user_id=user_id, limit=5)
+                if memories and len(memories) > 0:
+                    memory_parts = [m.get('memory', '') for m in memories if m.get('memory')]
+                    if memory_parts:
+                        memory_context = "\n".join(f"- {m}" for m in memory_parts)
+                        print(f"mem0 found {len(memory_parts)} relevant memories for user {user_id}")
+        except Exception as e:
+            print(f"mem0 search failed (non-fatal): {e}")
+
     # Check if this is a GPT-5 model that requires Responses API
     if is_gpt5_model(req.model):
         # For GPT-5 models, inject RAG context into request history
@@ -425,13 +468,21 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             )
 
         # Use the Responses API for GPT-5 models
-        async for token in generate_gpt5_response(req, user_id):
+        async for token in generate_gpt5_response(req, user_id, memory_context):
             yield f"data: {token}\n\n"
         yield "data: [DONE]\n\n"
         return
 
     llm = get_llm(req.model, req.temperature)
     history_messages = [message.dict() for message in req.history]
+
+    # Inject memory context as a system message for non-GPT5 models
+    if memory_context:
+        memory_system_msg = {
+            "role": "system",
+            "content": f"You have the following memories about this user from previous conversations:\n{memory_context}\n\nUse this context to provide more personalized and relevant responses."
+        }
+        history_messages.insert(0, memory_system_msg)
 
     # Inject RAG context into the conversation for non-GPT5 models
     if rag_context:
@@ -551,8 +602,37 @@ async def archive_chat(req: ArchiveRequest, user: dict = Depends(get_current_use
         "messages": [msg.dict() for msg in req.history],
         "archivedAt": firestore.SERVER_TIMESTAMP
     })
-        
+
     return JSONResponse(content={"message": f"Chat archived to {archive_id} in project {project_name}"})
+
+@main_app.post("/save_memory")
+async def save_memory(req: ChatRequest, user: dict = Depends(get_current_user)):
+    """Save conversation to mem0 for persistent user memory."""
+    user_id = user['user_id']
+
+    if not mem0_client:
+        return JSONResponse(status_code=503, content={"error": "Memory service not available"})
+
+    if not req.history or len(req.history) < 2:
+        return JSONResponse(status_code=400, content={"error": "Need at least 2 messages to save memory"})
+
+    try:
+        # Convert history to mem0 format (filter out context messages)
+        messages = []
+        for msg in req.history:
+            role = msg.role
+            if role == 'context':
+                continue  # Skip context messages, they're document uploads
+            messages.append({"role": role, "content": msg.content})
+
+        if messages:
+            mem0_client.add(messages, user_id=user_id)
+            print(f"Saved {len(messages)} messages to mem0 for user {user_id}")
+
+        return JSONResponse(content={"message": "Memory saved successfully"})
+    except Exception as e:
+        print(f"Error saving to mem0: {e}")
+        return JSONResponse(status_code=500, content={"error": f"Failed to save memory: {str(e)}"})
 
 @main_app.get("/archives")
 async def get_archives(user: dict = Depends(get_current_user)):
