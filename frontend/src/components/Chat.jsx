@@ -466,13 +466,19 @@ const Chat = ({
             </button>
           </div>
 
-          {/* Show routed model when in auto mode */}
-          {model === 'auto' && routedModel && (
-            <div className="routed-model-indicator">
-              Routed to: <strong>{getModelDisplayName(routedModel.routed_model)}</strong>
-              <span className="category-tag">{routedModel.routed_category}</span>
-            </div>
-          )}
+          {/* Show current model indicator */}
+          <div className="routed-model-indicator">
+            {model === 'auto' && routedModel ? (
+              <>
+                Auto: <strong>{getModelDisplayName(routedModel.routed_model)}</strong>
+                <span className="category-tag">{routedModel.routed_category}</span>
+              </>
+            ) : model === 'auto' ? (
+              <>Using: <strong>Auto (waiting...)</strong></>
+            ) : (
+              <>Using: <strong>{getModelDisplayName(model)}</strong></>
+            )}
+          </div>
         </div>
       </div>
     );

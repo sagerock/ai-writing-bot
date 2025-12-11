@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
+// Model documentation links
+const MODEL_DOCS = {
+  openai: { name: 'OpenAI', url: 'https://platform.openai.com/docs/models' },
+  anthropic: { name: 'Anthropic', url: 'https://docs.anthropic.com/en/docs/about-claude/models/overview' },
+  google: { name: 'Google', url: 'https://ai.google.dev/gemini-api/docs/models' },
+  perplexity: { name: 'Perplexity', url: 'https://docs.perplexity.ai/guides/model-cards' },
+};
+
 const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, setTemperature }) => {
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
+  const [showModelDocs, setShowModelDocs] = useState(false);
 
   const getCreativityLabel = (temp) => {
     if (temp <= 0.3) return "Focused";
@@ -49,7 +58,35 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
       </button>
       <div className={`chat-controls bg-white dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700 mobile-accordion-panel ${isMobileControlsOpen ? 'is-open' : ''}`}>
         <div className="control-group">
-          <label htmlFor="model-select">Model:</label>
+          <div className="model-label-row">
+            <label htmlFor="model-select">Model:</label>
+            <div className="model-docs-wrapper">
+              <button
+                type="button"
+                className="model-info-btn"
+                onClick={() => setShowModelDocs(!showModelDocs)}
+                title="View latest models from providers"
+              >
+                ℹ️
+              </button>
+              {showModelDocs && (
+                <div className="model-docs-dropdown">
+                  <div className="model-docs-header">Latest Model Docs</div>
+                  {Object.entries(MODEL_DOCS).map(([key, { name, url }]) => (
+                    <a
+                      key={key}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="model-docs-link"
+                    >
+                      {name} →
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
             <option value="auto">Auto (Smart Routing)</option>
             <optgroup label="OpenAI - GPT-5 Series">
