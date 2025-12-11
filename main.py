@@ -11,7 +11,7 @@ import socket
 os.environ["GRPC_DNS_RESOLVER"] = "native"  # Force gRPC to use system DNS
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query, BackgroundTasks
+from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -210,6 +210,87 @@ class FeedbackRequest(BaseModel):
     model: str  # The model that generated the response
     routed_category: str | None = None  # If auto-routed, what category
     message_snippet: str | None = None  # First 200 chars of the message for context
+
+# --- Signup Rate Limiting ---
+# Limit new account creation to prevent abuse (3 accounts per IP per day)
+SIGNUP_RATE_LIMIT = 3
+SIGNUP_RATE_WINDOW_HOURS = 24
+
+def get_client_ip(request: Request) -> str:
+    """Extract client IP from request, handling proxies."""
+    # Check X-Forwarded-For header (set by proxies/load balancers)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # X-Forwarded-For can contain multiple IPs; first one is the client
+        return forwarded_for.split(",")[0].strip()
+    # Check X-Real-IP header (common with nginx)
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    # Fall back to direct client IP
+    return request.client.host if request.client else "unknown"
+
+@main_app.get("/signup/check-rate-limit")
+async def check_signup_rate_limit(request: Request):
+    """Check if this IP can create a new account."""
+    client_ip = get_client_ip(request)
+
+    # Get signup attempts from this IP in the last 24 hours
+    signup_ref = db.collection("signup_rate_limits").document(client_ip)
+    signup_doc = signup_ref.get()
+
+    if signup_doc.exists:
+        data = signup_doc.to_dict()
+        attempts = data.get("attempts", [])
+
+        # Filter to only attempts within the rate window
+        cutoff = datetime.utcnow() - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
+        recent_attempts = [a for a in attempts if a > cutoff]
+
+        if len(recent_attempts) >= SIGNUP_RATE_LIMIT:
+            # Calculate when they can try again
+            oldest_attempt = min(recent_attempts)
+            can_retry_at = oldest_attempt + timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
+            hours_remaining = (can_retry_at - datetime.utcnow()).total_seconds() / 3600
+
+            return {
+                "allowed": False,
+                "reason": f"Too many accounts created from this network. Please try again in {int(hours_remaining) + 1} hours.",
+                "attempts_remaining": 0
+            }
+
+        return {
+            "allowed": True,
+            "attempts_remaining": SIGNUP_RATE_LIMIT - len(recent_attempts)
+        }
+
+    return {
+        "allowed": True,
+        "attempts_remaining": SIGNUP_RATE_LIMIT
+    }
+
+@main_app.post("/signup/record")
+async def record_signup(request: Request):
+    """Record a successful signup attempt for rate limiting."""
+    client_ip = get_client_ip(request)
+
+    signup_ref = db.collection("signup_rate_limits").document(client_ip)
+    signup_doc = signup_ref.get()
+
+    now = datetime.utcnow()
+    cutoff = now - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
+
+    if signup_doc.exists:
+        data = signup_doc.to_dict()
+        attempts = data.get("attempts", [])
+        # Keep only recent attempts + new one
+        recent_attempts = [a for a in attempts if a > cutoff]
+        recent_attempts.append(now)
+        signup_ref.update({"attempts": recent_attempts, "last_attempt": now})
+    else:
+        signup_ref.set({"attempts": [now], "last_attempt": now})
+
+    return {"recorded": True}
 
 # Load API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

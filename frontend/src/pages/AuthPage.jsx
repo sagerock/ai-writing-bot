@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { API_URL } from '../apiConfig';
 
 // This component will handle Login, Registration, and Forgot Password
 const AuthPage = () => {
@@ -8,6 +9,7 @@ const AuthPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const auth = getAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,12 +22,31 @@ const AuthPage = () => {
     e.preventDefault();
     setError('');
     setInfo('');
+    setIsLoading(true);
+
     try {
+      // Check rate limit before attempting signup
+      const rateLimitResponse = await fetch(`${API_URL}/signup/check-rate-limit`);
+      const rateLimitData = await rateLimitResponse.json();
+
+      if (!rateLimitData.allowed) {
+        setError(rateLimitData.reason);
+        setIsLoading(false);
+        return;
+      }
+
+      // Proceed with signup
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Record successful signup for rate limiting
+      await fetch(`${API_URL}/signup/record`, { method: 'POST' });
+
       // User is now automatically signed in and can access the app immediately
       // The onAuthStateChanged listener in App.jsx will handle navigation to the main app
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -33,11 +54,14 @@ const AuthPage = () => {
     e.preventDefault();
     setError('');
     setInfo('');
+    setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // The onAuthStateChanged listener in App.jsx will handle navigation
     } catch (err) {
       setError('Failed to log in. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,14 +73,17 @@ const AuthPage = () => {
       setError('Please enter your email address.');
       return;
     }
+    setIsLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
       navigate('/login', { state: { info: 'Password reset email sent. Please check your inbox.' } });
     } catch (err) {
       setError('Failed to send password reset email. Please check the email address.');
+    } finally {
+      setIsLoading(false);
     }
   };
-  
+
   // Use the 'info' message passed in state from navigation, if any
   React.useEffect(() => {
     if (location.state?.info) {
@@ -71,7 +98,9 @@ const AuthPage = () => {
           <h2>Reset Password</h2>
           <p>Enter your email address to receive a password reset link.</p>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required autoFocus />
-          <button type="submit">Send Reset Link</button>
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? <span className="spinner small"></span> : 'Send Reset Link'}
+          </button>
           <div className="auth-links">
             <Link to="/login">Back to Login</Link>
           </div>
@@ -85,7 +114,9 @@ const AuthPage = () => {
           <h2>Create an Account</h2>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-          <button type="submit">Register</button>
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? <span className="spinner small"></span> : 'Register'}
+          </button>
           <div className="auth-links">
             <span>Already have an account? </span>
             <Link to="/login">Login</Link>
@@ -99,7 +130,9 @@ const AuthPage = () => {
         <h2>Login</h2>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Login</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? <span className="spinner small"></span> : 'Login'}
+        </button>
         <div className="auth-links">
           <span>No account? </span>
           <Link to="/register">Create one</Link> | <Link to="/forgot-password">Forgot Password?</Link>
@@ -120,4 +153,4 @@ const AuthPage = () => {
   );
 };
 
-export default AuthPage; 
+export default AuthPage;
