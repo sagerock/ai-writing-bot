@@ -288,25 +288,31 @@ def is_gpt5_model(model_name: str) -> bool:
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration
+# Priority: Anthropic & Gemini first, OpenAI as fallback
 ROUTING_MODELS = {
-    "simple": "gpt-5-nano-2025-08-07",      # Quick facts, yes/no, definitions
-    "general": "gpt-5-mini-2025-08-07",     # General conversation, chat
-    "coding": "gpt-5-2025-08-07",           # Code, debugging, technical
-    "writing": "claude-sonnet-4-5-20250929",  # Creative writing, poems, stories
-    "science": "gemini-2.5-flash",          # Science explanations, how things work
+    "simple": "gemini-2.5-flash",             # Quick facts - Gemini is fast
+    "general": "claude-sonnet-4-5-20250929",  # Everyday tasks - Sonnet
+    "coding": "claude-opus-4-1-20250805",     # Complex coding - Opus
+    "writing": "claude-sonnet-4-5-20250929",  # Creative writing - Sonnet
+    "analysis": "gemini-2.5-pro",             # Analysis, research, data - Gemini Pro
+    "science": "gemini-2.5-pro",              # Science explanations - Gemini Pro
 }
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
 
 Categories:
-- simple: Greetings, yes/no questions, quick facts, definitions, "what is X"
+- simple: Greetings, yes/no questions, quick facts, definitions, short answers
 - general: Casual chat, opinions, advice, recommendations, everyday questions
-- coding: Programming, code, debugging, technical implementation, APIs, software
-- writing: Write/create poems, stories, essays, emails, marketing copy, any creative writing task
-- science: Explain science, physics, biology, chemistry, math concepts, how things work, educational explanations
+- coding: Programming, code, debugging, technical implementation, APIs, software, scripts
+- writing: Write/create poems, stories, essays, emails, marketing copy, creative writing
+- analysis: Data analysis, research, compare/contrast, pros/cons, strategic thinking, business
+- science: Explain science, physics, biology, chemistry, math, how things work, educational
 
-IMPORTANT: If the message asks to "write", "create", or "compose" something -> writing
-IMPORTANT: If the message asks to "explain" science/math/how something works -> science
+IMPORTANT:
+- "write", "create", "compose" -> writing
+- "explain" science/math/how something works -> science
+- "analyze", "compare", "evaluate", "research" -> analysis
+- "code", "debug", "implement", "function", "script" -> coding
 
 Message: "{message}"
 
