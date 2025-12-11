@@ -295,9 +295,9 @@ def is_gpt5_model(model_name: str) -> bool:
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration
-# Priority: Anthropic & Gemini first, OpenAI as fallback
+# Priority: Anthropic for best user experience, Gemini for specialized tasks
 ROUTING_MODELS = {
-    "simple": "gemini-2.5-flash",             # Quick facts - Gemini is fast
+    "simple": "claude-sonnet-4-5-20250929",   # Quick facts - Sonnet (good experience)
     "general": "claude-sonnet-4-5-20250929",  # Everyday tasks - Sonnet
     "coding": "claude-opus-4-1-20250805",     # Complex coding - Opus
     "writing": "claude-sonnet-4-5-20250929",  # Creative writing - Sonnet
@@ -351,7 +351,7 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
             return ROUTING_MODELS["general"], "general"
 
     except Exception as e:
-        print(f"Router failed: {e}, defaulting to gpt-5-mini")
+        print(f"Router failed: {e}, defaulting to Claude Sonnet")
         return ROUTING_MODELS["general"], "general"
 
 async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context: str = ""):
