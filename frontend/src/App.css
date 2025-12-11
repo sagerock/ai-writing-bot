@@ -1695,9 +1695,10 @@ hr {
     resize: none;
     outline: none;
     min-height: 24px;
-    max-height: 120px;
+    max-height: 200px;
     padding: 4px 0;
     font-family: inherit;
+    overflow-y: auto;
 }
 
 .pill-input textarea::placeholder {

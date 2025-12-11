@@ -57,6 +57,7 @@ const Chat = ({
   const [isUploading, setIsUploading] = useState(false);
   const [searchDocs, setSearchDocs] = useState(false);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const [routedModel, setRoutedModel] = useState(null); // Tracks auto-routed model
   const [showModelSelector, setShowModelSelector] = useState(false); // Model picker dropdown
   const [feedback, setFeedback] = useState({}); // Tracks feedback per message index
@@ -77,6 +78,19 @@ const Chat = ({
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
   }, [history, forceRerender]);
+
+  // Auto-resize textarea as user types
+  const autoResizeTextarea = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+  };
+
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [message]);
 
   const handleCopy = (text, index) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -469,6 +483,7 @@ const Chat = ({
               accept=".pdf,.txt,.md"
             />
             <textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask anything"
