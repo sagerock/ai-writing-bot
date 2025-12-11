@@ -118,6 +118,20 @@ except Exception as e:
 
 main_app = FastAPI()
 
+def save_to_mem0_background(user_id: str, user_message: str, assistant_message: str):
+    """Save a conversation exchange to mem0 in the background."""
+    if not mem0_client:
+        return
+    try:
+        messages = [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": assistant_message}
+        ]
+        mem0_client.add(messages, user_id=user_id)
+        print(f"Auto-saved conversation to mem0 for user {user_id}")
+    except Exception as e:
+        print(f"Failed to auto-save to mem0: {e}")
+
 # --- Authentication ---
 async def get_current_user(authorization: str = Header(...)):
     """Verifies Firebase ID token from Authorization header and returns user data."""
@@ -359,6 +373,15 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context:
 
         print(f"GPT-5 response complete: {len(full_response)} chars")
 
+        # Auto-save to mem0 - get the last user message
+        last_user_msg = None
+        for msg in reversed(req.history):
+            if msg.role == 'user':
+                last_user_msg = msg.content
+                break
+        if last_user_msg and full_response:
+            save_to_mem0_background(user_id, last_user_msg, full_response)
+
     except Exception as e:
         error_msg = f"Error in GPT-5 response: {str(e)}"
         print(error_msg)
@@ -591,6 +614,15 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
         final_history = history_messages + [{"role": "assistant", "content": response_accum}]
         save_conversation(user_id, final_history)
+
+        # Auto-save to mem0 - get the last user message
+        last_user_msg = None
+        for msg in reversed(history_messages):
+            if msg.get('role') == 'user':
+                last_user_msg = msg.get('content')
+                break
+        if last_user_msg and response_accum:
+            save_to_mem0_background(user_id, last_user_msg, response_accum)
 
     except asyncio.CancelledError:
         print("Stream cancelled by client.")
