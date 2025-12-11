@@ -363,13 +363,6 @@ const Chat = ({
           />
         )}
 
-        {/* Empty state - centered welcome */}
-        {!hasMessages && (
-          <div className="welcome-container">
-            <h1 className="welcome-message">Ready when you are.</h1>
-          </div>
-        )}
-
         {/* Messages - scrollable area */}
         {hasMessages && (
           <div className="chat-messages" ref={chatWindowRef}>
@@ -404,6 +397,10 @@ const Chat = ({
 
         {/* Centered pill input */}
         <div className={`input-container ${hasMessages ? 'bottom' : 'centered'}`}>
+          {/* Welcome message - only when no messages */}
+          {!hasMessages && (
+            <h1 className="welcome-message">Ready when you are.</h1>
+          )}
           <div className="pill-input">
             <button
               className="attach-btn"
@@ -452,9 +449,6 @@ const Chat = ({
           {/* Minimal action links */}
           <div className="action-links">
             {loading && <button className="link-btn" onClick={handleStop}>Stop</button>}
-            <button className="link-btn" onClick={handleSimplifiedSave} disabled={isSaving || history.length === 0}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
             {history.length > 0 && (
               <button className="link-btn" onClick={handleClear}>Clear</button>
             )}
