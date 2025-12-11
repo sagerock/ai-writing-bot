@@ -41,7 +41,7 @@ const AccountPanel = ({ auth }) => {
         { value: 'gpt-5-2025-08-07', label: 'GPT-5 (Advanced)' },
         { value: 'gpt-5-pro', label: 'GPT-5 Pro (Most Capable)' },
         { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
-        { value: 'claude-opus-4-5-20250514', label: 'Claude Opus 4.5' },
+        { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
         { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
         { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
         { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
