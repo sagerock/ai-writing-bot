@@ -488,14 +488,6 @@ const Chat = ({
               style={{ display: 'none' }}
               accept=".pdf,.txt,.md"
             />
-            <label className="search-docs-toggle" title="Search your documents">
-              <input
-                type="checkbox"
-                checked={searchDocs}
-                onChange={() => setSearchDocs(!searchDocs)}
-              />
-              <span>Search files</span>
-            </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -519,6 +511,13 @@ const Chat = ({
 
           {/* Minimal action links */}
           <div className="action-links">
+            <button
+              className={`link-btn search-files-btn ${searchDocs ? 'active' : ''}`}
+              onClick={() => setSearchDocs(!searchDocs)}
+              title="Search your uploaded documents"
+            >
+              {searchDocs ? '📁 Search files: ON' : '📁 Search files'}
+            </button>
             {loading && <button className="link-btn" onClick={handleStop}>Stop</button>}
             {history.length > 0 && (
               <button className="link-btn" onClick={handleClear}>Clear</button>

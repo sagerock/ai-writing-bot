@@ -1756,35 +1756,6 @@ hr {
     cursor: not-allowed;
 }
 
-.pill-input .search-docs-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    color: #666;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background 0.15s;
-    flex-shrink: 0;
-    margin-right: 8px;
-}
-
-.pill-input .search-docs-toggle:hover {
-    background: #f0f0f0;
-}
-
-.pill-input .search-docs-toggle input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    accent-color: #28a745;
-}
-
-.pill-input .search-docs-toggle span {
-    white-space: nowrap;
-}
-
 /* Action links below input */
 .action-links {
     display: flex;
@@ -1815,7 +1786,16 @@ hr {
 }
 
 .action-links .link-btn.active {
-    color: #6f42c1;
+    color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.action-links .search-files-btn {
+    border: 1px solid transparent;
+}
+
+.action-links .search-files-btn.active {
+    border-color: rgba(40, 167, 69, 0.3);
 }
 
 /* Auto-routing indicator */
