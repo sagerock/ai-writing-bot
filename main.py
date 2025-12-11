@@ -295,14 +295,17 @@ def is_gpt5_model(model_name: str) -> bool:
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration
-# Priority: Anthropic for best user experience, Gemini for specialized tasks
+# Based on Anthropic's model selection matrix:
+# - Sonnet 4.5: Best for complex agents, coding, highest intelligence
+# - Opus 4.1: Specialized complex tasks (nuanced creative writing, scientific analysis)
+# - Haiku 4.5: Fast, economical, real-time applications
 ROUTING_MODELS = {
-    "simple": "claude-sonnet-4-5-20250929",   # Quick facts - Sonnet (good experience)
+    "simple": "claude-haiku-4-5-20250801",    # Quick facts - Haiku (fast & economical)
     "general": "claude-sonnet-4-5-20250929",  # Everyday tasks - Sonnet
-    "coding": "claude-opus-4-1-20250805",     # Complex coding - Opus
-    "writing": "claude-sonnet-4-5-20250929",  # Creative writing - Sonnet
-    "analysis": "gemini-2.5-pro",             # Analysis, research, data - Gemini Pro
-    "science": "gemini-2.5-pro",              # Science explanations - Gemini Pro
+    "coding": "claude-sonnet-4-5-20250929",   # Complex coding - Sonnet (per Anthropic)
+    "writing": "claude-opus-4-1-20250805",    # Nuanced creative writing - Opus
+    "analysis": "claude-sonnet-4-5-20250929", # Analysis, research - Sonnet
+    "science": "claude-opus-4-1-20250805",    # Scientific analysis - Opus
 }
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
