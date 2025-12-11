@@ -47,26 +47,47 @@ class RAGService:
             raise ValueError("QDRANT_URL environment variable not set")
 
         # Parse URL to extract host and port
-        # Using host/port instead of url param fixes timeout issues
         parsed = urlparse(QDRANT_URL)
         host = parsed.hostname
         use_https = parsed.scheme == "https"
-        # For internal Railway URLs (.railway.internal), use port 6333
+
+        # For internal Railway URLs (.railway.internal), use port 6333 and try gRPC
         if host and '.railway.internal' in host:
             port = 6333
             use_https = False  # Internal network uses HTTP
+            # Try using gRPC for better performance on internal network
+            try:
+                self.qdrant = QdrantClient(
+                    host=host,
+                    grpc_port=6334,  # gRPC port
+                    api_key=QDRANT_API_KEY,
+                    timeout=60,
+                    prefer_grpc=True,
+                    https=False
+                )
+                print(f"Qdrant client initialized for {host}:6334 (gRPC)")
+            except Exception as e:
+                print(f"gRPC connection failed, falling back to REST: {e}")
+                self.qdrant = QdrantClient(
+                    host=host,
+                    port=port,
+                    api_key=QDRANT_API_KEY,
+                    timeout=60,
+                    prefer_grpc=False,
+                    https=use_https
+                )
+                print(f"Qdrant client initialized for {host}:{port} (REST)")
         else:
             port = parsed.port or (443 if use_https else 6333)
-
-        self.qdrant = QdrantClient(
-            host=host,
-            port=port,
-            api_key=QDRANT_API_KEY,
-            timeout=30,
-            prefer_grpc=False,
-            https=use_https
-        )
-        print(f"Qdrant client initialized for {host}:{port} (https={use_https})")
+            self.qdrant = QdrantClient(
+                host=host,
+                port=port,
+                api_key=QDRANT_API_KEY,
+                timeout=60,
+                prefer_grpc=False,
+                https=use_https
+            )
+            print(f"Qdrant client initialized for {host}:{port} (https={use_https})")
 
         self.openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.splitter = RecursiveCharacterTextSplitter(
