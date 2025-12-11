@@ -611,10 +611,22 @@
   max-width: 100%;
 }
 
-.copy-btn {
+/* Message action buttons container */
+.message-actions {
     position: absolute;
     bottom: 8px;
     right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.message.assistant:hover .message-actions {
+    opacity: 1;
+}
+
+.copy-btn, .feedback-btn {
     background: #d1d5db;
     border: 1px solid #a8afb9;
     border-radius: 4px;
@@ -622,16 +634,26 @@
     font-size: 0.8rem;
     color: #333;
     padding: 2px 6px;
-    opacity: 0;
-    transition: opacity 0.2s;
+    transition: background 0.2s, transform 0.1s;
 }
 
-.message.assistant:hover .copy-btn {
-    opacity: 1;
-}
-
-.copy-btn:hover {
+.copy-btn:hover, .feedback-btn:hover:not(:disabled) {
     background: #c1c5cb;
+}
+
+.feedback-btn:disabled {
+    cursor: default;
+}
+
+.feedback-btn.active {
+    background: #a5d6a7;
+    border-color: #81c784;
+    transform: scale(1.1);
+}
+
+.feedback-btn.active[title="Poor response"] {
+    background: #ef9a9a;
+    border-color: #e57373;
 }
 
 .chat-input {

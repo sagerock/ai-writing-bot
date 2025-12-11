@@ -57,6 +57,7 @@ const Chat = ({
   const fileInputRef = useRef(null);
   const [routedModel, setRoutedModel] = useState(null); // Tracks auto-routed model
   const [showModelSelector, setShowModelSelector] = useState(false); // Model picker dropdown
+  const [feedback, setFeedback] = useState({}); // Tracks feedback per message index
 
   // Update model/temperature when defaults change from settings
   useEffect(() => {
@@ -88,6 +89,36 @@ const Chat = ({
         console.error('Failed to copy text: ', err);
         alert('Failed to copy text.');
     });
+  };
+
+  const handleFeedback = async (messageIndex, rating, messageContent) => {
+    // Don't allow changing feedback once given
+    if (feedback[messageIndex]) return;
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const messageId = `${Date.now()}-${messageIndex}`; // Unique ID for this feedback
+
+      await fetch(`${API_URL}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message_id: messageId,
+          rating: rating,
+          model: routedModel ? routedModel.routed_model : model,
+          routed_category: routedModel ? routedModel.routed_category : null,
+          message_snippet: messageContent.substring(0, 200)
+        }),
+      });
+
+      // Mark feedback as given
+      setFeedback(prev => ({ ...prev, [messageIndex]: rating }));
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -383,13 +414,31 @@ const Chat = ({
                       <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
                     )}
                     {msg.content && !msg.streaming && (
-                      <button
-                        className="copy-btn"
-                        onClick={() => handleCopy(msg.content, index)}
-                        title="Copy to clipboard"
-                      >
-                        {copied[index] ? '✅' : '📋'}
-                      </button>
+                      <div className="message-actions">
+                        <button
+                          className="copy-btn"
+                          onClick={() => handleCopy(msg.content, index)}
+                          title="Copy to clipboard"
+                        >
+                          {copied[index] ? '✅' : '📋'}
+                        </button>
+                        <button
+                          className={`feedback-btn ${feedback[index] === 'up' ? 'active' : ''}`}
+                          onClick={() => handleFeedback(index, 'up', msg.content)}
+                          title="Good response"
+                          disabled={feedback[index]}
+                        >
+                          👍
+                        </button>
+                        <button
+                          className={`feedback-btn ${feedback[index] === 'down' ? 'active' : ''}`}
+                          onClick={() => handleFeedback(index, 'down', msg.content)}
+                          title="Poor response"
+                          disabled={feedback[index]}
+                        >
+                          👎
+                        </button>
+                      </div>
                     )}
                   </>
                 ) : (
@@ -542,13 +591,31 @@ const Chat = ({
                     <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
                   )}
                   {msg.content && !msg.streaming && (
-                    <button
-                      className="copy-btn"
-                      onClick={() => handleCopy(msg.content, index)}
-                      title="Copy to clipboard"
-                    >
-                      {copied[index] ? '✅' : '📋'}
-                    </button>
+                    <div className="message-actions">
+                      <button
+                        className="copy-btn"
+                        onClick={() => handleCopy(msg.content, index)}
+                        title="Copy to clipboard"
+                      >
+                        {copied[index] ? '✅' : '📋'}
+                      </button>
+                      <button
+                        className={`feedback-btn ${feedback[index] === 'up' ? 'active' : ''}`}
+                        onClick={() => handleFeedback(index, 'up', msg.content)}
+                        title="Good response"
+                        disabled={feedback[index]}
+                      >
+                        👍
+                      </button>
+                      <button
+                        className={`feedback-btn ${feedback[index] === 'down' ? 'active' : ''}`}
+                        onClick={() => handleFeedback(index, 'down', msg.content)}
+                        title="Poor response"
+                        disabled={feedback[index]}
+                      >
+                        👎
+                      </button>
+                    </div>
                   )}
                 </>
               ) : (

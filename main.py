@@ -204,6 +204,13 @@ class UserChatSettings(BaseModel):
     default_temperature: float = 0.7
     always_ask_mode: bool = False
 
+class FeedbackRequest(BaseModel):
+    message_id: str  # Unique identifier for the message (generated on frontend)
+    rating: str  # "up" or "down"
+    model: str  # The model that generated the response
+    routed_category: str | None = None  # If auto-routed, what category
+    message_snippet: str | None = None  # First 200 chars of the message for context
+
 # Load API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -486,23 +493,12 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         yield "data: [DONE]\n\n"
         return
 
-    # Log usage for analytics
-    try:
-        db.collection("usage_logs").add({
-            "user_id": user_id,
-            "model": req.model,
-            "timestamp": firestore.SERVER_TIMESTAMP,
-            "date_key": datetime.now().strftime("%Y-%m-%d"),
-            "search_web": req.search_web
-        })
-    except Exception as e:
-        print(f"Failed to log usage: {e}")  # Don't fail the request if logging fails
-
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
 
     # --- Auto-routing: If model is "auto", use router to select best model ---
     routed_category = None
+    original_model = req.model  # Store for logging
     if req.model == "auto":
         # Find the last user message for routing
         last_user_msg = None
@@ -533,6 +529,21 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 search_docs=req.search_docs,
                 temperature=req.temperature
             )
+
+    # Log usage for analytics (after routing so we capture the actual model used)
+    try:
+        db.collection("usage_logs").add({
+            "user_id": user_id,
+            "model": req.model,  # The actual model used (after routing)
+            "original_model": original_model,  # "auto" or the specific model requested
+            "routed_category": routed_category,  # The category from router (if auto)
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "date_key": datetime.now().strftime("%Y-%m-%d"),
+            "search_web": req.search_web,
+            "search_docs": req.search_docs
+        })
+    except Exception as e:
+        print(f"Failed to log usage: {e}")  # Don't fail the request if logging fails
 
     # --- RAG: Search user's documents for relevant context (only if enabled) ---
     rag_context = ""
@@ -1940,6 +1951,99 @@ async def update_user_chat_settings(
     }, merge=True)
 
     return {"message": "Chat settings updated successfully"}
+
+@main_app.post("/feedback")
+async def submit_feedback(
+    feedback: FeedbackRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Submit thumbs up/down feedback for an AI response."""
+    user_id = user["user_id"]
+
+    try:
+        db.collection("feedback").add({
+            "user_id": user_id,
+            "message_id": feedback.message_id,
+            "rating": feedback.rating,
+            "model": feedback.model,
+            "routed_category": feedback.routed_category,
+            "message_snippet": feedback.message_snippet,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "date_key": datetime.now().strftime("%Y-%m-%d")
+        })
+        return {"message": "Feedback recorded successfully"}
+    except Exception as e:
+        print(f"Failed to record feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to record feedback: {str(e)}")
+
+@main_app.get("/admin/analytics/feedback")
+async def get_feedback_analytics(
+    days: int = 30,
+    _: dict = Depends(get_current_admin_user)
+):
+    """Get feedback analytics - thumbs up/down by model."""
+    try:
+        feedback_logs = db.collection("feedback")
+
+        if days == 0:
+            logs = list(feedback_logs.stream())
+        else:
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            logs = list(feedback_logs.where("date_key", ">=", start_date).stream())
+
+        # Aggregate by model and rating
+        model_feedback = {}
+        category_feedback = {}
+        total_up = 0
+        total_down = 0
+
+        for log in logs:
+            data = log.to_dict()
+            model = data.get("model", "unknown")
+            rating = data.get("rating", "unknown")
+            category = data.get("routed_category", "direct")
+
+            # Model aggregation
+            if model not in model_feedback:
+                model_feedback[model] = {"up": 0, "down": 0, "total": 0}
+            model_feedback[model][rating] = model_feedback[model].get(rating, 0) + 1
+            model_feedback[model]["total"] += 1
+
+            # Category aggregation (for auto-routed)
+            if category:
+                if category not in category_feedback:
+                    category_feedback[category] = {"up": 0, "down": 0, "total": 0}
+                category_feedback[category][rating] = category_feedback[category].get(rating, 0) + 1
+                category_feedback[category]["total"] += 1
+
+            if rating == "up":
+                total_up += 1
+            elif rating == "down":
+                total_down += 1
+
+        # Calculate satisfaction rates
+        for model, stats in model_feedback.items():
+            if stats["total"] > 0:
+                stats["satisfaction_rate"] = round(stats["up"] / stats["total"] * 100, 1)
+
+        for category, stats in category_feedback.items():
+            if stats["total"] > 0:
+                stats["satisfaction_rate"] = round(stats["up"] / stats["total"] * 100, 1)
+
+        total = total_up + total_down
+        overall_satisfaction = round(total_up / total * 100, 1) if total > 0 else 0
+
+        return {
+            "total_feedback": total,
+            "total_positive": total_up,
+            "total_negative": total_down,
+            "overall_satisfaction_rate": overall_satisfaction,
+            "by_model": model_feedback,
+            "by_category": category_feedback
+        }
+    except Exception as e:
+        print(f"Feedback analytics error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get feedback analytics: {str(e)}")
 
 @main_app.get("/unsubscribe/{user_id}")
 async def unsubscribe_user(user_id: str, email_type: str = None):
