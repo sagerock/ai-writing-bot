@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { marked } from 'marked';
 import ChatControls from './ChatControls';
 import ArchiveControls from './ArchiveControls';
@@ -545,14 +546,12 @@ const Chat = ({
                     {opt.category !== 'auto' && <span className="model-category">{opt.category}</span>}
                   </button>
                 ))}
-                <a
-                  href="https://platform.openai.com/docs/models"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/model-docs"
                   className="model-docs-link-bottom"
                 >
                   View model docs →
-                </a>
+                </Link>
               </div>
             )}
           </div>

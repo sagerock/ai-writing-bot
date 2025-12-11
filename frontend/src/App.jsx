@@ -8,6 +8,7 @@ import AccountPage from './components/AccountPage'
 import AdminPage from './components/AdminPage'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
+import ModelDocsPage from './pages/ModelDocsPage'
 import { API_URL } from './apiConfig'
 import './App.css'
 
@@ -276,6 +277,7 @@ function App() {
             <Route path="/login" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
             <Route path="/register" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
             <Route path="/forgot-password" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
+            <Route path="/model-docs" element={<ModelDocsPage />} />
 
             {/* Protected routes */}
             <Route path="/chat" element={
