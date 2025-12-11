@@ -10,6 +10,7 @@ This module handles:
 import os
 import time
 from typing import List, Optional
+from urllib.parse import urlparse
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance, VectorParams, PointStruct,
@@ -45,12 +46,23 @@ class RAGService:
         if not QDRANT_URL:
             raise ValueError("QDRANT_URL environment variable not set")
 
+        # Parse URL to extract host and port
+        # Using host/port instead of url param fixes timeout issues
+        parsed = urlparse(QDRANT_URL)
+        host = parsed.hostname
+        use_https = parsed.scheme == "https"
+        port = parsed.port or (443 if use_https else 6333)
+
         self.qdrant = QdrantClient(
-            url=QDRANT_URL,
+            host=host,
+            port=port,
             api_key=QDRANT_API_KEY,
-            timeout=120,  # Increased timeout for cross-cloud latency (Render -> Railway)
-            prefer_grpc=False  # Use REST API to avoid grpcio compilation issues
+            timeout=30,
+            prefer_grpc=False,
+            https=use_https
         )
+        print(f"Qdrant client initialized for {host}:{port} (https={use_https})")
+
         self.openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=4000,      # ~1000 tokens
