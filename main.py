@@ -660,6 +660,19 @@ async def save_memory(req: ChatRequest, user: dict = Depends(get_current_user)):
         print(f"Error saving to mem0: {e}")
         return JSONResponse(status_code=500, content={"error": f"Failed to save memory: {str(e)}"})
 
+@main_app.get("/debug/memories")
+async def debug_memories(user: dict = Depends(get_current_user)):
+    """Debug endpoint to list all mem0 memories for user."""
+    user_id = user['user_id']
+    if not mem0_client:
+        return {"error": "mem0 not available"}
+    try:
+        # Try get_all with user_id
+        memories = mem0_client.get_all(user_id=user_id)
+        return {"user_id": user_id, "count": len(memories) if memories else 0, "memories": memories}
+    except Exception as e:
+        return {"error": str(e)}
+
 @main_app.get("/archives")
 async def get_archives(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
