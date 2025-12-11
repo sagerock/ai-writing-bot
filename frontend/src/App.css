@@ -1396,6 +1396,51 @@ hr {
     font-size: 14px;
 }
 
+.toggle-recipients-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 13px;
+    margin-left: 10px;
+    text-decoration: underline;
+}
+
+.toggle-recipients-btn:hover {
+    color: #0056b3;
+}
+
+.test-email-note {
+    color: #9b59b6;
+    font-style: italic;
+    font-size: 14px;
+}
+
+.recipients-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    background: #fafafa;
+}
+
+.recipients-list ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.recipients-list li {
+    font-size: 13px;
+    color: #555;
+}
+
+.recipients-list .more-recipients {
+    font-style: italic;
+    color: #888;
+}
+
 /* Analytics Dashboard Styles */
 .analytics-panel {
     margin-bottom: 20px;

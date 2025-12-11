@@ -11,11 +11,12 @@ const AdminPage = ({ auth }) => {
     const [emailForm, setEmailForm] = useState({
         subject: '',
         content: '',
-        email_type: 'feature_updates',
+        email_type: 'test',
         preview: false
     });
     const [emailPreview, setEmailPreview] = useState(null);
     const [sendingEmail, setSendingEmail] = useState(false);
+    const [showRecipientList, setShowRecipientList] = useState(false);
 
     // Debug functionality
     const [debugUserId, setDebugUserId] = useState('');
@@ -438,10 +439,15 @@ const AdminPage = ({ auth }) => {
                 <div className="email-form">
                     <div className="form-group">
                         <label>Email Type:</label>
-                        <select 
-                            value={emailForm.email_type} 
-                            onChange={(e) => setEmailForm(prev => ({ ...prev, email_type: e.target.value }))}
+                        <select
+                            value={emailForm.email_type}
+                            onChange={(e) => {
+                                setEmailForm(prev => ({ ...prev, email_type: e.target.value }));
+                                setEmailPreview(null);
+                                setShowRecipientList(false);
+                            }}
                         >
+                            <option value="test">🧪 Test (sage@sagerock.com only)</option>
                             <option value="feature_updates">🚀 New Features & Updates</option>
                             <option value="bug_fixes">🐛 Bug Fixes & Improvements</option>
                             <option value="pricing_changes">💰 Pricing & Plan Changes</option>
@@ -452,8 +458,8 @@ const AdminPage = ({ auth }) => {
 
                     <div className="form-group">
                         <label>Subject:</label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={emailForm.subject}
                             onChange={(e) => setEmailForm(prev => ({ ...prev, subject: e.target.value }))}
                             placeholder="Email subject..."
@@ -462,7 +468,7 @@ const AdminPage = ({ auth }) => {
 
                     <div className="form-group">
                         <label>Content:</label>
-                        <textarea 
+                        <textarea
                             value={emailForm.content}
                             onChange={(e) => setEmailForm(prev => ({ ...prev, content: e.target.value }))}
                             placeholder="Email content (supports HTML)..."
@@ -474,8 +480,8 @@ const AdminPage = ({ auth }) => {
                         <button onClick={handleEmailPreview} disabled={sendingEmail}>
                             Preview Recipients
                         </button>
-                        <button 
-                            onClick={handleSendEmail} 
+                        <button
+                            onClick={handleSendEmail}
                             disabled={sendingEmail || !emailPreview}
                             className="send-button"
                         >
@@ -487,16 +493,28 @@ const AdminPage = ({ auth }) => {
                         <div className="email-preview">
                             <h3>Email Preview</h3>
                             <p><strong>Type:</strong> {emailPreview.email_type}</p>
-                            <p><strong>Recipients:</strong> {emailPreview.recipient_count} users</p>
-                            {emailPreview.recipients && emailPreview.recipients.length > 0 && (
-                                <div>
-                                    <p><strong>Sample Recipients:</strong></p>
+                            <p>
+                                <strong>Recipients:</strong> {emailPreview.recipient_count} user{emailPreview.recipient_count !== 1 ? 's' : ''}
+                                {emailPreview.recipient_count > 0 && emailPreview.email_type !== 'test' && (
+                                    <button
+                                        className="toggle-recipients-btn"
+                                        onClick={() => setShowRecipientList(!showRecipientList)}
+                                    >
+                                        {showRecipientList ? 'Hide list' : 'Show list'}
+                                    </button>
+                                )}
+                            </p>
+                            {emailPreview.email_type === 'test' && (
+                                <p className="test-email-note">Test email will be sent to: sage@sagerock.com</p>
+                            )}
+                            {showRecipientList && emailPreview.recipients && emailPreview.recipients.length > 0 && (
+                                <div className="recipients-list">
                                     <ul>
-                                        {emailPreview.recipients.slice(0, 5).map((user, index) => (
-                                            <li key={index}>{user.email} ({user.display_name})</li>
+                                        {emailPreview.recipients.map((user, index) => (
+                                            <li key={index}>{user.email}</li>
                                         ))}
-                                        {emailPreview.recipients.length > 5 && (
-                                            <li>... and {emailPreview.recipients.length - 5} more</li>
+                                        {emailPreview.recipient_count > emailPreview.recipients.length && (
+                                            <li className="more-recipients">... and {emailPreview.recipient_count - emailPreview.recipients.length} more</li>
                                         )}
                                     </ul>
                                 </div>

@@ -1774,10 +1774,11 @@ def get_type_color(email_type: str) -> str:
     """Get color for email type badge."""
     colors = {
         "feature_updates": "#28a745",
-        "bug_fixes": "#ffc107", 
+        "bug_fixes": "#ffc107",
         "pricing_changes": "#dc3545",
         "usage_tips": "#17a2b8",
-        "all": "#6c757d"
+        "all": "#6c757d",
+        "test": "#9b59b6"
     }
     return colors.get(email_type, "#6c757d")
 
@@ -1785,18 +1786,28 @@ def get_type_label(email_type: str) -> str:
     """Get label for email type badge."""
     labels = {
         "feature_updates": "🚀 New Feature",
-        "bug_fixes": "🐛 Bug Fix", 
+        "bug_fixes": "🐛 Bug Fix",
         "pricing_changes": "💰 Pricing Update",
         "usage_tips": "💡 Usage Tip",
-        "all": "📢 Announcement"
+        "all": "📢 Announcement",
+        "test": "🧪 Test Email"
     }
     return labels.get(email_type, "📢 Announcement")
 
 async def get_users_for_email(email_type: str) -> List[dict]:
     """Get users who should receive emails of this type."""
+
+    # Test email type - only send to admin email
+    if email_type == "test":
+        return [{
+            "uid": "test",
+            "email": "sage@sagerock.com",
+            "display_name": "Test Admin"
+        }]
+
     users_ref = db.collection("users")
     users = []
-    
+
     # Get all users from Firebase Auth
     try:
         page = firebase_auth.list_users()
@@ -1806,7 +1817,7 @@ async def get_users_for_email(email_type: str) -> List[dict]:
             if user_doc.exists:
                 user_data = user_doc.to_dict()
                 email_prefs = user_data.get("email_preferences", {})
-                
+
                 # Check if user wants this type of email
                 if email_type == "all" or email_prefs.get(email_type, True):
                     users.append({
@@ -1823,7 +1834,7 @@ async def get_users_for_email(email_type: str) -> List[dict]:
                 })
     except Exception as e:
         print(f"Error getting users: {e}")
-    
+
     return users
 
 # --- Email Endpoints ---
