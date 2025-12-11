@@ -159,7 +159,12 @@ const AdminPage = ({ auth }) => {
             return;
         }
 
-        if (!window.confirm(`Are you sure you want to send this email to ${emailPreview?.recipient_count || 0} users?`)) {
+        const isTestEmail = emailForm.email_type === 'test';
+        const confirmMessage = isTestEmail
+            ? 'Are you sure you want to send this test email to sage@sagerock.com?'
+            : `Are you sure you want to send this email to ${emailPreview?.recipient_count || 0} users?`;
+
+        if (!window.confirm(confirmMessage)) {
             return;
         }
 
