@@ -1712,6 +1712,29 @@ hr {
     color: #e2e8f0;
 }
 
+.model-docs-divider {
+    color: #ccc;
+    margin: 0 4px;
+}
+
+.model-docs-inline-link {
+    color: #6f42c1;
+    text-decoration: none;
+    font-size: 11px;
+}
+
+.model-docs-inline-link:hover {
+    text-decoration: underline;
+}
+
+.dark .model-docs-divider {
+    color: #4a5568;
+}
+
+.dark .model-docs-inline-link {
+    color: #9f7aea;
+}
+
 /* Wider chat area when sidebar is hidden */
 .chat-area.simplified {
     max-width: none;

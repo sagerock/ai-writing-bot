@@ -478,6 +478,16 @@ const Chat = ({
             ) : (
               <>Using: <strong>{getModelDisplayName(model)}</strong></>
             )}
+            <span className="model-docs-divider">|</span>
+            <a
+              href="https://platform.openai.com/docs/models"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="model-docs-inline-link"
+              title="View latest models from all providers"
+            >
+              Model docs
+            </a>
           </div>
         </div>
       </div>
