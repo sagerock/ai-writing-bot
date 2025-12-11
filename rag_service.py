@@ -201,14 +201,14 @@ class RAGService:
                 )
             )
 
-        # Search Qdrant
+        # Search Qdrant (no score_threshold - let all results through)
         results = self.qdrant.search(
             collection_name=COLLECTION_NAME,
             query_vector=query_embedding,
             query_filter=Filter(must=filter_conditions),
-            limit=top_k,
-            score_threshold=score_threshold
+            limit=top_k
         )
+        print(f"Qdrant search returned {len(results)} results")
 
         return [
             {
