@@ -78,7 +78,13 @@ class RAGService:
                 )
                 print(f"Qdrant client initialized for {host}:{port} (REST)")
         else:
-            port = parsed.port or (443 if use_https else 6333)
+            # For Railway public URLs (.up.railway.app), always use port 443
+            if host and '.up.railway.app' in host:
+                port = 443
+                use_https = True
+            else:
+                port = parsed.port or (443 if use_https else 6333)
+
             self.qdrant = QdrantClient(
                 host=host,
                 port=port,
