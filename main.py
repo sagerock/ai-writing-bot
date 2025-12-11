@@ -460,14 +460,19 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 all_memories = mem0_client.get_all(user_id=user_id)
                 print(f"mem0 get_all returned {len(all_memories) if all_memories else 0} total memories for user")
 
-                # Use v2 API with proper filter format
-                memories = mem0_client.search(
-                    last_user_msg,
-                    version="v2",
-                    user_id=user_id,
-                    top_k=5
-                )
-                print(f"mem0 search returned {len(memories) if memories else 0} results")
+                # Only search if user has memories
+                if all_memories and len(all_memories) > 0:
+                    # v2 API requires filters dict
+                    memories = mem0_client.search(
+                        last_user_msg,
+                        version="v2",
+                        filters={"user_id": user_id},
+                        top_k=5
+                    )
+                    print(f"mem0 search returned {len(memories) if memories else 0} results")
+                else:
+                    memories = []
+                    print("mem0: No memories stored for user, skipping search")
                 if memories and len(memories) > 0:
                     memory_parts = [m.get('memory', '') for m in memories if m.get('memory')]
                     if memory_parts:
