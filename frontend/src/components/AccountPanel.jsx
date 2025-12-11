@@ -15,6 +15,9 @@ const AccountPanel = ({ auth }) => {
     const [currentPassword, setCurrentPassword] = useState('');
     
     const [credits, setCredits] = useState(null);
+    const [documents, setDocuments] = useState([]);
+    const [documentsLoading, setDocumentsLoading] = useState(true);
+    const [deletingDoc, setDeletingDoc] = useState(null);
     const [emailPreferences, setEmailPreferences] = useState({
         feature_updates: true,
         bug_fixes: true,
@@ -38,9 +41,11 @@ const AccountPanel = ({ auth }) => {
         { value: 'gpt-5-2025-08-07', label: 'GPT-5 (Advanced)' },
         { value: 'gpt-5-pro', label: 'GPT-5 Pro (Most Capable)' },
         { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
-        { value: 'claude-opus-4-1-20250805', label: 'Claude Opus 4.1' },
-        { value: 'gemini-2.5-flash', label: 'Gemini Flash' },
-        { value: 'gemini-2.5-pro', label: 'Gemini Pro' },
+        { value: 'claude-opus-4-5-20250514', label: 'Claude Opus 4.5' },
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
     ];
 
     useEffect(() => {
@@ -101,9 +106,31 @@ const AccountPanel = ({ auth }) => {
             }
         };
 
+        const fetchDocuments = async () => {
+            if (!auth.currentUser) return;
+            setDocumentsLoading(true);
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${API_URL}/documents/indexed`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setDocuments(data.documents || []);
+                }
+            } catch (err) {
+                console.error('Could not load documents:', err);
+            } finally {
+                setDocumentsLoading(false);
+            }
+        };
+
         fetchCredits();
         fetchEmailPreferences();
         fetchChatSettings();
+        fetchDocuments();
     }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
@@ -221,6 +248,39 @@ const AccountPanel = ({ auth }) => {
         }
     };
 
+    const handleDeleteDocument = async (filename) => {
+        if (!window.confirm(`Are you sure you want to delete "${filename}"? This will remove it from your AI's knowledge base.`)) {
+            return;
+        }
+
+        setDeletingDoc(filename);
+        setError('');
+        setSuccess('');
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/document/${encodeURIComponent(filename)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.detail || 'Failed to delete document.');
+            }
+
+            setDocuments(prev => prev.filter(doc => doc.filename !== filename));
+            setSuccess(`Document "${filename}" deleted successfully.`);
+        } catch (err) {
+            setError(`Failed to delete document: ${err.message}`);
+            console.error(err);
+        } finally {
+            setDeletingDoc(null);
+        }
+    };
+
     if (needsReauth) {
         return (
             <div className="account-form-container">
@@ -256,6 +316,39 @@ const AccountPanel = ({ auth }) => {
                     <p>Loading credits...</p>
                 )}
                 <button onClick={() => alert('Purchase functionality coming soon!')}>Buy More Credits</button>
+            </div>
+
+            <hr />
+
+            <div className="account-documents">
+                <h3>Your Documents</h3>
+                <p>These documents are indexed in your AI's knowledge base for reference during chats.</p>
+
+                {documentsLoading ? (
+                    <p className="documents-loading">Loading documents...</p>
+                ) : documents.length === 0 ? (
+                    <p className="documents-empty">No documents uploaded yet. Upload documents in the chat to add them to your knowledge base.</p>
+                ) : (
+                    <div className="documents-list">
+                        {documents.map((doc, index) => (
+                            <div key={index} className="document-item">
+                                <div className="document-info">
+                                    <span className="document-name">{doc.filename}</span>
+                                    <span className="document-meta">
+                                        {doc.chunk_count} chunks | {doc.project_name}
+                                    </span>
+                                </div>
+                                <button
+                                    className="document-delete-btn"
+                                    onClick={() => handleDeleteDocument(doc.filename)}
+                                    disabled={deletingDoc === doc.filename}
+                                >
+                                    {deletingDoc === doc.filename ? 'Deleting...' : 'Delete'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <hr />

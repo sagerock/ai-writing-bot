@@ -295,17 +295,16 @@ def is_gpt5_model(model_name: str) -> bool:
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration
-# Based on Anthropic's model selection matrix:
-# - Sonnet 4.5: Best for complex agents, coding, highest intelligence
-# - Opus 4.1: Specialized complex tasks (nuanced creative writing, scientific analysis)
-# - Haiku 4.5: Fast, economical, real-time applications
+# Auto-routing uses Opus 4.5 as default for best user experience
+# Opus 4.5: $5/$25 - maximum intelligence, practical performance
+# Haiku 4.5: $1/$5 - fast & economical for simple queries
 ROUTING_MODELS = {
     "simple": "claude-haiku-4-5-20250801",    # Quick facts - Haiku (fast & economical)
-    "general": "claude-sonnet-4-5-20250929",  # Everyday tasks - Sonnet
-    "coding": "claude-sonnet-4-5-20250929",   # Complex coding - Sonnet (per Anthropic)
-    "writing": "claude-opus-4-1-20250805",    # Nuanced creative writing - Opus
-    "analysis": "claude-sonnet-4-5-20250929", # Analysis, research - Sonnet
-    "science": "claude-opus-4-1-20250805",    # Scientific analysis - Opus
+    "general": "claude-opus-4-5-20250514",    # Everyday tasks - Opus 4.5 (best quality)
+    "coding": "claude-opus-4-5-20250514",     # Complex coding - Opus 4.5 (highest intelligence)
+    "writing": "claude-opus-4-5-20250514",    # Creative writing - Opus 4.5 (best quality)
+    "analysis": "claude-opus-4-5-20250514",   # Analysis, research - Opus 4.5 (best quality)
+    "science": "claude-opus-4-5-20250514",    # Scientific analysis - Opus 4.5 (best quality)
 }
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
@@ -354,7 +353,7 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
             return ROUTING_MODELS["general"], "general"
 
     except Exception as e:
-        print(f"Router failed: {e}, defaulting to Claude Sonnet")
+        print(f"Router failed: {e}, defaulting to Opus 4.5")
         return ROUTING_MODELS["general"], "general"
 
 async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context: str = ""):
@@ -1533,19 +1532,29 @@ async def fix_user_credits(user_id: str, credit_amount: int, _: dict = Depends(g
 # --- Analytics Endpoints ---
 
 # Cost estimates per request (in dollars, based on ~2K tokens average)
+# Formula: (input_price * 1K + output_price * 1K) / 1M = cost per 2K tokens
 MODEL_COSTS = {
-    "gpt-5-nano": 0.002,
-    "gpt-5-mini": 0.006,
-    "gpt-5-2025": 0.02,
-    "gpt-5-pro": 0.06,
-    "gpt-5.1": 0.03,
-    "gpt-4.1-nano": 0.002,
-    "gpt-4.1-mini": 0.004,
-    "gpt-4.1-2025": 0.02,
-    "claude-sonnet": 0.03,
-    "claude-opus": 0.15,
-    "gemini-2.5-flash": 0.002,
-    "gemini-2.5-pro": 0.014,
+    # OpenAI GPT-5 family
+    "gpt-5-nano": 0.0005,   # $0.05 input / $0.40 output
+    "gpt-5-mini": 0.002,    # $0.25 input / $2.00 output
+    "gpt-5-2025": 0.011,    # $1.25 input / $10.00 output
+    "gpt-5-pro": 0.135,     # $15.00 input / $120.00 output
+    "gpt-5.1": 0.011,       # $1.25 input / $10.00 output
+    # OpenAI GPT-4.1 family
+    "gpt-4.1-nano": 0.0005, # $0.10 input / $0.40 output
+    "gpt-4.1-mini": 0.0004, # $0.40 input / $1.60 output -> ~0.002 but corrected
+    "gpt-4.1": 0.01,        # $2.00 input / $8.00 output
+    # Anthropic Claude
+    "claude-sonnet": 0.018, # $3 input / $15 output
+    "claude-opus-4-5": 0.03,# $5 input / $25 output
+    "claude-opus-4-1": 0.09,# $15 input / $75 output
+    "claude-haiku": 0.006,  # $1 input / $5 output
+    # Google Gemini
+    "gemini-3-pro": 0.014,  # $2 input / $12 output - best multimodal
+    "gemini-2.5-pro": 0.011,# $1.25 input / $10 output - coding/reasoning
+    "gemini-2.5-flash": 0.003, # $0.30 input / $2.50 output - hybrid reasoning
+    "gemini-2.0-flash": 0.0005, # $0.10 input / $0.40 output - balanced
+    # Perplexity
     "sonar-pro": 0.01,
 }
 
