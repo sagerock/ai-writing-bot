@@ -51,7 +51,12 @@ class RAGService:
         parsed = urlparse(QDRANT_URL)
         host = parsed.hostname
         use_https = parsed.scheme == "https"
-        port = parsed.port or (443 if use_https else 6333)
+        # For internal Railway URLs (.railway.internal), use port 6333
+        if host and '.railway.internal' in host:
+            port = 6333
+            use_https = False  # Internal network uses HTTP
+        else:
+            port = parsed.port or (443 if use_https else 6333)
 
         self.qdrant = QdrantClient(
             host=host,
