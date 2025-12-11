@@ -254,10 +254,33 @@ const Chat = ({
 
   const handleClear = async () => {
     if (window.confirm('Are you sure you want to clear the conversation?')) {
-        // Save conversation to mem0 before clearing (if there's meaningful content)
+        // Auto-save conversation before clearing (if there's meaningful content)
         if (history.length >= 2) {
+            const token = await auth.currentUser.getIdToken();
+
+            // Save to archives for later retrieval
             try {
-                const token = await auth.currentUser.getIdToken();
+                const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                await fetch(`${API_URL}/archive`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        history: history,
+                        model: model,
+                        archive_name: `Chat ${timestamp}`,
+                        project_name: 'General',
+                    }),
+                });
+                console.log('Conversation auto-saved to archives');
+            } catch (error) {
+                console.error('Failed to auto-save to archives:', error);
+            }
+
+            // Save to mem0 for AI memory
+            try {
                 await fetch(`${API_URL}/save_memory`, {
                     method: 'POST',
                     headers: {
@@ -274,7 +297,6 @@ const Chat = ({
                 console.log('Conversation saved to memory');
             } catch (error) {
                 console.error('Failed to save memory:', error);
-                // Don't block clearing even if memory save fails
             }
         }
         setHistory([]);
