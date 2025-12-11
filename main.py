@@ -456,10 +456,10 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
             if last_user_msg:
                 print(f"mem0 searching for user {user_id}...")
-                # Platform API: use filters param
+                # Platform API: user_id as direct param
                 memories = mem0_client.search(
                     last_user_msg,
-                    filters={"user_id": user_id}
+                    user_id=user_id
                 )
                 print(f"mem0 returned {len(memories) if memories else 0} results")
                 if memories and len(memories) > 0:
