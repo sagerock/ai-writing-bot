@@ -92,8 +92,8 @@ class RAGService:
         Returns:
             Number of chunks created
         """
-        # Delete any existing chunks for this document
-        self.delete_document(user_id, filename)
+        # Skip delete for now - upsert will overwrite with same IDs
+        # self.delete_document(user_id, filename)
 
         # Split into chunks
         chunks = self.splitter.split_text(text)
