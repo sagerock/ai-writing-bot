@@ -336,8 +336,7 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
         response = await client.chat.completions.create(
             model="gpt-5-nano-2025-08-07",
             messages=[{"role": "user", "content": ROUTER_PROMPT.format(message=user_message[:500])}],
-            max_tokens=20,
-            temperature=0  # Deterministic classification
+            max_completion_tokens=20  # GPT-5 models use max_completion_tokens, not max_tokens
         )
 
         category = response.choices[0].message.content.strip().lower()
