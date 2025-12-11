@@ -493,31 +493,37 @@ const AdminPage = ({ auth }) => {
                         <div className="email-preview">
                             <h3>Email Preview</h3>
                             <p><strong>Type:</strong> {emailPreview.email_type}</p>
-                            <p>
-                                <strong>Recipients:</strong> {emailPreview.recipient_count} user{emailPreview.recipient_count !== 1 ? 's' : ''}
-                                {emailPreview.recipient_count > 0 && emailPreview.email_type !== 'test' && (
-                                    <button
-                                        className="toggle-recipients-btn"
-                                        onClick={() => setShowRecipientList(!showRecipientList)}
-                                    >
-                                        {showRecipientList ? 'Hide list' : 'Show list'}
-                                    </button>
-                                )}
-                            </p>
-                            {emailPreview.email_type === 'test' && (
-                                <p className="test-email-note">Test email will be sent to: sage@sagerock.com</p>
-                            )}
-                            {showRecipientList && emailPreview.recipients && emailPreview.recipients.length > 0 && (
-                                <div className="recipients-list">
-                                    <ul>
-                                        {emailPreview.recipients.map((user, index) => (
-                                            <li key={index}>{user.email}</li>
-                                        ))}
-                                        {emailPreview.recipient_count > emailPreview.recipients.length && (
-                                            <li className="more-recipients">... and {emailPreview.recipient_count - emailPreview.recipients.length} more</li>
-                                        )}
-                                    </ul>
+                            {emailPreview.email_type === 'test' ? (
+                                <div className="test-email-note">
+                                    <p><strong>Recipients:</strong> 1 user (test mode)</p>
+                                    <p>Test email will be sent to: <strong>sage@sagerock.com</strong></p>
                                 </div>
+                            ) : (
+                                <>
+                                    <p>
+                                        <strong>Recipients:</strong> {emailPreview.recipient_count} user{emailPreview.recipient_count !== 1 ? 's' : ''}
+                                        {emailPreview.recipient_count > 0 && (
+                                            <button
+                                                className="toggle-recipients-btn"
+                                                onClick={() => setShowRecipientList(!showRecipientList)}
+                                            >
+                                                {showRecipientList ? 'Hide list' : 'Show list'}
+                                            </button>
+                                        )}
+                                    </p>
+                                    {showRecipientList && emailPreview.recipients && emailPreview.recipients.length > 0 && (
+                                        <div className="recipients-list">
+                                            <ul>
+                                                {emailPreview.recipients.map((user, index) => (
+                                                    <li key={index}>{user.email}</li>
+                                                ))}
+                                                {emailPreview.recipient_count > emailPreview.recipients.length && (
+                                                    <li className="more-recipients">... and {emailPreview.recipient_count - emailPreview.recipients.length} more</li>
+                                                )}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
