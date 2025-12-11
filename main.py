@@ -57,17 +57,34 @@ load_dotenv()
 socket.setdefaulttimeout(30)
 
 # Firebase-related initialization
-# Support both environment variable (for Render) and local file (for local dev)
+# Support both environment variable (for Render/Railway) and local file (for local dev)
 firebase_creds = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
 if firebase_creds:
-    # Use environment variable (Render deployment)
+    # Use environment variable (Render/Railway deployment)
     try:
+        # Try parsing as-is first
         cred_dict = json.loads(firebase_creds)
         cred = credentials.Certificate(cred_dict)
         print("✓ Using Firebase credentials from environment variable")
     except json.JSONDecodeError as e:
-        print(f"✗ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-        raise
+        # Railway may escape quotes or add extra escaping - try to fix common issues
+        try:
+            # Remove potential outer quotes and unescape
+            cleaned = firebase_creds.strip()
+            if cleaned.startswith('"') and cleaned.endswith('"'):
+                cleaned = cleaned[1:-1]
+            # Replace escaped quotes
+            cleaned = cleaned.replace('\\"', '"')
+            # Replace escaped newlines with actual newlines
+            cleaned = cleaned.replace('\\n', '\n')
+            cred_dict = json.loads(cleaned)
+            cred = credentials.Certificate(cred_dict)
+            print("✓ Using Firebase credentials from environment variable (after cleanup)")
+        except json.JSONDecodeError as e2:
+            print(f"✗ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+            print(f"✗ Cleanup attempt also failed: {e2}")
+            print(f"✗ First 100 chars of value: {firebase_creds[:100]}")
+            raise e
 else:
     # Use local file (local development)
     try:
