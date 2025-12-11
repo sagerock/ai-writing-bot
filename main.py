@@ -431,7 +431,8 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                         break
 
                 if last_user_msg:
-                    results = rag.search(user_id, last_user_msg, top_k=5, score_threshold=0.7)
+                    print(f"RAG searching for user {user_id}: '{last_user_msg[:100]}...'")
+                    results = rag.search(user_id, last_user_msg, top_k=5, score_threshold=0.5)
 
                     if results:
                         context_parts = []
