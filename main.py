@@ -287,6 +287,60 @@ def is_gpt5_model(model_name: str) -> bool:
     gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
+# Model routing configuration
+ROUTING_MODELS = {
+    "simple": "gpt-5-nano-2025-08-07",      # Quick facts, yes/no, definitions
+    "general": "gpt-5-mini-2025-08-07",     # General conversation, moderate tasks
+    "complex": "gpt-5-2025-08-07",          # Complex reasoning, coding, analysis
+    "creative": "claude-sonnet-4-5-20250929",  # Creative writing, storytelling
+    "research": "claude-opus-4-1-20250805", # Deep research, philosophy
+    "educational": "gemini-2.5-flash",      # Teaching, explanations
+}
+
+ROUTER_PROMPT = """Classify this user message into ONE category. Return ONLY the category name, nothing else.
+
+Categories:
+- simple: Quick facts, definitions, yes/no questions, basic lookups, greetings
+- general: General conversation, moderate tasks, summaries, everyday questions
+- complex: Complex reasoning, coding, debugging, multi-step analysis, math problems
+- creative: Creative writing, storytelling, poetry, marketing copy, tone-sensitive content
+- research: Deep research, philosophy, ethics, nuanced debate, academic analysis
+- educational: Teaching concepts, explaining how things work, step-by-step learning
+
+Message: "{message}"
+
+Category:"""
+
+async def route_to_best_model(user_message: str) -> tuple[str, str]:
+    """
+    Use GPT-5 Nano to quickly classify the message and route to the best model.
+    Returns (model_name, category) tuple.
+    """
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-5-nano-2025-08-07",
+            messages=[{"role": "user", "content": ROUTER_PROMPT.format(message=user_message[:500])}],
+            max_tokens=20,
+            temperature=0  # Deterministic classification
+        )
+
+        category = response.choices[0].message.content.strip().lower()
+
+        # Map category to model, default to general if unknown
+        if category in ROUTING_MODELS:
+            model = ROUTING_MODELS[category]
+            print(f"Router: '{category}' -> {model}")
+            return model, category
+        else:
+            print(f"Router: Unknown category '{category}', defaulting to general")
+            return ROUTING_MODELS["general"], "general"
+
+    except Exception as e:
+        print(f"Router failed: {e}, defaulting to gpt-5-mini")
+        return ROUTING_MODELS["general"], "general"
+
 async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context: str = ""):
     """Generate streaming response for GPT-5 models using Chat Completions API with GPT-5 parameters."""
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -439,6 +493,39 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     # Send a heartbeat immediately so the browser knows the stream is alive
     yield ": ping\n\n"
+
+    # --- Auto-routing: If model is "auto", use router to select best model ---
+    routed_category = None
+    if req.model == "auto":
+        # Find the last user message for routing
+        last_user_msg = None
+        for msg in reversed(req.history):
+            if msg.role == 'user':
+                last_user_msg = msg.content
+                break
+
+        if last_user_msg:
+            routed_model, routed_category = await route_to_best_model(last_user_msg)
+            print(f"Auto-routing: '{last_user_msg[:50]}...' -> {routed_model} ({routed_category})")
+            # Update the request model
+            req = ChatRequest(
+                history=req.history,
+                model=routed_model,
+                search_web=req.search_web,
+                search_docs=req.search_docs,
+                temperature=req.temperature
+            )
+            # Send routing info to frontend
+            yield f"data: {json.dumps({'routed_model': routed_model, 'routed_category': routed_category})}\n\n"
+        else:
+            # No user message, default to general
+            req = ChatRequest(
+                history=req.history,
+                model=ROUTING_MODELS["general"],
+                search_web=req.search_web,
+                search_docs=req.search_docs,
+                temperature=req.temperature
+            )
 
     # --- RAG: Search user's documents for relevant context (only if enabled) ---
     rag_context = ""

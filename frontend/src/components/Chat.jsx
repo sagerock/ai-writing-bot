@@ -12,6 +12,21 @@ marked.setOptions({
   breaks: true,
 });
 
+// Helper to display friendly model names
+const MODEL_DISPLAY_NAMES = {
+  'gpt-5-nano-2025-08-07': 'GPT-5 Nano',
+  'gpt-5-mini-2025-08-07': 'GPT-5 Mini',
+  'gpt-5-2025-08-07': 'GPT-5',
+  'gpt-5-pro-2025-10-06': 'GPT-5 Pro',
+  'gpt-5.1-2025-11-13': 'GPT-5.1',
+  'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
+  'claude-opus-4-1-20250805': 'Claude Opus 4.1',
+  'gemini-2.5-flash': 'Gemini Flash',
+  'gemini-2.5-pro': 'Gemini Pro',
+};
+
+const getModelDisplayName = (modelId) => MODEL_DISPLAY_NAMES[modelId] || modelId;
+
 const Chat = ({
   auth,
   history,
@@ -36,6 +51,7 @@ const Chat = ({
   const [isUploading, setIsUploading] = useState(false);
   const [searchDocs, setSearchDocs] = useState(false);
   const fileInputRef = useRef(null);
+  const [routedModel, setRoutedModel] = useState(null); // Tracks auto-routed model
 
   // Update model/temperature when defaults change from settings
   useEffect(() => {
@@ -77,6 +93,7 @@ const Chat = ({
     setHistory(newHistory);
     setMessage('');
     setLoading(true);
+    setRoutedModel(null); // Clear previous routed model
 
     abortControllerRef.current = new AbortController();
 
@@ -152,9 +169,18 @@ const Chat = ({
               }
 
               try {
-                const token = JSON.parse(dataString);
-                
-                assistantResponse += token;
+                const parsed = JSON.parse(dataString);
+
+                // Check if this is routing info from auto mode
+                if (parsed && typeof parsed === 'object' && parsed.routed_model) {
+                  setRoutedModel(parsed);
+                  console.log('Auto-routed to:', parsed.routed_model, '(' + parsed.routed_category + ')');
+                  // Don't add routing info to the response
+                  continue;
+                }
+
+                // Regular token (string)
+                assistantResponse += parsed;
                 setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse } : msg));
 
               } catch (e) {
@@ -439,6 +465,14 @@ const Chat = ({
               {showNeuralLog ? 'Hide Log' : 'Neural Log'}
             </button>
           </div>
+
+          {/* Show routed model when in auto mode */}
+          {model === 'auto' && routedModel && (
+            <div className="routed-model-indicator">
+              Routed to: <strong>{getModelDisplayName(routedModel.routed_model)}</strong>
+              <span className="category-tag">{routedModel.routed_category}</span>
+            </div>
+          )}
         </div>
       </div>
     );

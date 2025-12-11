@@ -11,6 +11,10 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
   };
 
   const getMaxTemperature = () => {
+    // Auto mode - default to 1.0 (will be adjusted by actual model)
+    if (model === 'auto') {
+      return 1.0;
+    }
     // GPT-5 models only support temperature = 1
     if (model.startsWith('gpt-5')) {
       return 1.0;
@@ -47,6 +51,7 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
         <div className="control-group">
           <label htmlFor="model-select">Model:</label>
           <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
+            <option value="auto">Auto (Smart Routing)</option>
             <optgroup label="OpenAI - GPT-5 Series">
               <option value="gpt-5-nano-2025-08-07">GPT-5 Nano (Ultra-fast)</option>
               <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Default)</option>
