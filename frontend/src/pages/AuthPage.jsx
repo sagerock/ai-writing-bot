@@ -134,8 +134,8 @@ const AuthPage = () => {
           {isLoading ? <span className="spinner small"></span> : 'Login'}
         </button>
         <div className="auth-links">
-          <span>No account? </span>
-          <Link to="/register">Create one</Link> | <Link to="/forgot-password">Forgot Password?</Link>
+          <div>No account? <Link to="/register">Create one</Link></div>
+          <div><Link to="/forgot-password">Forgot Password?</Link></div>
         </div>
       </form>
     );
