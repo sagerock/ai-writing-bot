@@ -200,7 +200,7 @@ class EmailRequest(BaseModel):
 
 class UserChatSettings(BaseModel):
     simplified_mode: bool = True
-    default_model: str = "gpt-5-mini-2025-08-07"
+    default_model: str = "auto"
     default_temperature: float = 0.7
     always_ask_mode: bool = False
 
@@ -1921,7 +1921,7 @@ async def get_user_chat_settings(user: dict = Depends(get_current_user)):
     # Default settings for new users
     default_settings = {
         "simplified_mode": True,
-        "default_model": "gpt-5-mini-2025-08-07",
+        "default_model": "auto",
         "default_temperature": 0.7,
         "always_ask_mode": False
     }
