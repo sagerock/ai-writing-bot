@@ -261,6 +261,7 @@ const Chat = ({
       const sessionDate = new Date(parseInt(sessionId.split('_')[1]));
       const timestamp = sessionDate.toISOString().slice(0, 16).replace('T', ' ');
 
+      // Save to archives for later retrieval
       await fetch(`${API_URL}/archive`, {
         method: 'POST',
         headers: {
@@ -272,6 +273,21 @@ const Chat = ({
           model: model,
           archive_name: `Chat ${timestamp}`,
           project_name: 'General',
+        }),
+      });
+
+      // Save to mem0 for AI memory
+      await fetch(`${API_URL}/save_memory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          history: updatedHistory,
+          model: model,
+          search_web: false,
+          temperature: temperature,
         }),
       });
     } catch (error) {
