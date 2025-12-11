@@ -8,6 +8,7 @@ This module handles:
 """
 
 import os
+import time
 from typing import List, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -16,6 +17,18 @@ from qdrant_client.models import (
 )
 from openai import OpenAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+def retry_on_timeout(func, max_retries=3, delay=2):
+    """Retry a function on timeout with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            if "timed out" in str(e).lower() and attempt < max_retries - 1:
+                print(f"Retry {attempt + 1}/{max_retries} after timeout...")
+                time.sleep(delay * (attempt + 1))
+            else:
+                raise
 
 # Configuration
 QDRANT_URL = os.getenv("QDRANT_URL")
@@ -48,19 +61,9 @@ class RAGService:
 
     def _ensure_collection(self):
         """Create collection if it doesn't exist."""
-        try:
-            collections = self.qdrant.get_collections().collections
-            if not any(c.name == COLLECTION_NAME for c in collections):
-                self.qdrant.create_collection(
-                    collection_name=COLLECTION_NAME,
-                    vectors_config=VectorParams(
-                        size=EMBEDDING_DIMENSION,
-                        distance=Distance.COSINE
-                    )
-                )
-                print(f"Created Qdrant collection: {COLLECTION_NAME}")
-        except Exception as e:
-            print(f"Warning: Could not ensure Qdrant collection: {e}")
+        # Skip collection check - collection was created manually
+        # This avoids timeout issues on cross-cloud connections
+        print(f"Using Qdrant collection: {COLLECTION_NAME}")
 
     def _get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Get embeddings for a list of texts using OpenAI."""
@@ -119,11 +122,11 @@ class RAGService:
                 }
             ))
 
-        # Upsert to Qdrant
-        self.qdrant.upsert(
+        # Upsert to Qdrant with retry
+        retry_on_timeout(lambda: self.qdrant.upsert(
             collection_name=COLLECTION_NAME,
             points=points
-        )
+        ))
 
         print(f"Indexed document '{filename}' for user {user_id}: {len(chunks)} chunks")
         return len(chunks)
