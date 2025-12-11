@@ -455,7 +455,9 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                     break
 
             if last_user_msg:
+                print(f"mem0 searching for user {user_id}...")
                 memories = mem0_client.search(last_user_msg, user_id=user_id, limit=5)
+                print(f"mem0 returned {len(memories) if memories else 0} results")
                 if memories and len(memories) > 0:
                     memory_parts = [m.get('memory', '') for m in memories if m.get('memory')]
                     if memory_parts:
