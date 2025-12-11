@@ -50,7 +50,7 @@ function App() {
     const [mobileProjectsDrawerOpen, setMobileProjectsDrawerOpen] = useState(false);
     const [userSettings, setUserSettings] = useState({
         simplifiedMode: true,
-        defaultModel: 'gpt-5-mini-2025-08-07',
+        defaultModel: 'auto',
         defaultTemperature: 0.7,
         alwaysAskMode: false
     });
@@ -109,7 +109,7 @@ function App() {
                 const data = await response.json();
                 setUserSettings({
                     simplifiedMode: data.simplified_mode ?? true,
-                    defaultModel: data.default_model ?? 'gpt-5-mini-2025-08-07',
+                    defaultModel: data.default_model ?? 'auto',
                     defaultTemperature: data.default_temperature ?? 0.7,
                     alwaysAskMode: data.always_ask_mode ?? false
                 });
@@ -133,7 +133,7 @@ function App() {
                 setProjects({});
                 setUserSettings({
                     simplifiedMode: true,
-                    defaultModel: 'gpt-5-mini-2025-08-07',
+                    defaultModel: 'auto',
                     defaultTemperature: 0.7,
                     alwaysAskMode: false
                 });

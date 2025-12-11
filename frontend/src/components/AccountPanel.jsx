@@ -23,7 +23,7 @@ const AccountPanel = ({ auth }) => {
     });
     const [chatSettings, setChatSettings] = useState({
         simplified_mode: true,
-        default_model: 'gpt-5-mini-2025-08-07',
+        default_model: 'auto',
         default_temperature: 0.7,
         always_ask_mode: false
     });
@@ -32,14 +32,15 @@ const AccountPanel = ({ auth }) => {
     const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
 
     const MODEL_OPTIONS = [
+        { value: 'auto', label: 'Auto (Smart Routing)' },
         { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 Nano (Fastest)' },
         { value: 'gpt-5-mini-2025-08-07', label: 'GPT-5 Mini (Balanced)' },
         { value: 'gpt-5-2025-08-07', label: 'GPT-5 (Advanced)' },
         { value: 'gpt-5-pro', label: 'GPT-5 Pro (Most Capable)' },
-        { value: 'claude-sonnet-4-20250514', label: 'Claude 4.5 Sonnet' },
-        { value: 'claude-opus-4-20250514', label: 'Claude 4.1 Opus' },
-        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+        { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
+        { value: 'claude-opus-4-1-20250805', label: 'Claude Opus 4.1' },
+        { value: 'gemini-2.5-flash', label: 'Gemini Flash' },
+        { value: 'gemini-2.5-pro', label: 'Gemini Pro' },
     ];
 
     useEffect(() => {

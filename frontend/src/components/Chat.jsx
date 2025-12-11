@@ -12,20 +12,24 @@ marked.setOptions({
   breaks: true,
 });
 
-// Helper to display friendly model names
-const MODEL_DISPLAY_NAMES = {
-  'gpt-5-nano-2025-08-07': 'GPT-5 Nano',
-  'gpt-5-mini-2025-08-07': 'GPT-5 Mini',
-  'gpt-5-2025-08-07': 'GPT-5',
-  'gpt-5-pro-2025-10-06': 'GPT-5 Pro',
-  'gpt-5.1-2025-11-13': 'GPT-5.1',
-  'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
-  'claude-opus-4-1-20250805': 'Claude Opus 4.1',
-  'gemini-2.5-flash': 'Gemini Flash',
-  'gemini-2.5-pro': 'Gemini Pro',
-};
+// Model options for the selector
+const MODEL_OPTIONS = [
+  { id: 'auto', name: 'Auto (Smart Routing)', category: 'auto' },
+  { id: 'gpt-5-nano-2025-08-07', name: 'GPT-5 Nano', category: 'OpenAI' },
+  { id: 'gpt-5-mini-2025-08-07', name: 'GPT-5 Mini', category: 'OpenAI' },
+  { id: 'gpt-5-2025-08-07', name: 'GPT-5', category: 'OpenAI' },
+  { id: 'gpt-5-pro-2025-10-06', name: 'GPT-5 Pro', category: 'OpenAI' },
+  { id: 'gpt-5.1-2025-11-13', name: 'GPT-5.1', category: 'OpenAI' },
+  { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', category: 'Anthropic' },
+  { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1', category: 'Anthropic' },
+  { id: 'gemini-2.5-flash', name: 'Gemini Flash', category: 'Google' },
+  { id: 'gemini-2.5-pro', name: 'Gemini Pro', category: 'Google' },
+];
 
-const getModelDisplayName = (modelId) => MODEL_DISPLAY_NAMES[modelId] || modelId;
+const getModelDisplayName = (modelId) => {
+  const model = MODEL_OPTIONS.find(m => m.id === modelId);
+  return model ? model.name : modelId;
+};
 
 const Chat = ({
   auth,
@@ -34,7 +38,7 @@ const Chat = ({
   projectNames,
   onSaveSuccess,
   simplifiedMode = true,
-  defaultModel = 'gpt-5-mini-2025-08-07',
+  defaultModel = 'auto',
   defaultTemperature = 0.7
 }) => {
   const [message, setMessage] = useState('');
@@ -52,6 +56,7 @@ const Chat = ({
   const [searchDocs, setSearchDocs] = useState(false);
   const fileInputRef = useRef(null);
   const [routedModel, setRoutedModel] = useState(null); // Tracks auto-routed model
+  const [showModelSelector, setShowModelSelector] = useState(false); // Model picker dropdown
 
   // Update model/temperature when defaults change from settings
   useEffect(() => {
@@ -452,36 +457,53 @@ const Chat = ({
             {history.length > 0 && (
               <button className="link-btn" onClick={handleClear}>Clear</button>
             )}
-            <button
-              className={`link-btn ${showNeuralLog ? 'active' : ''}`}
-              onClick={() => setShowNeuralLog(!showNeuralLog)}
-            >
-              {showNeuralLog ? 'Hide Log' : 'Neural Log'}
-            </button>
           </div>
 
-          {/* Show current model indicator */}
-          <div className="routed-model-indicator">
-            {model === 'auto' && routedModel ? (
-              <>
-                Auto: <strong>{getModelDisplayName(routedModel.routed_model)}</strong>
-                <span className="category-tag">{routedModel.routed_category}</span>
-              </>
-            ) : model === 'auto' ? (
-              <>Using: <strong>Auto (waiting...)</strong></>
-            ) : (
-              <>Using: <strong>{getModelDisplayName(model)}</strong></>
-            )}
-            <span className="model-docs-divider">|</span>
-            <a
-              href="https://platform.openai.com/docs/models"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="model-docs-inline-link"
-              title="View latest models from all providers"
+          {/* Clickable model selector */}
+          <div className="model-selector-container">
+            <button
+              className="model-selector-btn"
+              onClick={() => setShowModelSelector(!showModelSelector)}
             >
-              Model docs
-            </a>
+              {model === 'auto' && routedModel ? (
+                <>
+                  Auto: <strong>{getModelDisplayName(routedModel.routed_model)}</strong>
+                  <span className="category-tag">{routedModel.routed_category}</span>
+                </>
+              ) : model === 'auto' ? (
+                <>Using: <strong>Auto</strong></>
+              ) : (
+                <>Using: <strong>{getModelDisplayName(model)}</strong></>
+              )}
+              <span className="dropdown-arrow">{showModelSelector ? '▲' : '▼'}</span>
+            </button>
+
+            {showModelSelector && (
+              <div className="model-selector-dropdown">
+                {MODEL_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    className={`model-option ${model === opt.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setModel(opt.id);
+                      setShowModelSelector(false);
+                      setRoutedModel(null); // Clear routed model when manually changing
+                    }}
+                  >
+                    <span className="model-name">{opt.name}</span>
+                    {opt.category !== 'auto' && <span className="model-category">{opt.category}</span>}
+                  </button>
+                ))}
+                <a
+                  href="https://platform.openai.com/docs/models"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="model-docs-link-bottom"
+                >
+                  View model docs →
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
