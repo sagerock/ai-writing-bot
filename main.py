@@ -299,12 +299,12 @@ def is_gpt5_model(model_name: str) -> bool:
 # Opus 4.5: $5/$25 - maximum intelligence, practical performance
 # Haiku 4.5: $1/$5 - fast & economical for simple queries
 ROUTING_MODELS = {
-    "simple": "claude-haiku-4-5-20250801",    # Quick facts - Haiku (fast & economical)
-    "general": "claude-opus-4-5-20251101",    # Everyday tasks - Opus 4.5 (best quality)
-    "coding": "claude-opus-4-5-20251101",     # Complex coding - Opus 4.5 (highest intelligence)
-    "writing": "claude-opus-4-5-20251101",    # Creative writing - Opus 4.5 (best quality)
-    "analysis": "claude-opus-4-5-20251101",   # Analysis, research - Opus 4.5 (best quality)
-    "science": "claude-opus-4-5-20251101",    # Scientific analysis - Opus 4.5 (best quality)
+    "simple": "claude-haiku-4-5",    # Quick facts - Haiku (fast & economical)
+    "general": "claude-opus-4-5",    # Everyday tasks - Opus 4.5 (best quality)
+    "coding": "claude-opus-4-5",     # Complex coding - Opus 4.5 (highest intelligence)
+    "writing": "claude-opus-4-5",    # Creative writing - Opus 4.5 (best quality)
+    "analysis": "claude-opus-4-5",   # Analysis, research - Opus 4.5 (best quality)
+    "science": "claude-opus-4-5",    # Scientific analysis - Opus 4.5 (best quality)
 }
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
