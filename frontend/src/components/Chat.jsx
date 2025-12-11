@@ -393,6 +393,14 @@ const Chat = ({
 
     return (
       <div className={`chat-simplified ${hasMessages ? 'has-messages' : 'empty'}`}>
+        {/* Upload overlay */}
+        {isUploading && (
+          <div className="upload-overlay">
+            <span className="spinner"></span>
+            <p>Uploading document...</p>
+          </div>
+        )}
+
         {/* Neural Log Panel - only when toggled */}
         {showNeuralLog && (
           <NeuralLogPanel
@@ -449,6 +457,12 @@ const Chat = ({
                 )}
               </div>
             ))}
+            {loading && !history.some(m => m.streaming) && (
+              <div className="loading-indicator">
+                <span className="spinner"></span>
+                <span>Thinking...</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -465,7 +479,7 @@ const Chat = ({
               disabled={isUploading}
               title="Upload document"
             >
-              {isUploading ? '...' : '+'}
+              {isUploading ? <span className="spinner small"></span> : '+'}
             </button>
             <input
               type="file"
@@ -499,7 +513,7 @@ const Chat = ({
               onClick={handleSendMessage}
               disabled={loading || !message.trim()}
             >
-              {loading ? '...' : '→'}
+              {loading ? <span className="spinner small white"></span> : '→'}
             </button>
           </div>
 

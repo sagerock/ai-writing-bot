@@ -2537,3 +2537,75 @@ hr {
         grid-template-columns: 1fr;
     }
 }
+
+/* Loading Spinner */
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+
+.spinner.small {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+}
+
+.spinner.white {
+    border-top-color: white;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Loading indicator in chat */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    color: #666;
+    font-size: 14px;
+}
+
+.loading-indicator .spinner {
+    width: 20px;
+    height: 20px;
+    border-top-color: #666;
+}
+
+/* Upload overlay */
+.upload-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    gap: 16px;
+}
+
+.upload-overlay .spinner {
+    width: 40px;
+    height: 40px;
+    border-width: 3px;
+    border-top-color: #333;
+}
+
+.upload-overlay p {
+    color: #333;
+    font-size: 16px;
+    margin: 0;
+}
