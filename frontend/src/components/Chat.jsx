@@ -54,13 +54,13 @@ const Chat = ({
   const [forceRerender, setForceRerender] = useState(0);
   const chatWindowRef = useRef(null);
   const [showNeuralLog, setShowNeuralLog] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchDocs, setSearchDocs] = useState(false);
   const fileInputRef = useRef(null);
   const [routedModel, setRoutedModel] = useState(null); // Tracks auto-routed model
   const [showModelSelector, setShowModelSelector] = useState(false); // Model picker dropdown
   const [feedback, setFeedback] = useState({}); // Tracks feedback per message index
+  const [sessionId] = useState(() => `chat_${Date.now()}`); // Unique ID for this chat session
 
   // Update model/temperature when defaults change from settings
   useEffect(() => {
@@ -170,13 +170,11 @@ const Chat = ({
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            setHistory(prev => {
-              const updated = prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse, streaming: false } : msg);
-              console.log('After stream end:', updated[updated.length - 1]);
-              return updated;
-            });
+            const finalHistory = newHistory.concat([{ role: 'assistant', content: assistantResponse }]);
+            setHistory(finalHistory);
             setLoading(false);
             setForceRerender(f => f + 1);
+            autoSaveConversation(finalHistory);
             break;
           }
 
@@ -192,9 +190,11 @@ const Chat = ({
               if (!dataString) continue;
 
               if (dataString === '[DONE]') {
-                setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse, streaming: false } : msg));
+                const finalHistory = newHistory.concat([{ role: 'assistant', content: assistantResponse }]);
+                setHistory(finalHistory);
                 setLoading(false);
                 setForceRerender(f => f + 1);
+                autoSaveConversation(finalHistory);
                 return;
               }
 
@@ -252,54 +252,30 @@ const Chat = ({
     }
   };
 
-  const handleClear = async () => {
-    if (window.confirm('Are you sure you want to clear the conversation?')) {
-        // Auto-save conversation before clearing (if there's meaningful content)
-        if (history.length >= 2) {
-            const token = await auth.currentUser.getIdToken();
+  // Auto-save conversation after each response
+  const autoSaveConversation = async (updatedHistory) => {
+    if (updatedHistory.length < 2) return; // Need at least one exchange
 
-            // Save to archives for later retrieval
-            try {
-                const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                await fetch(`${API_URL}/archive`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        history: history,
-                        model: model,
-                        archive_name: `Chat ${timestamp}`,
-                        project_name: 'General',
-                    }),
-                });
-                console.log('Conversation auto-saved to archives');
-            } catch (error) {
-                console.error('Failed to auto-save to archives:', error);
-            }
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const sessionDate = new Date(parseInt(sessionId.split('_')[1]));
+      const timestamp = sessionDate.toISOString().slice(0, 16).replace('T', ' ');
 
-            // Save to mem0 for AI memory
-            try {
-                await fetch(`${API_URL}/save_memory`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        history: history,
-                        model: model,
-                        search_web: false,
-                        temperature: temperature,
-                    }),
-                });
-                console.log('Conversation saved to memory');
-            } catch (error) {
-                console.error('Failed to save memory:', error);
-            }
-        }
-        setHistory([]);
+      await fetch(`${API_URL}/archive`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          history: updatedHistory,
+          model: model,
+          archive_name: `Chat ${timestamp}`,
+          project_name: 'General',
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to auto-save conversation:', error);
     }
   };
 
@@ -330,40 +306,6 @@ const Chat = ({
     } catch (error) {
         console.error("Error archiving chat:", error);
         alert('Failed to archive chat.');
-    }
-  };
-
-  const handleSimplifiedSave = async () => {
-    if (history.length === 0) {
-      alert("Cannot save an empty chat.");
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      await fetch(`${API_URL}/archive`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          history: history,
-          model: model,
-          archive_name: `Chat ${timestamp}`,
-          project_name: 'General',
-        }),
-      });
-      alert('Chat saved!');
-      if (onSaveSuccess) {
-        onSaveSuccess();
-      }
-    } catch (error) {
-      console.error("Error saving chat:", error);
-      alert('Failed to save chat.');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -541,9 +483,6 @@ const Chat = ({
               {searchDocs ? '📁 Search files: ON' : '📁 Search files'}
             </button>
             {loading && <button className="link-btn" onClick={handleStop}>Stop</button>}
-            {history.length > 0 && (
-              <button className="link-btn" onClick={handleClear}>Clear</button>
-            )}
           </div>
 
           {/* Clickable model selector */}
