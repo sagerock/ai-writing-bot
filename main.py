@@ -18,6 +18,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from pypdf import PdfReader
+import csv
+import base64
 from ddgs import DDGS
 
 # RAG Service (lazy import to avoid startup failure if Qdrant unavailable)
@@ -1111,21 +1113,66 @@ def index_document_background(user_id: str, filename: str, text: str, file_conte
 # Quick file upload - extract text immediately, index in background
 @main_app.post("/upload_quick")
 async def upload_quick(background_tasks: BackgroundTasks, user: dict = Depends(get_current_user), file: UploadFile = File(...)):
-    allowed_extensions = ('.md', '.txt', '.pdf')
-    if not file.filename or not file.filename.endswith(allowed_extensions):
-        raise HTTPException(status_code=400, detail=f"Only {', '.join(allowed_extensions)} files are allowed.")
+    # Text-based files
+    text_extensions = ('.md', '.txt', '.pdf', '.csv', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.json', '.xml', '.yaml', '.yml', '.sh', '.bash', '.sql', '.java', '.c', '.cpp', '.h', '.go', '.rs', '.rb', '.php')
+    # Image files (will be base64 encoded for vision models)
+    image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
+    # Word documents
+    docx_extensions = ('.docx',)
+
+    allowed_extensions = text_extensions + image_extensions + docx_extensions
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided.")
+
+    filename_lower = file.filename.lower()
+    if not any(filename_lower.endswith(ext) for ext in allowed_extensions):
+        raise HTTPException(status_code=400, detail=f"File type not supported. Allowed: {', '.join(allowed_extensions)}")
 
     try:
         file_content = await file.read()
 
-        # Extract text
+        # Extract text based on file type
         text = ""
-        if file.filename.lower().endswith(('.txt', '.md')):
-            text = file_content.decode('utf-8')
-        elif file.filename.lower().endswith('.pdf'):
-            reader = PdfReader(io.BytesIO(file_content))
-            text_pages = [page.extract_text() or "" for page in reader.pages]
-            text = "\n".join(text_pages)
+        is_image = False
+
+        if filename_lower.endswith(text_extensions):
+            if filename_lower.endswith('.pdf'):
+                reader = PdfReader(io.BytesIO(file_content))
+                text_pages = [page.extract_text() or "" for page in reader.pages]
+                text = "\n".join(text_pages)
+            elif filename_lower.endswith('.csv'):
+                # Parse CSV and format as readable text
+                csv_text = file_content.decode('utf-8')
+                reader = csv.reader(io.StringIO(csv_text))
+                rows = list(reader)
+                if rows:
+                    # Format as markdown table for better readability
+                    header = rows[0]
+                    text = "| " + " | ".join(header) + " |\n"
+                    text += "| " + " | ".join(["---"] * len(header)) + " |\n"
+                    for row in rows[1:]:
+                        text += "| " + " | ".join(row) + " |\n"
+            else:
+                # Plain text or code files
+                text = file_content.decode('utf-8')
+        elif filename_lower.endswith(image_extensions):
+            # For images, encode as base64 for vision model
+            is_image = True
+            ext = filename_lower.split('.')[-1]
+            mime_type = f"image/{ext}" if ext != 'jpg' else "image/jpeg"
+            b64 = base64.b64encode(file_content).decode('utf-8')
+            text = f"[Image: {file.filename}]\ndata:{mime_type};base64,{b64}"
+        elif filename_lower.endswith('.docx'):
+            # Try to extract text from docx
+            try:
+                from docx import Document
+                doc = Document(io.BytesIO(file_content))
+                text = "\n".join([para.text for para in doc.paragraphs])
+            except ImportError:
+                text = "[Word document uploaded - python-docx not installed for text extraction]"
+            except Exception as e:
+                text = f"[Could not extract text from Word document: {e}]"
 
         # Truncate for chat context if too long (keep first 50k chars)
         display_text = text

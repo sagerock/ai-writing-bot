@@ -480,7 +480,7 @@ const Chat = ({
               ref={fileInputRef}
               onChange={handleFileUpload}
               style={{ display: 'none' }}
-              accept=".pdf,.txt,.md"
+              accept=".pdf,.txt,.md,.csv,.docx,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.xml,.yaml,.yml,.sh,.sql,.java,.c,.cpp,.h,.go,.rs,.rb,.php,.png,.jpg,.jpeg,.gif,.webp"
             />
             <textarea
               ref={textareaRef}
