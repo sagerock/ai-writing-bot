@@ -3624,3 +3624,80 @@ hr {
     padding-left: 12px;
     border-left: 2px solid #e9ecef;
 }
+
+/* Free Tier / Free Messages Styles */
+.free-tier-section {
+    text-align: center;
+}
+
+.free-messages-display {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.free-messages-count {
+    margin-bottom: 16px;
+}
+
+.count-number {
+    display: block;
+    font-size: 3em;
+    font-weight: 700;
+    color: #28a745;
+    line-height: 1;
+}
+
+.count-label {
+    font-size: 1.1em;
+    color: #6c757d;
+}
+
+.free-messages-bar {
+    height: 12px;
+    background: #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.free-messages-progress {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 6px;
+    transition: width 0.3s ease;
+}
+
+.free-messages-note {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin: 0;
+}
+
+.subscription-cta h4 {
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.subscription-cta p {
+    color: #6c757d;
+    margin-bottom: 16px;
+    font-size: 0.95em;
+}
+
+.btn-primary {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}

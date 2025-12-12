@@ -667,34 +667,53 @@ async def generate_gpt5_response(
 async def generate_chat_response(req: ChatRequest, user_id: str):
     user_ref = db.collection("users").document(user_id)
 
-    # Use a transaction to safely read and update credits
+    # Check subscription status and credits
     transaction = db.transaction()
 
     @firestore.transactional
-    def check_and_update_credits(transaction: Transaction, user_ref: DocumentReference):
+    def check_access_and_update(transaction: Transaction, user_ref: DocumentReference):
+        """
+        Check if user can access the service:
+        1. Active subscribers → unlimited access (no credit deduction)
+        2. Free users → use credits (100 free messages)
+        """
         user_snapshot = user_ref.get(transaction=transaction)
 
         if not user_snapshot.exists:
+            # New user - give them 100 free messages
             initial_credits = 100
             transaction.set(user_ref, {
                 "credits": initial_credits - 1,
-                "credits_used": 1
+                "credits_used": 1,
+                "subscription_status": "none"
             })
-            return
+            return {"is_subscriber": False, "credits_remaining": initial_credits - 1}
 
         user_data = user_snapshot.to_dict()
+        subscription_status = user_data.get("subscription_status", "none")
+
+        # Active subscribers get unlimited access
+        if subscription_status == "active":
+            return {"is_subscriber": True, "credits_remaining": None}
+
+        # Free users use credits
         credits = user_data.get("credits", 0)
 
         if credits <= 0:
-            raise HTTPException(status_code=402, detail="You have run out of credits.")
+            raise HTTPException(
+                status_code=402,
+                detail="You've used all your free messages! Subscribe to continue and support Houseless Movement."
+            )
 
         transaction.update(user_ref, {
             "credits": firestore.Increment(-1),
             "credits_used": firestore.Increment(1)
         })
 
+        return {"is_subscriber": False, "credits_remaining": credits - 1}
+
     try:
-        check_and_update_credits(transaction, user_ref)
+        access_info = check_access_and_update(transaction, user_ref)
     except HTTPException as e:
         yield f"data: ERROR: {e.detail}\n\n"
         yield "data: [DONE]\n\n"
@@ -1320,11 +1339,20 @@ async def get_user_billing(user: dict = Depends(get_current_user)):
         # Check if user is approaching their subscription limit (80% threshold)
         usage_warning = current_month_ai_cost_cents >= (subscription_amount_cents * 0.8)
 
+        # Get free messages remaining for non-subscribers
+        free_messages_remaining = user_data.get("credits", 100) if subscription_status != "active" else None
+        free_messages_used = user_data.get("credits_used", 0)
+
         return JSONResponse(content={
             "subscription": {
                 "status": subscription_status,
                 "amount_cents": subscription_amount_cents,
                 "amount_display": f"${subscription_amount_cents / 100:.2f}",
+            },
+            "free_tier": {
+                "messages_remaining": free_messages_remaining,
+                "messages_used": free_messages_used,
+                "total_free": 100,
             },
             "current_month": {
                 "month": month_key,

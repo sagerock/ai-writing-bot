@@ -83,7 +83,7 @@ const BillingDashboard = ({ auth }) => {
         return null;
     }
 
-    const { subscription, current_month, all_time, usage_warning } = billingData;
+    const { subscription, free_tier, current_month, all_time, usage_warning } = billingData;
 
     return (
         <div className="billing-dashboard">
@@ -91,9 +91,30 @@ const BillingDashboard = ({ auth }) => {
 
             {/* Subscription Status */}
             {subscription.status === 'none' ? (
-                <div className="subscription-cta">
-                    <p>Subscribe to support Houseless Movement while using AI</p>
-                    <a href="/pricing" className="btn-primary">View Plans</a>
+                <div className="free-tier-section">
+                    {/* Free Messages Display */}
+                    <div className="free-messages-display">
+                        <div className="free-messages-count">
+                            <span className="count-number">{free_tier?.messages_remaining ?? 100}</span>
+                            <span className="count-label">free messages remaining</span>
+                        </div>
+                        <div className="free-messages-bar">
+                            <div
+                                className="free-messages-progress"
+                                style={{ width: `${((free_tier?.messages_remaining ?? 100) / 100) * 100}%` }}
+                            />
+                        </div>
+                        <p className="free-messages-note">
+                            {free_tier?.messages_used || 0} of 100 free messages used
+                        </p>
+                    </div>
+
+                    {/* Subscribe CTA */}
+                    <div className="subscription-cta">
+                        <h4>Love RomaLume?</h4>
+                        <p>Subscribe for unlimited access and support Houseless Movement - a charity helping homeless individuals in Akron, Ohio.</p>
+                        <a href="/pricing" className="btn-primary">Subscribe from $20/month</a>
+                    </div>
                 </div>
             ) : (
                 <>
