@@ -18,6 +18,12 @@ const AccountPanel = ({ auth }) => {
     const [documents, setDocuments] = useState([]);
     const [documentsLoading, setDocumentsLoading] = useState(true);
     const [deletingDoc, setDeletingDoc] = useState(null);
+    const [archives, setArchives] = useState({});
+    const [archivesLoading, setArchivesLoading] = useState(true);
+    const [deletingArchive, setDeletingArchive] = useState(null);
+    const [viewingArchive, setViewingArchive] = useState(null);
+    const [archiveContent, setArchiveContent] = useState(null);
+    const [archiveContentLoading, setArchiveContentLoading] = useState(false);
     const [emailPreferences, setEmailPreferences] = useState({
         feature_updates: true,
         bug_fixes: true,
@@ -127,10 +133,33 @@ const AccountPanel = ({ auth }) => {
             }
         };
 
+        const fetchArchives = async () => {
+            if (!auth.currentUser) return;
+            setArchivesLoading(true);
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${API_URL}/archives`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    // API returns project_archives directly, not wrapped in { archives: ... }
+                    setArchives(data || {});
+                }
+            } catch (err) {
+                console.error('Could not load archives:', err);
+            } finally {
+                setArchivesLoading(false);
+            }
+        };
+
         fetchCredits();
         fetchEmailPreferences();
         fetchChatSettings();
         fetchDocuments();
+        fetchArchives();
     }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
@@ -281,6 +310,81 @@ const AccountPanel = ({ auth }) => {
         }
     };
 
+    const handleDeleteArchive = async (archiveId) => {
+        if (!window.confirm(`Are you sure you want to delete the archive "${archiveId}"? This cannot be undone.`)) {
+            return;
+        }
+
+        setDeletingArchive(archiveId);
+        setError('');
+        setSuccess('');
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/archive/${encodeURIComponent(archiveId)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.detail || 'Failed to delete archive.');
+            }
+
+            // Remove from state
+            setArchives(prev => {
+                const updated = { ...prev };
+                for (const project in updated) {
+                    updated[project] = updated[project].filter(a => a.id !== archiveId);
+                    if (updated[project].length === 0) {
+                        delete updated[project];
+                    }
+                }
+                return updated;
+            });
+            setSuccess(`Archive "${archiveId}" deleted successfully.`);
+        } catch (err) {
+            setError(`Failed to delete archive: ${err.message}`);
+            console.error(err);
+        } finally {
+            setDeletingArchive(null);
+        }
+    };
+
+    const handleViewArchive = async (archiveId) => {
+        setViewingArchive(archiveId);
+        setArchiveContentLoading(true);
+        setArchiveContent(null);
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/archive/${encodeURIComponent(archiveId)}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load archive.');
+            }
+
+            const data = await response.json();
+            setArchiveContent(data);
+        } catch (err) {
+            setError(`Failed to load archive: ${err.message}`);
+            setViewingArchive(null);
+        } finally {
+            setArchiveContentLoading(false);
+        }
+    };
+
+    const closeArchiveModal = () => {
+        setViewingArchive(null);
+        setArchiveContent(null);
+    };
+
     if (needsReauth) {
         return (
             <div className="account-form-container">
@@ -350,6 +454,83 @@ const AccountPanel = ({ auth }) => {
                     </div>
                 )}
             </div>
+
+            <hr />
+
+            <div className="account-archives">
+                <h3>Your Conversation Archives</h3>
+                <p>Your saved chat conversations, organized by project. Click on a conversation to view it.</p>
+
+                {archivesLoading ? (
+                    <p className="archives-loading">Loading archives...</p>
+                ) : Object.keys(archives).length === 0 ? (
+                    <p className="archives-empty">No saved conversations yet. Save chats from the chat interface to archive them.</p>
+                ) : (
+                    <div className="archives-list">
+                        {Object.entries(archives).map(([projectName, chats]) => (
+                            <div key={projectName} className="archive-project">
+                                <details>
+                                    <summary className="archive-project-name">
+                                        {projectName} ({chats.length} chat{chats.length !== 1 ? 's' : ''})
+                                    </summary>
+                                    <div className="archive-items">
+                                        {chats.map((chat) => (
+                                            <div key={chat.id} className="archive-item" onClick={() => handleViewArchive(chat.id)}>
+                                                <div className="archive-info">
+                                                    <span className="archive-title">{chat.title || chat.id}</span>
+                                                    <span className="archive-preview">{chat.preview}</span>
+                                                    <span className="archive-meta">
+                                                        {chat.model} | {chat.messageCount} messages | {chat.archivedAt ? new Date(chat.archivedAt).toLocaleDateString() : 'Unknown date'}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    className="archive-delete-btn"
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteArchive(chat.id); }}
+                                                    disabled={deletingArchive === chat.id}
+                                                >
+                                                    {deletingArchive === chat.id ? 'Deleting...' : 'Delete'}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </details>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Archive Viewer Modal */}
+            {viewingArchive && (
+                <div className="archive-modal-backdrop" onClick={closeArchiveModal}>
+                    <div className="archive-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="archive-modal-header">
+                            <h3>{viewingArchive.replace('.md', '')}</h3>
+                            <button className="archive-modal-close" onClick={closeArchiveModal}>&times;</button>
+                        </div>
+                        <div className="archive-modal-content">
+                            {archiveContentLoading ? (
+                                <p className="loading">Loading conversation...</p>
+                            ) : archiveContent && archiveContent.messages ? (
+                                <div className="archive-messages">
+                                    {archiveContent.messages.map((msg, index) => (
+                                        <div key={index} className={`archive-message ${msg.role}`}>
+                                            <div className="archive-message-role">
+                                                {msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'AI' : 'System'}
+                                            </div>
+                                            <div className="archive-message-content">
+                                                {msg.content}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p>No messages found in this archive.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <hr />
 

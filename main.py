@@ -915,15 +915,41 @@ async def get_archives(user: dict = Depends(get_current_user)):
         project = data.get("projectName", "General")
         if project not in project_archives:
             project_archives[project] = []
-        
+
         archived_at = data.get("archivedAt")
         if archived_at and hasattr(archived_at, 'isoformat'):
             archived_at = archived_at.isoformat()
 
+        # Get title and preview from stored data or generate from messages
+        title = data.get("title")
+        preview = data.get("preview")
+        messages = data.get("messages", [])
+
+        # If no title stored, use first user message as title (truncated)
+        if not title and messages:
+            for msg in messages:
+                if msg.get("role") == "user":
+                    title = msg.get("content", "")[:80]
+                    if len(msg.get("content", "")) > 80:
+                        title += "..."
+                    break
+
+        # If no preview stored, use first assistant response (truncated)
+        if not preview and messages:
+            for msg in messages:
+                if msg.get("role") == "assistant":
+                    preview = msg.get("content", "")[:150]
+                    if len(msg.get("content", "")) > 150:
+                        preview += "..."
+                    break
+
         project_archives[project].append({
             "id": archive.id,
             "model": data.get("model"),
-            "archivedAt": archived_at
+            "archivedAt": archived_at,
+            "title": title or archive.id.replace(".md", ""),
+            "preview": preview or "No preview available",
+            "messageCount": len(messages)
         })
 
     return JSONResponse(content=project_archives)
