@@ -874,69 +874,161 @@
     cursor: not-allowed;
 }
 
-/* AI Memories Styles */
-.account-memories {
+/* AI Memories Summary (Account Page) */
+.account-memories-summary {
     margin: 1rem 0;
 }
 
-.account-memories h3 {
+.account-memories-summary h3 {
     margin-bottom: 0.5rem;
 }
 
-.account-memories p {
+.account-memories-summary p {
     color: #666;
     font-size: 14px;
     margin-bottom: 1rem;
 }
 
-.memories-loading,
-.memories-empty {
-    color: #666;
-    font-style: italic;
-    padding: 0.5rem 0;
-}
-
-.memories-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.memory-item {
+.memories-summary-content {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 0.75rem 1rem;
+    align-items: center;
+    padding: 1rem;
     background-color: #f0f7ff;
     border: 1px solid #cce0ff;
+    border-radius: 8px;
+}
+
+.memories-count {
+    font-weight: 500;
+    color: #333;
+}
+
+.view-memories-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.view-memories-link:hover {
+    text-decoration: underline;
+}
+
+/* Memories Page Styles */
+.memories-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.memories-page-header {
+    margin-bottom: 2rem;
+}
+
+.memories-page-header h1 {
+    margin: 1rem 0 0.5rem;
+    color: #333;
+}
+
+.memories-page-header p {
+    color: #666;
+    font-size: 14px;
+}
+
+.back-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.memories-page-content {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.memories-empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.memories-empty-state p:first-child {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.memories-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.memories-stats span {
+    font-weight: 500;
+    color: #333;
+}
+
+.memories-full-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.memory-item-full {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border: 1px solid #e1e4e8;
     border-radius: 8px;
     gap: 0.75rem;
 }
 
-.memory-content {
-    flex: 1;
+.memory-content-full {
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #333;
 }
 
-.memory-delete-btn {
-    background: none;
-    border: none;
-    color: #999;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-    flex-shrink: 0;
+.memory-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.memory-delete-btn:hover:not(:disabled) {
+.memory-date {
+    font-size: 12px;
+    color: #666;
+}
+
+.memory-delete-btn-full {
+    background-color: transparent;
     color: #dc3545;
+    border: 1px solid #dc3545;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
 }
 
-.memory-delete-btn:disabled {
+.memory-delete-btn-full:hover:not(:disabled) {
+    background-color: #dc3545;
+    color: white;
+}
+
+.memory-delete-btn-full:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
 }
 

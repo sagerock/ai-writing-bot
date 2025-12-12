@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import Chat from './components/Chat'
 import ProjectsPanel from './components/ProjectsPanel'
 import AccountPage from './components/AccountPage'
+import MemoriesPage from './components/MemoriesPage'
 import AdminPage from './components/AdminPage'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
@@ -288,6 +289,11 @@ function App() {
             <Route path="/account" element={
                 <ProtectedRoute user={user}>
                     <AccountPage auth={auth} />
+                </ProtectedRoute>
+            } />
+            <Route path="/account/memories" element={
+                <ProtectedRoute user={user}>
+                    <MemoriesPage auth={auth} />
                 </ProtectedRoute>
             } />
             <Route path="/admin" element={

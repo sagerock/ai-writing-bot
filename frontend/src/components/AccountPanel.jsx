@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    updateProfile, 
-    updateEmail, 
-    updatePassword, 
-    reauthenticateWithCredential, 
-    EmailAuthProvider 
+import { Link } from 'react-router-dom';
+import {
+    updateProfile,
+    updateEmail,
+    updatePassword,
+    reauthenticateWithCredential,
+    EmailAuthProvider
 } from 'firebase/auth';
 import { API_URL } from '../apiConfig';
 
@@ -26,7 +27,6 @@ const AccountPanel = ({ auth }) => {
     const [archiveContentLoading, setArchiveContentLoading] = useState(false);
     const [memories, setMemories] = useState([]);
     const [memoriesLoading, setMemoriesLoading] = useState(true);
-    const [deletingMemory, setDeletingMemory] = useState(null);
     const [emailPreferences, setEmailPreferences] = useState({
         feature_updates: true,
         bug_fixes: true,
@@ -410,69 +410,6 @@ const AccountPanel = ({ auth }) => {
         setArchiveContent(null);
     };
 
-    const handleDeleteMemory = async (memoryId) => {
-        if (!window.confirm('Are you sure you want to delete this memory? The AI will no longer remember this information.')) {
-            return;
-        }
-
-        setDeletingMemory(memoryId);
-        setError('');
-        setSuccess('');
-
-        try {
-            const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/user/memories/${encodeURIComponent(memoryId)}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to delete memory.');
-            }
-
-            setMemories(prev => prev.filter(m => m.id !== memoryId));
-            setSuccess('Memory deleted successfully.');
-        } catch (err) {
-            setError(`Failed to delete memory: ${err.message}`);
-            console.error(err);
-        } finally {
-            setDeletingMemory(null);
-        }
-    };
-
-    const handleDeleteAllMemories = async () => {
-        if (!window.confirm('Are you sure you want to delete ALL memories? This cannot be undone and the AI will forget everything about you.')) {
-            return;
-        }
-
-        setError('');
-        setSuccess('');
-
-        try {
-            const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/user/memories`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to delete memories.');
-            }
-
-            setMemories([]);
-            setSuccess('All memories deleted successfully.');
-        } catch (err) {
-            setError(`Failed to delete memories: ${err.message}`);
-            console.error(err);
-        }
-    };
-
     if (needsReauth) {
         return (
             <div className="account-form-container">
@@ -512,40 +449,21 @@ const AccountPanel = ({ auth }) => {
 
             <hr />
 
-            <div className="account-memories">
+            <div className="account-memories-summary">
                 <h3>AI Memories</h3>
-                <p>These are things the AI has learned about you from your conversations. This helps personalize responses.</p>
+                <p>The AI learns about you from your conversations to provide more personalized responses.</p>
 
                 {memoriesLoading ? (
-                    <p className="memories-loading">Loading memories...</p>
-                ) : memories.length === 0 ? (
-                    <p className="memories-empty">No memories yet. As you chat, the AI will remember useful information about you.</p>
+                    <p className="memories-loading">Loading...</p>
                 ) : (
-                    <>
-                        <div className="memories-list">
-                            {memories.map((memory) => (
-                                <div key={memory.id} className="memory-item">
-                                    <div className="memory-content">
-                                        {memory.memory}
-                                    </div>
-                                    <button
-                                        className="memory-delete-btn"
-                                        onClick={() => handleDeleteMemory(memory.id)}
-                                        disabled={deletingMemory === memory.id}
-                                        title="Delete this memory"
-                                    >
-                                        {deletingMemory === memory.id ? '...' : '×'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                        <button
-                            className="delete-all-memories-btn"
-                            onClick={handleDeleteAllMemories}
-                        >
-                            Delete All Memories
-                        </button>
-                    </>
+                    <div className="memories-summary-content">
+                        <span className="memories-count">
+                            {memories.length} memor{memories.length === 1 ? 'y' : 'ies'} stored
+                        </span>
+                        <Link to="/account/memories" className="view-memories-link">
+                            View & Manage Memories &rarr;
+                        </Link>
+                    </div>
                 )}
             </div>
 
