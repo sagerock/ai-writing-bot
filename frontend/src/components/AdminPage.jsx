@@ -457,6 +457,7 @@ const AdminPage = ({ auth }) => {
                             <option value="bug_fixes">🐛 Bug Fixes & Improvements</option>
                             <option value="pricing_changes">💰 Pricing & Plan Changes</option>
                             <option value="usage_tips">💡 Usage Tips & Best Practices</option>
+                            <option value="charity_updates">❤️ Houseless Movement Updates</option>
                             <option value="all">📢 All Users (Announcement)</option>
                         </select>
                     </div>
