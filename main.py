@@ -903,6 +903,52 @@ async def debug_memories(user: dict = Depends(get_current_user)):
     except Exception as e:
         return {"error": str(e)}
 
+@main_app.get("/user/memories")
+async def get_user_memories(user: dict = Depends(get_current_user)):
+    """Get all AI memories for the current user."""
+    user_id = user['user_id']
+    if not mem0_client:
+        return JSONResponse(status_code=503, content={"error": "Memory service not available", "memories": []})
+    try:
+        memories = mem0_client.get_all(user_id=user_id)
+        return JSONResponse(content={"memories": memories or []})
+    except Exception as e:
+        print(f"Error fetching memories: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e), "memories": []})
+
+@main_app.delete("/user/memories/{memory_id}")
+async def delete_user_memory(memory_id: str, user: dict = Depends(get_current_user)):
+    """Delete a specific AI memory."""
+    user_id = user['user_id']
+    if not mem0_client:
+        return JSONResponse(status_code=503, content={"error": "Memory service not available"})
+    try:
+        # Verify the memory belongs to this user before deleting
+        memories = mem0_client.get_all(user_id=user_id)
+        memory_ids = [m.get('id') for m in memories] if memories else []
+
+        if memory_id not in memory_ids:
+            return JSONResponse(status_code=404, content={"error": "Memory not found"})
+
+        mem0_client.delete(memory_id)
+        return JSONResponse(content={"message": "Memory deleted successfully"})
+    except Exception as e:
+        print(f"Error deleting memory: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@main_app.delete("/user/memories")
+async def delete_all_user_memories(user: dict = Depends(get_current_user)):
+    """Delete all AI memories for the current user."""
+    user_id = user['user_id']
+    if not mem0_client:
+        return JSONResponse(status_code=503, content={"error": "Memory service not available"})
+    try:
+        mem0_client.delete_all(user_id=user_id)
+        return JSONResponse(content={"message": "All memories deleted successfully"})
+    except Exception as e:
+        print(f"Error deleting all memories: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @main_app.get("/archives")
 async def get_archives(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
