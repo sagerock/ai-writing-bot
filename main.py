@@ -322,11 +322,12 @@ class EmailPreferences(BaseModel):
     bug_fixes: bool = True
     pricing_changes: bool = True
     usage_tips: bool = True
+    charity_updates: bool = True
 
 class EmailRequest(BaseModel):
     subject: str
     content: str
-    email_type: str  # "feature_updates", "bug_fixes", "pricing_changes", "usage_tips", "all"
+    email_type: str  # "feature_updates", "bug_fixes", "pricing_changes", "usage_tips", "charity_updates", "all"
     preview: bool = False
 
 class UserChatSettings(BaseModel):
@@ -2552,6 +2553,7 @@ def get_type_color(email_type: str) -> str:
         "bug_fixes": "#ffc107",
         "pricing_changes": "#dc3545",
         "usage_tips": "#17a2b8",
+        "charity_updates": "#e91e63",
         "all": "#6c757d",
         "test": "#9b59b6"
     }
@@ -2564,6 +2566,7 @@ def get_type_label(email_type: str) -> str:
         "bug_fixes": "🐛 Bug Fix",
         "pricing_changes": "💰 Pricing Update",
         "usage_tips": "💡 Usage Tip",
+        "charity_updates": "❤️ Charity Update",
         "all": "📢 Announcement",
         "test": "🧪 Test Email"
     }
@@ -2677,7 +2680,8 @@ async def get_user_email_preferences(user: dict = Depends(get_current_user)):
             "feature_updates": True,
             "bug_fixes": True,
             "pricing_changes": True,
-            "usage_tips": True
+            "usage_tips": True,
+            "charity_updates": True
         })
         return email_prefs
     else:
@@ -2686,7 +2690,8 @@ async def get_user_email_preferences(user: dict = Depends(get_current_user)):
             "feature_updates": True,
             "bug_fixes": True,
             "pricing_changes": True,
-            "usage_tips": True
+            "usage_tips": True,
+            "charity_updates": True
         }
 
 @main_app.post("/user/email-preferences")
@@ -2703,7 +2708,8 @@ async def update_user_email_preferences(
             "feature_updates": preferences.feature_updates,
             "bug_fixes": preferences.bug_fixes,
             "pricing_changes": preferences.pricing_changes,
-            "usage_tips": preferences.usage_tips
+            "usage_tips": preferences.usage_tips,
+            "charity_updates": preferences.charity_updates
         }
     }, merge=True)
     
@@ -2858,14 +2864,16 @@ async def unsubscribe_user(user_id: str, email_type: str = None):
                 "feature_updates": True,
                 "bug_fixes": True,
                 "pricing_changes": True,
-                "usage_tips": True
+                "usage_tips": True,
+                "charity_updates": True
             })
         else:
             email_prefs = {
                 "feature_updates": True,
                 "bug_fixes": True,
                 "pricing_changes": True,
-                "usage_tips": True
+                "usage_tips": True,
+                "charity_updates": True
             }
         
         # Update preferences based on email_type
@@ -2930,6 +2938,9 @@ async def unsubscribe_user(user_id: str, email_type: str = None):
                     </div>
                     <div class="preference-item {'enabled' if email_prefs['usage_tips'] else 'disabled'}">
                         💡 <strong>Usage Tips & Best Practices:</strong> {'Enabled' if email_prefs['usage_tips'] else 'Disabled'}
+                    </div>
+                    <div class="preference-item {'enabled' if email_prefs.get('charity_updates', True) else 'disabled'}">
+                        ❤️ <strong>Houseless Movement Updates:</strong> {'Enabled' if email_prefs.get('charity_updates', True) else 'Disabled'}
                     </div>
                 </div>
                 
