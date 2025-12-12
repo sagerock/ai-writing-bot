@@ -44,6 +44,21 @@ from openai import AsyncOpenAI
 from google.cloud.firestore_v1.query import Query
 from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.document import DocumentReference
+from cost_tracker import estimate_tokens, estimate_request_cost, calculate_cost_cents
+
+# Stripe integration (optional - gracefully handle if not configured)
+try:
+    import stripe
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+    STRIPE_ENABLED = bool(stripe.api_key)
+    if STRIPE_ENABLED:
+        print("✓ Stripe initialized")
+    else:
+        print("⚠ Stripe not configured (STRIPE_SECRET_KEY not set)")
+except ImportError:
+    STRIPE_ENABLED = False
+    print("⚠ Stripe not installed")
 
 # Email functionality (optional)
 try:
@@ -134,6 +149,72 @@ def save_to_mem0_background(user_id: str, user_message: str, assistant_message: 
         print(f"Auto-saved conversation to mem0 for user {user_id}")
     except Exception as e:
         print(f"Failed to auto-save to mem0: {e}")
+
+
+def log_usage_with_cost(
+    user_id: str,
+    model: str,
+    original_model: str,
+    routed_category: str,
+    input_text: str,
+    output_text: str,
+    search_web: bool = False,
+    search_docs: bool = False
+):
+    """
+    Log usage with actual token counts and cost calculation.
+    Also updates monthly aggregates for billing.
+    """
+    try:
+        # Calculate tokens and cost
+        input_tokens = estimate_tokens(input_text, model)
+        output_tokens = estimate_tokens(output_text, model)
+        cost_cents = calculate_cost_cents(model, input_tokens, output_tokens)
+
+        now = datetime.now()
+        month_key = now.strftime("%Y-%m")
+        date_key = now.strftime("%Y-%m-%d")
+
+        # Log individual request
+        db.collection("usage_logs").add({
+            "user_id": user_id,
+            "model": model,
+            "original_model": original_model,
+            "routed_category": routed_category,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "date_key": date_key,
+            "month_key": month_key,
+            "search_web": search_web,
+            "search_docs": search_docs,
+            # New cost tracking fields
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_cents": cost_cents,
+        })
+
+        # Update monthly aggregate for this user
+        monthly_ref = db.collection("user_monthly_usage").document(f"{user_id}_{month_key}")
+        monthly_ref.set({
+            "user_id": user_id,
+            "month": month_key,
+            "total_ai_cost_cents": firestore.Increment(cost_cents),
+            "total_requests": firestore.Increment(1),
+            "total_input_tokens": firestore.Increment(input_tokens),
+            "total_output_tokens": firestore.Increment(output_tokens),
+            "updated_at": firestore.SERVER_TIMESTAMP,
+        }, merge=True)
+
+        # Update user's all-time totals
+        db.collection("users").document(user_id).set({
+            "all_time_ai_cost_cents": firestore.Increment(cost_cents),
+            "all_time_requests": firestore.Increment(1),
+        }, merge=True)
+
+        print(f"Usage logged: {model}, {input_tokens}+{output_tokens} tokens, ${cost_cents/100:.4f}")
+
+    except Exception as e:
+        print(f"Failed to log usage with cost: {e}")
+
 
 # --- Authentication ---
 async def get_current_user(authorization: str = Header(...)):
@@ -462,7 +543,13 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
         print(f"Router failed: {e}, defaulting to general")
         return ROUTING_MODELS["general"], "general"
 
-async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context: str = ""):
+async def generate_gpt5_response(
+    req: ChatRequest,
+    user_id: str,
+    memory_context: str = "",
+    original_model: str = None,
+    routed_category: str = None
+):
     """Generate streaming response for GPT-5 models using Chat Completions API with GPT-5 parameters."""
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -557,6 +644,19 @@ async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context:
         if last_user_msg and full_response:
             save_to_mem0_background(user_id, last_user_msg, full_response)
 
+        # Log usage with actual token counts and costs
+        input_text = "\n".join([m.get('content', '') for m in messages])
+        log_usage_with_cost(
+            user_id=user_id,
+            model=req.model,
+            original_model=original_model or req.model,
+            routed_category=routed_category,
+            input_text=input_text,
+            output_text=full_response,
+            search_web=req.search_web,
+            search_docs=req.search_docs,
+        )
+
     except Exception as e:
         error_msg = f"Error in GPT-5 response: {str(e)}"
         print(error_msg)
@@ -637,20 +737,16 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 temperature=req.temperature
             )
 
-    # Log usage for analytics (after routing so we capture the actual model used)
-    try:
-        db.collection("usage_logs").add({
-            "user_id": user_id,
-            "model": req.model,  # The actual model used (after routing)
-            "original_model": original_model,  # "auto" or the specific model requested
-            "routed_category": routed_category,  # The category from router (if auto)
-            "timestamp": firestore.SERVER_TIMESTAMP,
-            "date_key": datetime.now().strftime("%Y-%m-%d"),
-            "search_web": req.search_web,
-            "search_docs": req.search_docs
-        })
-    except Exception as e:
-        print(f"Failed to log usage: {e}")  # Don't fail the request if logging fails
+    # Usage logging moved to AFTER response generation (so we can capture output tokens)
+    # Store variables needed for logging
+    usage_log_data = {
+        "user_id": user_id,
+        "model": req.model,
+        "original_model": original_model,
+        "routed_category": routed_category,
+        "search_web": req.search_web,
+        "search_docs": req.search_docs,
+    }
 
     # --- RAG: Search user's documents for relevant context (only if enabled) ---
     rag_context = ""
@@ -738,7 +834,11 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             )
 
         # Use the Responses API for GPT-5 models
-        async for token in generate_gpt5_response(req, user_id, memory_context):
+        async for token in generate_gpt5_response(
+            req, user_id, memory_context,
+            original_model=usage_log_data["original_model"],
+            routed_category=usage_log_data["routed_category"]
+        ):
             yield f"data: {token}\n\n"
         yield "data: [DONE]\n\n"
         return
@@ -835,6 +935,19 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 break
         if last_user_msg and response_accum:
             save_to_mem0_background(user_id, last_user_msg, response_accum)
+
+        # Log usage with actual token counts and costs
+        input_text = "\n".join([m.get('content', '') for m in llm_history])
+        log_usage_with_cost(
+            user_id=usage_log_data["user_id"],
+            model=usage_log_data["model"],
+            original_model=usage_log_data["original_model"],
+            routed_category=usage_log_data["routed_category"],
+            input_text=input_text,
+            output_text=response_accum,
+            search_web=usage_log_data["search_web"],
+            search_docs=usage_log_data["search_docs"],
+        )
 
     except asyncio.CancelledError:
         print("Stream cancelled by client.")
@@ -1159,10 +1272,363 @@ async def get_user_credits(user: dict = Depends(get_current_user)):
         # This case should ideally not happen if user has interacted at least once.
         # But as a fallback, we can say they have the initial free credits.
         return JSONResponse(content={"credits": 100})
-    
+
     user_data = user_snapshot.to_dict()
     credits = user_data.get("credits", 0)
     return JSONResponse(content={"credits": credits})
+
+
+# --- Billing & Subscription Endpoints ---
+
+@main_app.get("/user/billing")
+async def get_user_billing(user: dict = Depends(get_current_user)):
+    """Get user's billing dashboard data including AI costs and charity contribution."""
+    user_id = user['user_id']
+
+    try:
+        # Get user data
+        user_ref = db.collection("users").document(user_id)
+        user_snapshot = user_ref.get()
+        user_data = user_snapshot.to_dict() if user_snapshot.exists else {}
+
+        # Get current month's usage
+        now = datetime.now()
+        month_key = now.strftime("%Y-%m")
+        monthly_ref = db.collection("user_monthly_usage").document(f"{user_id}_{month_key}")
+        monthly_snapshot = monthly_ref.get()
+        monthly_data = monthly_snapshot.to_dict() if monthly_snapshot.exists else {}
+
+        # Get subscription info
+        subscription_amount_cents = user_data.get("subscription_amount", 2000)  # Default $20
+        subscription_status = user_data.get("subscription_status", "none")
+
+        # Calculate current month's AI cost
+        current_month_ai_cost_cents = monthly_data.get("total_ai_cost_cents", 0)
+        current_month_requests = monthly_data.get("total_requests", 0)
+
+        # Calculate charity contribution (subscription - AI costs, minimum 0)
+        current_month_charity_cents = max(0, subscription_amount_cents - current_month_ai_cost_cents)
+
+        # Get all-time totals
+        all_time_ai_cost_cents = user_data.get("all_time_ai_cost_cents", 0)
+        all_time_requests = user_data.get("all_time_requests", 0)
+
+        # Calculate all-time charity (would need to track subscription payments)
+        # For now, estimate based on months subscribed
+        all_time_charity_cents = user_data.get("all_time_charity_cents", 0)
+
+        # Check if user is approaching their subscription limit (80% threshold)
+        usage_warning = current_month_ai_cost_cents >= (subscription_amount_cents * 0.8)
+
+        return JSONResponse(content={
+            "subscription": {
+                "status": subscription_status,
+                "amount_cents": subscription_amount_cents,
+                "amount_display": f"${subscription_amount_cents / 100:.2f}",
+            },
+            "current_month": {
+                "month": month_key,
+                "ai_cost_cents": current_month_ai_cost_cents,
+                "ai_cost_display": f"${current_month_ai_cost_cents / 100:.2f}",
+                "charity_cents": current_month_charity_cents,
+                "charity_display": f"${current_month_charity_cents / 100:.2f}",
+                "requests": current_month_requests,
+                "usage_percent": round((current_month_ai_cost_cents / subscription_amount_cents) * 100, 1) if subscription_amount_cents > 0 else 0,
+            },
+            "all_time": {
+                "ai_cost_cents": all_time_ai_cost_cents,
+                "ai_cost_display": f"${all_time_ai_cost_cents / 100:.2f}",
+                "charity_cents": all_time_charity_cents,
+                "charity_display": f"${all_time_charity_cents / 100:.2f}",
+                "requests": all_time_requests,
+            },
+            "usage_warning": usage_warning,
+        })
+
+    except Exception as e:
+        print(f"Error getting billing data: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to get billing data"}
+        )
+
+
+@main_app.get("/user/subscription")
+async def get_user_subscription(user: dict = Depends(get_current_user)):
+    """Get user's subscription status."""
+    user_id = user['user_id']
+
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_snapshot = user_ref.get()
+
+        if not user_snapshot.exists:
+            return JSONResponse(content={
+                "status": "none",
+                "amount_cents": 0,
+                "stripe_customer_id": None,
+            })
+
+        user_data = user_snapshot.to_dict()
+
+        return JSONResponse(content={
+            "status": user_data.get("subscription_status", "none"),
+            "amount_cents": user_data.get("subscription_amount", 0),
+            "stripe_customer_id": user_data.get("stripe_customer_id"),
+            "current_period_end": user_data.get("subscription_current_period_end"),
+        })
+
+    except Exception as e:
+        print(f"Error getting subscription: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to get subscription data"}
+        )
+
+
+# --- Stripe Payment Endpoints ---
+
+class CreateCheckoutRequest(BaseModel):
+    amount_cents: int = 2000  # Default $20, minimum
+    success_url: str
+    cancel_url: str
+
+
+@main_app.post("/stripe/create-checkout")
+async def create_stripe_checkout(
+    req: CreateCheckoutRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Create a Stripe checkout session for subscription."""
+    if not STRIPE_ENABLED:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Payments not configured"}
+        )
+
+    user_id = user['user_id']
+    user_email = user.get('email', '')
+
+    try:
+        # Ensure minimum $20
+        amount_cents = max(req.amount_cents, 2000)
+
+        # Check if user already has a Stripe customer ID
+        user_ref = db.collection("users").document(user_id)
+        user_snapshot = user_ref.get()
+        user_data = user_snapshot.to_dict() if user_snapshot.exists else {}
+        stripe_customer_id = user_data.get("stripe_customer_id")
+
+        # Create or retrieve Stripe customer
+        if not stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=user_email,
+                metadata={"firebase_user_id": user_id}
+            )
+            stripe_customer_id = customer.id
+            # Save customer ID
+            user_ref.set({"stripe_customer_id": stripe_customer_id}, merge=True)
+
+        # Create checkout session with variable pricing
+        # Using a price_data approach for flexible amounts
+        session = stripe.checkout.Session.create(
+            customer=stripe_customer_id,
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": "RomaLume Subscription",
+                        "description": f"Monthly subscription - 100% of profits go to Houseless Movement charity",
+                    },
+                    "unit_amount": amount_cents,
+                    "recurring": {"interval": "month"},
+                },
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url=req.success_url,
+            cancel_url=req.cancel_url,
+            metadata={
+                "firebase_user_id": user_id,
+                "amount_cents": str(amount_cents),
+            },
+        )
+
+        return JSONResponse(content={
+            "checkout_url": session.url,
+            "session_id": session.id,
+        })
+
+    except Exception as e:
+        print(f"Stripe checkout error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to create checkout: {str(e)}"}
+        )
+
+
+@main_app.post("/stripe/create-portal")
+async def create_stripe_portal(user: dict = Depends(get_current_user)):
+    """Create a Stripe customer portal session for managing subscription."""
+    if not STRIPE_ENABLED:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Payments not configured"}
+        )
+
+    user_id = user['user_id']
+
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_snapshot = user_ref.get()
+
+        if not user_snapshot.exists:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "User not found"}
+            )
+
+        user_data = user_snapshot.to_dict()
+        stripe_customer_id = user_data.get("stripe_customer_id")
+
+        if not stripe_customer_id:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No subscription found"}
+            )
+
+        # Create portal session
+        session = stripe.billing_portal.Session.create(
+            customer=stripe_customer_id,
+            return_url=os.getenv("FRONTEND_URL", "https://ai-writing-tool-bdebc.web.app") + "/account",
+        )
+
+        return JSONResponse(content={"portal_url": session.url})
+
+    except Exception as e:
+        print(f"Stripe portal error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to create portal: {str(e)}"}
+        )
+
+
+@main_app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events."""
+    if not STRIPE_ENABLED:
+        return JSONResponse(status_code=503, content={"error": "Payments not configured"})
+
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        print(f"Invalid payload: {e}")
+        return JSONResponse(status_code=400, content={"error": "Invalid payload"})
+    except stripe.error.SignatureVerificationError as e:
+        print(f"Invalid signature: {e}")
+        return JSONResponse(status_code=400, content={"error": "Invalid signature"})
+
+    # Handle subscription events
+    event_type = event["type"]
+    data = event["data"]["object"]
+
+    print(f"Stripe webhook: {event_type}")
+
+    try:
+        if event_type == "checkout.session.completed":
+            # New subscription created
+            customer_id = data.get("customer")
+            subscription_id = data.get("subscription")
+            metadata = data.get("metadata", {})
+            user_id = metadata.get("firebase_user_id")
+            amount_cents = int(metadata.get("amount_cents", 2000))
+
+            if user_id:
+                # Get subscription details
+                subscription = stripe.Subscription.retrieve(subscription_id)
+
+                db.collection("users").document(user_id).set({
+                    "stripe_customer_id": customer_id,
+                    "stripe_subscription_id": subscription_id,
+                    "subscription_status": "active",
+                    "subscription_amount": amount_cents,
+                    "subscription_started_at": firestore.SERVER_TIMESTAMP,
+                    "subscription_current_period_end": datetime.fromtimestamp(subscription.current_period_end),
+                }, merge=True)
+
+                # Add to all-time charity tracking
+                db.collection("users").document(user_id).set({
+                    "all_time_charity_cents": firestore.Increment(amount_cents),
+                }, merge=True)
+
+                print(f"Subscription activated for user {user_id}: ${amount_cents/100}")
+
+        elif event_type == "customer.subscription.updated":
+            subscription_id = data.get("id")
+            status = data.get("status")
+            customer_id = data.get("customer")
+
+            # Find user by customer ID
+            users = db.collection("users").where("stripe_customer_id", "==", customer_id).limit(1).get()
+
+            for user_doc in users:
+                user_doc.reference.update({
+                    "subscription_status": status,
+                    "subscription_current_period_end": datetime.fromtimestamp(data.get("current_period_end", 0)),
+                })
+                print(f"Subscription updated for {user_doc.id}: {status}")
+
+        elif event_type == "customer.subscription.deleted":
+            customer_id = data.get("customer")
+
+            # Find user by customer ID
+            users = db.collection("users").where("stripe_customer_id", "==", customer_id).limit(1).get()
+
+            for user_doc in users:
+                user_doc.reference.update({
+                    "subscription_status": "canceled",
+                })
+                print(f"Subscription canceled for {user_doc.id}")
+
+        elif event_type == "invoice.paid":
+            customer_id = data.get("customer")
+            amount_paid = data.get("amount_paid", 0)
+
+            # Find user and update charity tracking
+            users = db.collection("users").where("stripe_customer_id", "==", customer_id).limit(1).get()
+
+            for user_doc in users:
+                # Get current month's AI cost to calculate charity portion
+                user_id = user_doc.id
+                month_key = datetime.now().strftime("%Y-%m")
+                monthly_ref = db.collection("user_monthly_usage").document(f"{user_id}_{month_key}")
+                monthly_snapshot = monthly_ref.get()
+                monthly_data = monthly_snapshot.to_dict() if monthly_snapshot.exists else {}
+                ai_cost = monthly_data.get("total_ai_cost_cents", 0)
+
+                charity_amount = max(0, amount_paid - ai_cost)
+
+                user_doc.reference.set({
+                    "all_time_charity_cents": firestore.Increment(charity_amount),
+                    "last_payment_at": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+
+                print(f"Invoice paid for {user_id}: ${amount_paid/100}, charity: ${charity_amount/100}")
+
+    except Exception as e:
+        print(f"Webhook processing error: {e}")
+        # Still return 200 to acknowledge receipt
+        import traceback
+        traceback.print_exc()
+
+    return JSONResponse(content={"status": "ok"})
+
 
 # Background task to index document after quick upload
 def index_document_background(user_id: str, filename: str, text: str, file_content: bytes, content_type: str):

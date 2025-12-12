@@ -3049,3 +3049,542 @@ hr {
     font-size: 16px;
     margin: 0;
 }
+
+/* ========================================
+   BILLING DASHBOARD STYLES
+   ======================================== */
+
+.billing-dashboard {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.billing-dashboard h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.3em;
+    color: #2c3e50;
+}
+
+.billing-dashboard h4 {
+    margin: 0 0 12px 0;
+    font-size: 1.1em;
+    color: #34495e;
+}
+
+.billing-section {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.usage-progress {
+    height: 12px;
+    background: #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.usage-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 6px;
+    transition: width 0.3s ease;
+}
+
+.usage-bar.warning {
+    background: linear-gradient(90deg, #ffc107, #fd7e14);
+}
+
+.usage-percent {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 16px;
+}
+
+.cost-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cost-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.cost-item.charity-cost {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.cost-label {
+    font-size: 0.95em;
+    color: #495057;
+}
+
+.cost-value {
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+.cost-value.highlight {
+    color: #28a745;
+}
+
+.usage-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 16px;
+}
+
+.usage-warning p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #856404;
+}
+
+.billing-section.all-time {
+    background: linear-gradient(135deg, #e8f4f8 0%, #d1ecf1 100%);
+}
+
+.impact-stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.impact-stat {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+}
+
+.impact-stat.highlight {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.billing-actions {
+    margin-top: 16px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95em;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-secondary:disabled {
+    background: #adb5bd;
+    cursor: not-allowed;
+}
+
+.charity-info {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #dee2e6;
+}
+
+.charity-info h4 {
+    color: #28a745;
+}
+
+.charity-info p {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.charity-info a {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.subscription-cta {
+    text-align: center;
+    padding: 20px;
+}
+
+.subscription-cta p {
+    margin-bottom: 16px;
+    color: #495057;
+}
+
+/* ========================================
+   PRICING PAGE STYLES
+   ======================================== */
+
+.pricing-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 40px 20px;
+}
+
+.pricing-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.pricing-page h1 {
+    color: white;
+    text-align: center;
+    margin-bottom: 8px;
+    font-size: 2.2em;
+}
+
+.pricing-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    text-align: center;
+    font-size: 1.2em;
+    margin-bottom: 32px;
+}
+
+.pricing-card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.amount-selector {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.amount-selector label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #2c3e50;
+}
+
+.slider-container {
+    margin-bottom: 8px;
+}
+
+.amount-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #e9ecef;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.amount-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.amount-display {
+    font-size: 2.5em;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 16px 0;
+}
+
+.amount-labels {
+    display: flex;
+    justify-content: space-between;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.pricing-breakdown {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.pricing-breakdown h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.1em;
+    color: #2c3e50;
+}
+
+.breakdown-bar {
+    display: flex;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.bar-ai {
+    background: #6c757d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.bar-charity {
+    background: linear-gradient(90deg, #28a745, #20c997);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.breakdown-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+}
+
+.detail-item.highlight .detail-value {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.breakdown-note {
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 12px;
+    font-style: italic;
+}
+
+.features-list {
+    margin-bottom: 24px;
+}
+
+.features-list h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.1em;
+    color: #2c3e50;
+}
+
+.features-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.features-list li {
+    padding: 8px 0;
+    padding-left: 24px;
+    position: relative;
+    color: #495057;
+}
+
+.features-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #28a745;
+    font-weight: bold;
+}
+
+.btn-subscribe {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-subscribe:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-subscribe:disabled {
+    background: #adb5bd;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.cancel-note {
+    text-align: center;
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-top: 12px;
+}
+
+.charity-section {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 32px;
+    color: white;
+    text-align: center;
+}
+
+.charity-section h2 {
+    margin: 0 0 16px 0;
+}
+
+.charity-section p {
+    margin-bottom: 12px;
+    opacity: 0.9;
+}
+
+.learn-more-link {
+    color: white;
+    font-weight: 600;
+}
+
+.already-subscribed {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+}
+
+.already-subscribed h2 {
+    color: #28a745;
+    margin-bottom: 12px;
+}
+
+/* ========================================
+   SUBSCRIPTION SUCCESS PAGE
+   ======================================== */
+
+.subscription-success {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.success-container {
+    background: white;
+    border-radius: 16px;
+    padding: 48px;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.success-icon {
+    width: 80px;
+    height: 80px;
+    background: #28a745;
+    color: white;
+    font-size: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+}
+
+.success-container h1 {
+    color: #2c3e50;
+    margin-bottom: 16px;
+}
+
+.success-message {
+    font-size: 1.1em;
+    color: #495057;
+    margin-bottom: 24px;
+}
+
+.impact-message {
+    background: #d4edda;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.impact-message p {
+    margin: 0;
+    color: #155724;
+}
+
+.next-steps {
+    text-align: left;
+    margin-bottom: 24px;
+}
+
+.next-steps h3 {
+    color: #2c3e50;
+    margin-bottom: 12px;
+}
+
+.next-steps ul {
+    list-style: none;
+    padding: 0;
+}
+
+.next-steps li {
+    padding: 8px 0;
+    padding-left: 24px;
+    position: relative;
+    color: #495057;
+}
+
+.next-steps li:before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: #28a745;
+}
+
+.redirect-notice {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 16px;
+}
+
+.error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}

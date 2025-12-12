@@ -10,6 +10,8 @@ import AdminPage from './components/AdminPage'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import ModelDocsPage from './pages/ModelDocsPage'
+import PricingPage from './pages/PricingPage'
+import SubscriptionSuccess from './pages/SubscriptionSuccess'
 import { API_URL } from './apiConfig'
 import './App.css'
 
@@ -279,8 +281,14 @@ function App() {
             <Route path="/register" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
             <Route path="/forgot-password" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
             <Route path="/model-docs" element={<ModelDocsPage />} />
+            <Route path="/pricing" element={<PricingPage auth={auth} />} />
 
             {/* Protected routes */}
+            <Route path="/subscribe/success" element={
+                <ProtectedRoute user={user}>
+                    <SubscriptionSuccess />
+                </ProtectedRoute>
+            } />
             <Route path="/chat" element={
                 <ProtectedRoute user={user}>
                     {renderChatInterface()}

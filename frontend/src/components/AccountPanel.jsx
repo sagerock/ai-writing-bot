@@ -8,6 +8,7 @@ import {
     EmailAuthProvider
 } from 'firebase/auth';
 import { API_URL } from '../apiConfig';
+import BillingDashboard from './BillingDashboard';
 
 const AccountPanel = ({ auth }) => {
     const [displayName, setDisplayName] = useState(auth.currentUser?.displayName || '');
@@ -437,15 +438,7 @@ const AccountPanel = ({ auth }) => {
             {error && <p className="error">{error}</p>}
             {success && <p className="success">{success}</p>}
 
-            <div className="account-credits">
-                <h3>Your Credits</h3>
-                {credits !== null ? (
-                    <p>You have <strong>{credits}</strong> credits remaining.</p>
-                ) : (
-                    <p>Loading credits...</p>
-                )}
-                <button onClick={() => alert('Purchase functionality coming soon!')}>Buy More Credits</button>
-            </div>
+            <BillingDashboard auth={auth} />
 
             <hr />
 
