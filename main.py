@@ -435,15 +435,23 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
             max_completion_tokens=20  # GPT-5 models use max_completion_tokens, not max_tokens
         )
 
-        category = response.choices[0].message.content.strip().lower()
+        raw_response = response.choices[0].message.content.strip().lower()
+        print(f"Router raw response: '{raw_response}'")
 
-        # Map category to model, default to general if unknown
-        if category in ROUTING_MODELS:
+        # Extract category from response - handle various formats
+        # Could be "simple", "simple.", "Category: simple", etc.
+        category = None
+        for cat in ROUTING_MODELS.keys():
+            if cat in raw_response:
+                category = cat
+                break
+
+        if category:
             model = ROUTING_MODELS[category]
             print(f"Router: '{category}' -> {model}")
             return model, category
         else:
-            print(f"Router: Unknown category '{category}', defaulting to general")
+            print(f"Router: Could not extract category from '{raw_response}', defaulting to general")
             return ROUTING_MODELS["general"], "general"
 
     except Exception as e:
