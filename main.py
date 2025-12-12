@@ -134,6 +134,15 @@ except ImportError:
 except Exception as e:
     print(f"⚠ mem0 initialization failed: {e}")
 
+# Email Marketing Tool integration (for onboarding sequences)
+EMAIL_MARKETING_API_URL = os.getenv("EMAIL_MARKETING_API_URL", "https://api.mail.sagerock.com")
+EMAIL_MARKETING_API_KEY = os.getenv("EMAIL_MARKETING_API_KEY")
+EMAIL_MARKETING_CLIENT_ID = os.getenv("EMAIL_MARKETING_CLIENT_ID")
+if EMAIL_MARKETING_API_KEY and EMAIL_MARKETING_CLIENT_ID:
+    print("✓ Email marketing integration configured")
+else:
+    print("⚠ Email marketing not configured (EMAIL_MARKETING_API_KEY or EMAIL_MARKETING_CLIENT_ID not set)")
+
 main_app = FastAPI()
 
 def save_to_mem0_background(user_id: str, user_message: str, assistant_message: str):
@@ -149,6 +158,44 @@ def save_to_mem0_background(user_id: str, user_message: str, assistant_message: 
         print(f"Auto-saved conversation to mem0 for user {user_id}")
     except Exception as e:
         print(f"Failed to auto-save to mem0: {e}")
+
+
+def send_to_email_marketing_background(email: str, tags: List[str] = None):
+    """
+    Send a new user to the email marketing tool for onboarding sequences.
+    This runs in a background task to not block the signup flow.
+    """
+    import requests
+
+    if not EMAIL_MARKETING_API_KEY or not EMAIL_MARKETING_CLIENT_ID:
+        print("Email marketing not configured, skipping")
+        return
+
+    if tags is None:
+        tags = ["romalume-signup"]
+
+    try:
+        response = requests.post(
+            f"{EMAIL_MARKETING_API_URL}/api/contacts/upsert",
+            headers={
+                "Authorization": f"Bearer {EMAIL_MARKETING_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "client_id": EMAIL_MARKETING_CLIENT_ID,
+                "email": email.lower().strip(),
+                "tags": tags
+            },
+            timeout=10
+        )
+
+        if response.ok:
+            result = response.json()
+            print(f"✓ Sent {email} to email marketing ({result.get('action', 'unknown')})")
+        else:
+            print(f"✗ Email marketing API error: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"✗ Failed to send to email marketing: {e}")
 
 
 def log_usage_with_cost(
@@ -353,9 +400,12 @@ async def check_signup_rate_limit(request: Request):
         "attempts_remaining": SIGNUP_RATE_LIMIT
     }
 
+class SignupRequest(BaseModel):
+    email: str = None  # Optional - for email marketing integration
+
 @main_app.post("/signup/record")
-async def record_signup(request: Request):
-    """Record a successful signup attempt for rate limiting."""
+async def record_signup(request: Request, background_tasks: BackgroundTasks, body: SignupRequest = None):
+    """Record a successful signup attempt for rate limiting and send to email marketing."""
     client_ip = get_client_ip(request)
 
     signup_ref = db.collection("signup_rate_limits").document(client_ip)
@@ -373,6 +423,14 @@ async def record_signup(request: Request):
         signup_ref.update({"attempts": recent_attempts, "last_attempt": now})
     else:
         signup_ref.set({"attempts": [now], "last_attempt": now})
+
+    # Send to email marketing tool in the background
+    if body and body.email:
+        background_tasks.add_task(
+            send_to_email_marketing_background,
+            email=body.email,
+            tags=["romalume-signup"]
+        )
 
     return {"recorded": True}
 

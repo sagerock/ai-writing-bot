@@ -38,8 +38,12 @@ const AuthPage = () => {
       // Proceed with signup
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Record successful signup for rate limiting
-      await fetch(`${API_URL}/signup/record`, { method: 'POST' });
+      // Record successful signup for rate limiting and send to email marketing
+      await fetch(`${API_URL}/signup/record`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      });
 
       // User is now automatically signed in and can access the app immediately
       // The onAuthStateChanged listener in App.jsx will handle navigation to the main app
