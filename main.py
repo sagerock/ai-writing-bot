@@ -38,6 +38,7 @@ from google.auth.transport import requests as google_requests
 from langchain_anthropic import ChatAnthropic
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
+import google.generativeai as genai
 from langchain_openai import ChatOpenAI
 from openai import AsyncOpenAI
 from google.cloud.firestore_v1.query import Query
@@ -423,19 +424,22 @@ Category:"""
 
 async def route_to_best_model(user_message: str) -> tuple[str, str]:
     """
-    Use GPT-5 Nano to quickly classify the message and route to the best model.
+    Use Gemini 2.0 Flash to quickly classify the message and route to the best model.
     Returns (model_name, category) tuple.
     """
-    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
     try:
-        response = await client.chat.completions.create(
-            model="gpt-5-nano-2025-08-07",
-            messages=[{"role": "user", "content": ROUTER_PROMPT.format(message=user_message[:500])}],
-            max_completion_tokens=20  # GPT-5 models use max_completion_tokens, not max_tokens
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        model = genai.GenerativeModel("gemini-2.0-flash")
+
+        response = await model.generate_content_async(
+            ROUTER_PROMPT.format(message=user_message[:500]),
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=20,
+                temperature=0.0  # Deterministic for consistent routing
+            )
         )
 
-        raw_response = response.choices[0].message.content.strip().lower()
+        raw_response = response.text.strip().lower()
         print(f"Router raw response: '{raw_response}'")
 
         # Extract category from response - handle various formats
@@ -447,15 +451,15 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
                 break
 
         if category:
-            model = ROUTING_MODELS[category]
-            print(f"Router: '{category}' -> {model}")
-            return model, category
+            routed_model = ROUTING_MODELS[category]
+            print(f"Router: '{category}' -> {routed_model}")
+            return routed_model, category
         else:
             print(f"Router: Could not extract category from '{raw_response}', defaulting to general")
             return ROUTING_MODELS["general"], "general"
 
     except Exception as e:
-        print(f"Router failed: {e}, defaulting to Opus 4.5")
+        print(f"Router failed: {e}, defaulting to general")
         return ROUTING_MODELS["general"], "general"
 
 async def generate_gpt5_response(req: ChatRequest, user_id: str, memory_context: str = ""):
