@@ -377,34 +377,45 @@ def is_gpt5_model(model_name: str) -> bool:
     gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
-# Model routing configuration
-# Auto-routing uses Opus 4.5 as default for best user experience
-# Opus 4.5: $5/$25 - maximum intelligence, practical performance
-# Haiku 4.5: $1/$5 - fast & economical for simple queries
+# Model routing configuration - optimized for cost efficiency
+# Costs per ~2K tokens:
+#   Gemini 2.0 Flash: $0.0005 (cheapest)
+#   GPT-5 Mini: $0.002
+#   Haiku 4.5: $0.006
+#   Gemini 2.5 Flash: $0.003
+#   Sonnet 4.5: $0.018
+#   Opus 4.5: $0.03 (premium quality)
 ROUTING_MODELS = {
-    "simple": "claude-haiku-4-5",    # Quick facts - Haiku (fast & economical)
-    "general": "claude-opus-4-5",    # Everyday tasks - Opus 4.5 (best quality)
-    "coding": "claude-opus-4-5",     # Complex coding - Opus 4.5 (highest intelligence)
-    "writing": "claude-opus-4-5",    # Creative writing - Opus 4.5 (best quality)
-    "analysis": "claude-opus-4-5",   # Analysis, research - Opus 4.5 (best quality)
-    "science": "claude-opus-4-5",    # Scientific analysis - Opus 4.5 (best quality)
+    "simple": "gemini-2.0-flash",      # Quick facts - ultra cheap & fast
+    "general": "claude-sonnet-4-5",    # Everyday tasks - good quality, 40% cheaper than Opus
+    "coding": "claude-opus-4-5",       # Complex coding - needs highest intelligence
+    "writing": "claude-opus-4-5",      # Creative writing - needs best quality
+    "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, 63% cheaper
+    "science": "gemini-2.5-pro",       # Scientific analysis - good at explanations, cheaper
 }
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
 
 Categories:
-- simple: Greetings, yes/no questions, quick facts, definitions, short answers
-- general: Casual chat, opinions, advice, recommendations, everyday questions
-- coding: Programming, code, debugging, technical implementation, APIs, software, scripts
-- writing: Write/create poems, stories, essays, emails, marketing copy, creative writing
-- analysis: Data analysis, research, compare/contrast, pros/cons, strategic thinking, business
-- science: Explain science, physics, biology, chemistry, math, how things work, educational
+- simple: Greetings, thanks, yes/no questions, quick facts, definitions, translations, unit conversions, simple lookups, short direct answers, follow-up questions, clarifications
+- general: Casual chat, opinions, advice, recommendations, everyday questions, summarizing, rephrasing, explaining concepts simply, brainstorming ideas, lists
+- coding: Writing NEW code, debugging errors, implementing features, refactoring, complex technical problems, architecture decisions, code review
+- writing: Creative writing (poems, stories, fiction), formal essays, persuasive copy, emotional/nuanced content, voice/tone sensitive writing
+- analysis: Deep data analysis, research synthesis, compare/contrast with reasoning, strategic planning, business analysis, detailed evaluations
+- science: Complex scientific explanations, mathematical proofs, physics problems, detailed educational content
 
-IMPORTANT:
-- "write", "create", "compose" -> writing
-- "explain" science/math/how something works -> science
-- "analyze", "compare", "evaluate", "research" -> analysis
-- "code", "debug", "implement", "function", "script" -> coding
+ROUTING RULES (follow strictly):
+1. Short messages (<20 words) asking factual questions -> simple
+2. "What is X?" or "Define X" or "How do you say X in Y?" -> simple
+3. Quick code QUESTIONS (not writing code) -> general
+4. Explaining code that exists -> general
+5. WRITING new code or fixing bugs -> coding
+6. Creative, emotional, or voice-sensitive writing -> writing
+7. Simple summaries or rewording -> general
+8. Deep analysis requiring reasoning -> analysis
+
+When uncertain between simple/general, choose simple.
+When uncertain between general/analysis, choose general.
 
 Message: "{message}"
 
