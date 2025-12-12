@@ -165,12 +165,35 @@ const PricingPage = ({ auth }) => {
                             </button>
 
                             <p className="cancel-note">Cancel anytime. No questions asked.</p>
+
+                            <div className="tax-info">
+                                <p className="tax-note">
+                                    <strong>Note:</strong> Your subscription is not tax-deductible.
+                                </p>
+                                <details className="tax-explanation">
+                                    <summary>Why not?</summary>
+                                    <p>
+                                        IRS rules require that charitable donations be gifts with no expectation
+                                        of receiving something in return. Since your subscription gives you access
+                                        to our AI service, it's considered a purchase rather than a donation—even
+                                        though we donate the profits to charity.
+                                    </p>
+                                    <p>
+                                        Think of it like buying cookies from a school fundraiser: you're supporting
+                                        a good cause, but you're also getting cookies, so it's not tax-deductible.
+                                    </p>
+                                    <p>
+                                        <strong>Your impact is still 100% real!</strong> The money still goes to
+                                        help homeless individuals in Akron—it just can't be written off on your taxes.
+                                    </p>
+                                </details>
+                            </div>
                         </div>
 
                         <div className="charity-section">
                             <h2>About Houseless Movement</h2>
                             <p>
-                                Houseless Movement is a charity helping homeless individuals
+                                Houseless Movement is a 501(c)(3) charity helping homeless individuals
                                 in Akron, Ohio find shelter, support, and dignity.
                             </p>
                             <p>
