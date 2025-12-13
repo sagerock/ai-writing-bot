@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
 
 const PricingPage = ({ auth }) => {
@@ -146,7 +146,7 @@ const PricingPage = ({ auth }) => {
                             <div className="features-list">
                                 <h3>What You Get</h3>
                                 <ul>
-                                    <li>Access to 12+ AI models (GPT-5, Claude, Gemini)</li>
+                                    <li>Access to <Link to="/models" className="inline-link">17+ AI models</Link> (GPT-5, Claude, Gemini)</li>
                                     <li>Smart auto-routing picks the best model</li>
                                     <li>Document search across all your uploads</li>
                                     <li>AI remembers your preferences</li>

@@ -44,7 +44,7 @@ from openai import AsyncOpenAI
 from google.cloud.firestore_v1.query import Query
 from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.document import DocumentReference
-from cost_tracker import estimate_tokens, estimate_request_cost, calculate_cost_cents
+from cost_tracker import estimate_tokens, estimate_request_cost, calculate_cost_cents, get_models_catalog
 
 # Stripe integration (optional - gracefully handle if not configured)
 try:
@@ -296,6 +296,20 @@ main_app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Public Endpoints (no auth required) ---
+
+@main_app.get("/models")
+async def get_models():
+    """
+    Get the catalog of available AI models with pricing.
+    This is a public endpoint - no authentication required.
+    """
+    return {
+        "models": get_models_catalog(),
+        "pricing_note": "Prices shown are per 1 million tokens. Actual costs depend on usage.",
+        "auto_routing_info": "When using 'Auto' mode, we intelligently route your request to the most appropriate model based on the task type."
+    }
+
 # --- Pydantic Models ---
 class Message(BaseModel):
     role: str
@@ -515,7 +529,7 @@ def get_llm(model_name: str, temperature: float = 0.7):
 
 def is_gpt5_model(model_name: str) -> bool:
     """Check if model is a GPT-5 family model that requires Responses API."""
-    gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1"]
+    gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1", "gpt-5.2"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration - optimized for cost efficiency
@@ -2316,6 +2330,7 @@ MODEL_COSTS = {
     "gpt-5-2025": 0.011,    # $1.25 input / $10.00 output
     "gpt-5-pro": 0.135,     # $15.00 input / $120.00 output
     "gpt-5.1": 0.011,       # $1.25 input / $10.00 output
+    "gpt-5.2": 0.012,       # $1.50 input / $10.50 output (latest)
     # OpenAI GPT-4.1 family
     "gpt-4.1-nano": 0.0005, # $0.10 input / $0.40 output
     "gpt-4.1-mini": 0.0004, # $0.40 input / $1.60 output -> ~0.002 but corrected

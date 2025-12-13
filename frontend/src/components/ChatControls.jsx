@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 // Model documentation links
 const MODEL_DOCS = {
@@ -71,7 +72,11 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
               </button>
               {showModelDocs && (
                 <div className="model-docs-dropdown">
-                  <div className="model-docs-header">Latest Model Docs</div>
+                  <div className="model-docs-header">Model Resources</div>
+                  <Link to="/models" className="model-docs-link model-pricing-link">
+                    View All Models & Pricing →
+                  </Link>
+                  <div className="model-docs-divider"></div>
                   {Object.entries(MODEL_DOCS).map(([key, { name, url }]) => (
                     <a
                       key={key}
@@ -80,7 +85,7 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
                       rel="noopener noreferrer"
                       className="model-docs-link"
                     >
-                      {name} →
+                      {name} Docs →
                     </a>
                   ))}
                 </div>
@@ -92,9 +97,10 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
             <optgroup label="OpenAI - GPT-5 Series">
               <option value="gpt-5-nano-2025-08-07">GPT-5 Nano (Ultra-fast)</option>
               <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Default)</option>
-              <option value="gpt-5-2025-08-07">GPT-5 (Premium)</option>
+              <option value="gpt-5-2025-08-07">GPT-5</option>
               <option value="gpt-5-pro-2025-10-06">GPT-5 Pro (Advanced)</option>
-              <option value="gpt-5.1-2025-11-13">GPT-5.1 (Latest)</option>
+              <option value="gpt-5.1-2025-11-13">GPT-5.1</option>
+              <option value="gpt-5.2">GPT-5.2 (Latest)</option>
             </optgroup>
             <optgroup label="OpenAI - GPT-4.1 Series">
               <option value="gpt-4.1-nano-2025-04-14">GPT-4.1 Nano</option>
@@ -102,12 +108,15 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
               <option value="gpt-4.1-2025-04-14">GPT-4.1</option>
             </optgroup>
             <optgroup label="Anthropic">
+              <option value="claude-opus-4-5-20251101">Claude Opus 4.5 (Premium)</option>
               <option value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</option>
-              <option value="claude-opus-4-1-20250805">Claude Opus 4.1 (Research)</option>
+              <option value="claude-opus-4-1-20250805">Claude Opus 4.1</option>
             </optgroup>
             <optgroup label="Google">
-              <option value="gemini-2.5-flash">Gemini Flash (Fast)</option>
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro (Educational)</option>
+              <option value="gemini-3-pro">Gemini 3 Pro (Preview)</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
             </optgroup>
             <optgroup label="Perplexity">
               <option value="sonar-pro">Sonar Pro (Real-time Search)</option>
