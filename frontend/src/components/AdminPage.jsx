@@ -3,10 +3,6 @@ import { Link } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
 
 const AdminPage = ({ auth }) => {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    
     // Email functionality
     const [emailForm, setEmailForm] = useState({
         subject: '',
@@ -31,30 +27,8 @@ const AdminPage = ({ auth }) => {
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [timeRange, setTimeRange] = useState(30);
 
-    const fetchUsers = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/admin/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to fetch users.');
-            }
-            const data = await response.json();
-            setUsers(data);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
         if (auth.currentUser) {
-            fetchUsers();
             fetchAnalytics();
         }
     }, [auth.currentUser]);
@@ -89,46 +63,6 @@ const AdminPage = ({ auth }) => {
             console.error('Failed to fetch analytics:', err);
         } finally {
             setAnalyticsLoading(false);
-        }
-    };
-
-    const handleUpdateCredits = async (userId, amount) => {
-        const amountValue = parseInt(prompt(`Enter the amount of credits to add or remove (e.g., 50 or -10) for ${userId}:`));
-        if (isNaN(amountValue)) {
-            alert('Invalid number entered.');
-            return;
-        }
-
-        try {
-            const token = await auth.currentUser.getIdToken();
-            await fetch(`${API_URL}/admin/users/${userId}/credits`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ amount: amountValue })
-            });
-            alert('Credits updated successfully!');
-            fetchUsers(); // Refresh users list
-        } catch (err) {
-            alert('Failed to update credits.');
-        }
-    };
-
-    const handleUpdateRole = async (userId, isAdmin) => {
-        if (!window.confirm(`Are you sure you want to ${isAdmin ? 'grant' : 'revoke'} admin rights for ${userId}?`)) {
-            return;
-        }
-
-        try {
-            const token = await auth.currentUser.getIdToken();
-            await fetch(`${API_URL}/admin/users/${userId}/role`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ is_admin: isAdmin })
-            });
-            alert('User role updated successfully!');
-            fetchUsers(); // Refresh users list
-        } catch (err) {
-            alert('Failed to update role.');
         }
     };
 
@@ -265,27 +199,6 @@ const AdminPage = ({ auth }) => {
         }
     };
 
-    const debugSpecificUser = async (userId) => {
-        setDebugUserId(userId);
-        setDebugLoading(true);
-        setDebugResult(null);
-        try {
-            const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/admin/debug/user/${userId}/credits`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) {
-                throw new Error('Failed to debug user credits');
-            }
-            const result = await response.json();
-            setDebugResult(result);
-        } catch (err) {
-            alert('Failed to debug user: ' + err.message);
-        } finally {
-            setDebugLoading(false);
-        }
-    };
-
     // Calculate max for chart scaling
     const maxDailyRequests = Math.max(...dailyData.map(d => d.total_requests), 1);
 
@@ -400,43 +313,11 @@ const AdminPage = ({ auth }) => {
             </div>
 
             <div className="admin-panel">
-                <h1>Admin Panel</h1>
-                {loading && <p>Loading users...</p>}
-                {error && <p className="error">{error}</p>}
-                <table className="users-table">
-                    <thead>
-                        <tr>
-                            <th>UID</th>
-                            <th>Email</th>
-                            <th>Display Name</th>
-                            <th>Credits Left</th>
-                            <th>Credits Used</th>
-                            <th>Is Admin?</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {users.map(user => (
-                            <tr key={user.uid}>
-                                <td>{user.uid}</td>
-                                <td>{user.email}</td>
-                                <td>{user.displayName}</td>
-                                <td>{user.credits}</td>
-                                <td>{user.credits_used || 0}</td>
-                                <td>{user.isAdmin ? 'Yes' : 'No'}</td>
-                                <td>
-                                    <button onClick={() => handleUpdateCredits(user.uid)}>Update Credits</button>
-                                    <button onClick={() => debugSpecificUser(user.uid)}>Debug</button>
-                                    {!user.isAdmin ? (
-                                        <button onClick={() => handleUpdateRole(user.uid, true)}>Make Admin</button>
-                                    ) : (
-                                        <button onClick={() => handleUpdateRole(user.uid, false)}>Revoke Admin</button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <h2>User Management</h2>
+                <p>Manage users, update credits, and control admin access.</p>
+                <Link to="/admin/users" className="admin-nav-button">
+                    Manage Users &rarr;
+                </Link>
             </div>
 
             <div className="admin-panel">

@@ -2089,6 +2089,11 @@ class CreditUpdate(BaseModel):
 class RoleUpdate(BaseModel):
     is_admin: bool
 
+class UserUpdate(BaseModel):
+    display_name: Optional[str] = None
+    credits: Optional[int] = None
+    is_admin: Optional[bool] = None
+
 @main_app.get("/admin/users", response_model=List[dict])
 async def list_users(_: dict = Depends(get_current_admin_user)):
     """Lists all users from Firebase Auth and merges with Firestore data."""
@@ -2134,6 +2139,27 @@ async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depe
     try:
         firebase_auth.set_custom_user_claims(user_id, {"admin": role_update.is_admin})
         return {"message": f"User role updated successfully. Admin: {role_update.is_admin}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.put("/admin/users/{user_id}")
+async def update_user(user_id: str, user_update: UserUpdate, _: dict = Depends(get_current_admin_user)):
+    """Update user fields (display_name, credits, is_admin)."""
+    try:
+        # Update display name in Firebase Auth
+        if user_update.display_name is not None:
+            firebase_auth.update_user(user_id, display_name=user_update.display_name)
+
+        # Update credits in Firestore
+        if user_update.credits is not None:
+            user_ref = db.collection("users").document(user_id)
+            user_ref.set({"credits": user_update.credits}, merge=True)
+
+        # Update admin status in Firebase Auth custom claims
+        if user_update.is_admin is not None:
+            firebase_auth.set_custom_user_claims(user_id, {"admin": user_update.is_admin})
+
+        return {"message": "User updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

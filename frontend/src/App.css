@@ -1394,6 +1394,201 @@ hr {
     color: white;
 }
 
+/* Admin Users Page - Search and Filters */
+.users-search-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.users-search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.users-search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+.users-filter-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.users-filter-buttons .filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #dee2e6;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+}
+
+.users-filter-buttons .filter-btn:hover {
+    background: #f8f9fa;
+}
+
+.users-filter-buttons .filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.users-count {
+    color: #6c757d;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+/* Inline Editing Cells */
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+}
+
+.editable-cell:hover {
+    background-color: #e9f5ff;
+}
+
+.editable-cell .editable-value {
+    display: block;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.editable-cell:hover .editable-value {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.editable-cell.editing {
+    padding: 0;
+}
+
+.editable-cell input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid #007bff;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.editable-cell input:focus {
+    outline: none;
+}
+
+.empty-value {
+    color: #adb5bd;
+}
+
+/* UID Cell */
+.uid-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.uid-text {
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.copy-btn {
+    padding: 2px 6px;
+    font-size: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+}
+
+/* Admin Toggle Switch */
+.admin-toggle-cell {
+    text-align: center;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.2s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #28a745;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+/* Admin Nav Button */
+.admin-nav-button {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background-color 0.15s;
+}
+
+.admin-nav-button:hover {
+    background-color: #0056b3;
+    color: white;
+}
+
+.no-results {
+    text-align: center;
+    color: #6c757d;
+    padding: 40px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   /* Make the main container scrollable instead of individual panels */

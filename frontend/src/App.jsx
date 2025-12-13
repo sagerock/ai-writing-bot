@@ -7,6 +7,7 @@ import ProjectsPanel from './components/ProjectsPanel'
 import AccountPage from './components/AccountPage'
 import MemoriesPage from './components/MemoriesPage'
 import AdminPage from './components/AdminPage'
+import AdminUsersPage from './components/AdminUsersPage'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import ModelDocsPage from './pages/ModelDocsPage'
@@ -309,6 +310,11 @@ function App() {
             <Route path="/admin" element={
                 <ProtectedRoute user={user}>
                     <AdminPage auth={auth} />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+                <ProtectedRoute user={user}>
+                    <AdminUsersPage auth={auth} />
                 </ProtectedRoute>
             } />
         </Routes>
