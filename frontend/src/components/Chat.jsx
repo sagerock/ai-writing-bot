@@ -63,6 +63,7 @@ const Chat = ({
   const [showModelSelector, setShowModelSelector] = useState(false); // Model picker dropdown
   const [feedback, setFeedback] = useState({}); // Tracks feedback per message index
   const [sessionId] = useState(() => `chat_${Date.now()}`); // Unique ID for this chat session
+  const userScrolledUp = useRef(false); // Track if user manually scrolled up
 
   // Update model/temperature when defaults change from settings
   useEffect(() => {
@@ -73,12 +74,33 @@ const Chat = ({
     setTemperature(defaultTemperature);
   }, [defaultTemperature]);
 
-  // Auto-scroll to bottom when new messages are added
-  useEffect(() => {
+  // Check if user is near bottom of chat
+  const isNearBottom = () => {
+    if (!chatWindowRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = chatWindowRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100; // Within 100px of bottom
+  };
+
+  // Handle user scroll - detect if they scrolled up
+  const handleScroll = () => {
     if (chatWindowRef.current) {
+      userScrolledUp.current = !isNearBottom();
+    }
+  };
+
+  // Auto-scroll to bottom when new messages are added (only if user hasn't scrolled up)
+  useEffect(() => {
+    if (chatWindowRef.current && !userScrolledUp.current) {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
   }, [history, forceRerender]);
+
+  // Reset scroll lock when loading starts (new message being sent)
+  useEffect(() => {
+    if (loading) {
+      userScrolledUp.current = false;
+    }
+  }, [loading]);
 
   // Auto-resize textarea as user types
   const autoResizeTextarea = () => {
@@ -407,7 +429,7 @@ const Chat = ({
 
         {/* Messages - scrollable area */}
         {hasMessages && (
-          <div className="chat-messages" ref={chatWindowRef}>
+          <div className="chat-messages" ref={chatWindowRef} onScroll={handleScroll}>
             {history.map((msg, index) => (
               <div key={index} className={`message ${msg.role}`}>
                 {msg.role === 'context' ? (
@@ -585,7 +607,7 @@ const Chat = ({
         />
       </div>
       <div className="chat-container">
-        <div className="chat-window" key={forceRerender} ref={chatWindowRef}>
+        <div className="chat-window" key={forceRerender} ref={chatWindowRef} onScroll={handleScroll}>
           {history.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
               {msg.role === 'context' ? (
