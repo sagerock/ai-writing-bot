@@ -436,11 +436,7 @@ const Chat = ({
                   <p><em>{msg.display_text}</em></p>
                 ) : msg.role === 'assistant' ? (
                   <>
-                    {msg.streaming ? (
-                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{msg.content}</pre>
-                    ) : (
-                      <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
-                    )}
+                    <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || '') }} />
                     {msg.content && !msg.streaming && (
                       <div className="message-actions">
                         <button
@@ -614,11 +610,7 @@ const Chat = ({
                 <p><em>{msg.display_text}</em></p>
               ) : msg.role === 'assistant' ? (
                 <>
-                  {msg.streaming ? (
-                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{msg.content}</pre>
-                  ) : (
-                    <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
-                  )}
+                  <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || '') }} />
                   {msg.content && !msg.streaming && (
                     <div className="message-actions">
                       <button
