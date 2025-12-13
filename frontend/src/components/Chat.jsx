@@ -21,6 +21,8 @@ const MODEL_OPTIONS = [
   { id: 'gpt-5-2025-08-07', name: 'GPT-5', category: 'OpenAI' },
   { id: 'gpt-5-pro-2025-10-06', name: 'GPT-5 Pro', category: 'OpenAI' },
   { id: 'gpt-5.1-2025-11-13', name: 'GPT-5.1', category: 'OpenAI' },
+  { id: 'gpt-5.2', name: 'GPT-5.2', category: 'OpenAI' },
+  { id: 'gpt-5.2-pro', name: 'GPT-5.2 Pro', category: 'OpenAI' },
   { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', category: 'Anthropic' },
   { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', category: 'Anthropic' },
   { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', category: 'Google' },
@@ -552,10 +554,10 @@ const Chat = ({
                   </button>
                 ))}
                 <Link
-                  to="/model-docs"
+                  to="/models"
                   className="model-docs-link-bottom"
                 >
-                  View model docs →
+                  View all models & pricing →
                 </Link>
               </div>
             )}
