@@ -17,6 +17,10 @@ const AdminUsersPage = ({ auth }) => {
     const [saving, setSaving] = useState(false);
     const inputRef = useRef(null);
 
+    // Dropdown menu state
+    const [openDropdown, setOpenDropdown] = useState(null); // uid of user with open dropdown
+    const dropdownRef = useRef(null);
+
     const fetchUsers = async () => {
         setLoading(true);
         setError('');
@@ -173,6 +177,69 @@ const AdminUsersPage = ({ auth }) => {
         navigator.clipboard.writeText(text);
     };
 
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (openDropdown && !event.target.closest('.actions-dropdown')) {
+                setOpenDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openDropdown]);
+
+    const unsubscribeUser = async (uid, email) => {
+        if (!window.confirm(`Unsubscribe ${email} from all system emails?`)) {
+            return;
+        }
+        setOpenDropdown(null);
+        setSaving(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/users/${uid}/unsubscribe`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to unsubscribe user');
+            }
+            alert(`${email} has been unsubscribed from all emails.`);
+        } catch (err) {
+            alert('Failed to unsubscribe: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const deleteUser = async (uid, email) => {
+        if (!window.confirm(`Are you sure you want to DELETE ${email}?\n\nThis will permanently remove:\n- Their account\n- All conversations and archives\n- All documents\n- All AI memories\n\nThis cannot be undone!`)) {
+            return;
+        }
+        // Double confirmation for safety
+        if (!window.confirm(`FINAL WARNING: Delete ${email} permanently?`)) {
+            return;
+        }
+        setOpenDropdown(null);
+        setSaving(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/users/${uid}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to delete user');
+            }
+            // Remove from local state
+            setUsers(prev => prev.filter(u => u.uid !== uid));
+            alert(`${email} has been deleted.`);
+        } catch (err) {
+            alert('Failed to delete user: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="admin-page">
             <nav className="account-nav">
@@ -230,6 +297,7 @@ const AdminUsersPage = ({ auth }) => {
                                 <th>Credits</th>
                                 <th>Used</th>
                                 <th>Admin</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -308,6 +376,31 @@ const AdminUsersPage = ({ auth }) => {
                                             />
                                             <span className="toggle-slider"></span>
                                         </label>
+                                    </td>
+
+                                    {/* Actions Dropdown */}
+                                    <td className="actions-cell">
+                                        <div className="actions-dropdown">
+                                            <button
+                                                className="actions-btn"
+                                                onClick={() => setOpenDropdown(openDropdown === user.uid ? null : user.uid)}
+                                            >
+                                                ⋮
+                                            </button>
+                                            {openDropdown === user.uid && (
+                                                <div className="dropdown-menu">
+                                                    <button onClick={() => unsubscribeUser(user.uid, user.email)}>
+                                                        📧 Unsubscribe from emails
+                                                    </button>
+                                                    <button
+                                                        className="danger"
+                                                        onClick={() => deleteUser(user.uid, user.email)}
+                                                    >
+                                                        🗑️ Delete user
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

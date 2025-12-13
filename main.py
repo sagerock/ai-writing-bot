@@ -2163,6 +2163,61 @@ async def update_user(user_id: str, user_update: UserUpdate, _: dict = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@main_app.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str, _: dict = Depends(get_current_admin_user)):
+    """Permanently delete a user and all their data."""
+    try:
+        # Delete from Firestore - user document and subcollections
+        user_ref = db.collection("users").document(user_id)
+
+        # Delete subcollections (archives, conversations, documents)
+        for subcollection_name in ['archives', 'conversations', 'documents']:
+            subcollection = user_ref.collection(subcollection_name)
+            docs = subcollection.stream()
+            for doc in docs:
+                doc.reference.delete()
+
+        # Delete the user document itself
+        user_ref.delete()
+
+        # Delete from mem0 if available
+        if mem0_client:
+            try:
+                mem0_client.delete_all(user_id=user_id)
+                print(f"Deleted mem0 memories for user {user_id}")
+            except Exception as mem0_error:
+                print(f"Failed to delete mem0 memories (non-fatal): {mem0_error}")
+
+        # Delete from Firebase Auth (this must be last as it invalidates the user)
+        firebase_auth.delete_user(user_id)
+
+        print(f"User {user_id} deleted successfully")
+        return {"message": f"User {user_id} deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.post("/admin/users/{user_id}/unsubscribe")
+async def unsubscribe_user(user_id: str, _: dict = Depends(get_current_admin_user)):
+    """Unsubscribe a user from all system emails."""
+    try:
+        user_ref = db.collection("users").document(user_id)
+
+        # Set all email preferences to False
+        user_ref.set({
+            "email_preferences": {
+                "feature_updates": False,
+                "bug_fixes": False,
+                "pricing_changes": False,
+                "usage_tips": False,
+                "charity_updates": False
+            }
+        }, merge=True)
+
+        print(f"User {user_id} unsubscribed from all emails")
+        return {"message": "User unsubscribed from all emails"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @main_app.get("/admin/debug/user/{user_id}/credits")
 async def debug_user_credits(user_id: str, _: dict = Depends(get_current_admin_user)):
     """
