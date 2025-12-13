@@ -641,12 +641,18 @@ async def generate_gpt5_response(
             "content": msg.content
         })
 
-    # Inject memory context as a system message
+    # Add base system prompt with optional memory context
+    base_instruction = "When the user changes topics or asks about something new, respond to that topic directly without forcing connections to previous unrelated topics in this conversation. Treat each distinct subject independently unless there's a clear and explicit connection."
+
     if memory_context:
-        messages.insert(0, {
-            "role": "system",
-            "content": f"You have the following memories about this user from previous conversations:\n{memory_context}\n\nUse this context to provide more personalized and relevant responses."
-        })
+        system_content = f"{base_instruction}\n\nYou have the following memories about this user from previous conversations:\n{memory_context}\n\nUse these memories only when directly relevant to the current question."
+    else:
+        system_content = base_instruction
+
+    messages.insert(0, {
+        "role": "system",
+        "content": system_content
+    })
 
     # Handle web search for GPT-5 models
     if req.search_web and messages:
@@ -942,13 +948,18 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     llm = get_llm(req.model, req.temperature)
     history_messages = [message.dict() for message in req.history]
 
-    # Inject memory context as a system message for non-GPT5 models
+    # Add base system prompt with optional memory context for non-GPT5 models
+    base_instruction = "When the user changes topics or asks about something new, respond to that topic directly without forcing connections to previous unrelated topics in this conversation. Treat each distinct subject independently unless there's a clear and explicit connection."
+
     if memory_context:
-        memory_system_msg = {
-            "role": "system",
-            "content": f"You have the following memories about this user from previous conversations:\n{memory_context}\n\nUse this context to provide more personalized and relevant responses."
-        }
-        history_messages.insert(0, memory_system_msg)
+        system_content = f"{base_instruction}\n\nYou have the following memories about this user from previous conversations:\n{memory_context}\n\nUse these memories only when directly relevant to the current question."
+    else:
+        system_content = base_instruction
+
+    history_messages.insert(0, {
+        "role": "system",
+        "content": system_content
+    })
 
     # Inject RAG context into the conversation for non-GPT5 models
     if rag_context:
