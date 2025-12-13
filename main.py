@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Optional
 import asyncio
 from uuid import uuid4
 import io
