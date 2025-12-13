@@ -2164,7 +2164,7 @@ async def update_user(user_id: str, user_update: UserUpdate, _: dict = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 @main_app.delete("/admin/users/{user_id}")
-async def delete_user(user_id: str, _: dict = Depends(get_current_admin_user)):
+async def admin_delete_user(user_id: str, _: dict = Depends(get_current_admin_user)):
     """Permanently delete a user and all their data."""
     try:
         # Delete from Firestore - user document and subcollections
@@ -2172,10 +2172,13 @@ async def delete_user(user_id: str, _: dict = Depends(get_current_admin_user)):
 
         # Delete subcollections (archives, conversations, documents)
         for subcollection_name in ['archives', 'conversations', 'documents']:
-            subcollection = user_ref.collection(subcollection_name)
-            docs = subcollection.stream()
-            for doc in docs:
-                doc.reference.delete()
+            try:
+                subcollection = user_ref.collection(subcollection_name)
+                docs = list(subcollection.stream())
+                for doc in docs:
+                    doc.reference.delete()
+            except Exception as sub_err:
+                print(f"Error deleting {subcollection_name} for {user_id}: {sub_err}")
 
         # Delete the user document itself
         user_ref.delete()
@@ -2194,6 +2197,7 @@ async def delete_user(user_id: str, _: dict = Depends(get_current_admin_user)):
         print(f"User {user_id} deleted successfully")
         return {"message": f"User {user_id} deleted successfully"}
     except Exception as e:
+        print(f"Error deleting user {user_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @main_app.post("/admin/users/{user_id}/unsubscribe")
