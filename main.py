@@ -544,7 +544,7 @@ ROUTING_MODELS = {
     "simple": "gemini-2.0-flash",      # Quick facts - ultra cheap & fast
     "general": "claude-sonnet-4-5",    # Everyday tasks - good quality, 40% cheaper than Opus
     "coding": "claude-opus-4-5",       # Complex coding - needs highest intelligence
-    "writing": "claude-opus-4-5",      # Creative writing - needs best quality
+    "writing": "claude-sonnet-4-5",    # Creative writing - great quality, cost effective
     "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, 63% cheaper
     "science": "gemini-2.5-pro",       # Scientific analysis - good at explanations, cheaper
     "realtime": "sonar-pro",           # Current events, live data - needs web search
