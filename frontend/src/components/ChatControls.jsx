@@ -98,7 +98,6 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
               <option value="gpt-5-nano-2025-08-07">GPT-5 Nano (Ultra-fast)</option>
               <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Default)</option>
               <option value="gpt-5-2025-08-07">GPT-5</option>
-              <option value="gpt-5-pro-2025-10-06">GPT-5 Pro (Advanced)</option>
               <option value="gpt-5.1-2025-11-13">GPT-5.1</option>
               <option value="gpt-5.2">GPT-5.2 (Latest)</option>
             </optgroup>

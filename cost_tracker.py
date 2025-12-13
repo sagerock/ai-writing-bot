@@ -13,7 +13,6 @@ MODEL_PRICING = {
     "gpt-5-nano": {"input": 0.05, "output": 0.40},
     "gpt-5-mini": {"input": 0.25, "output": 2.00},
     "gpt-5": {"input": 1.25, "output": 10.00},
-    "gpt-5-pro": {"input": 15.00, "output": 120.00},
     "gpt-5.1": {"input": 1.25, "output": 10.00},
     "gpt-5.2": {"input": 1.50, "output": 10.50},
 
@@ -74,17 +73,6 @@ MODELS_CATALOG = [
         "output_price": 10.00,
         "context_window": 128000,
         "best_for": ["Complex analysis", "Code generation", "Research"],
-    },
-    {
-        "id": "gpt-5-pro-2025-10-06",
-        "name": "GPT-5 Pro",
-        "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "Advanced model for professional and enterprise use",
-        "input_price": 15.00,
-        "output_price": 120.00,
-        "context_window": 128000,
-        "best_for": ["Enterprise tasks", "Advanced reasoning", "Complex coding"],
     },
     {
         "id": "gpt-5.1-2025-11-13",

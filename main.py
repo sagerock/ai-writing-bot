@@ -529,7 +529,7 @@ def get_llm(model_name: str, temperature: float = 0.7):
 
 def is_gpt5_model(model_name: str) -> bool:
     """Check if model is a GPT-5 family model that requires Responses API."""
-    gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.1", "gpt-5.2"]
+    gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.1", "gpt-5.2"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration - optimized for cost efficiency
@@ -2328,7 +2328,6 @@ MODEL_COSTS = {
     "gpt-5-nano": 0.0005,   # $0.05 input / $0.40 output
     "gpt-5-mini": 0.002,    # $0.25 input / $2.00 output
     "gpt-5-2025": 0.011,    # $1.25 input / $10.00 output
-    "gpt-5-pro": 0.135,     # $15.00 input / $120.00 output
     "gpt-5.1": 0.011,       # $1.25 input / $10.00 output
     "gpt-5.2": 0.012,       # $1.50 input / $10.50 output (latest)
     # OpenAI GPT-4.1 family
