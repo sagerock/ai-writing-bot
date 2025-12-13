@@ -547,6 +547,7 @@ ROUTING_MODELS = {
     "writing": "claude-opus-4-5",      # Creative writing - needs best quality
     "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, 63% cheaper
     "science": "gemini-2.5-pro",       # Scientific analysis - good at explanations, cheaper
+    "realtime": "sonar-pro",           # Current events, live data - needs web search
 }
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
@@ -558,6 +559,7 @@ Categories:
 - writing: Creative writing (poems, stories, fiction), formal essays, persuasive copy, emotional/nuanced content, voice/tone sensitive writing
 - analysis: Deep data analysis, research synthesis, compare/contrast with reasoning, strategic planning, business analysis, detailed evaluations
 - science: Complex scientific explanations, mathematical proofs, physics problems, detailed educational content
+- realtime: Current events, news, weather, stock prices, sports scores, "what happened today/recently", live data, anything requiring up-to-date information from the internet
 
 ROUTING RULES (follow strictly):
 1. Short messages (<20 words) asking factual questions -> simple
@@ -568,6 +570,8 @@ ROUTING RULES (follow strictly):
 6. Creative, emotional, or voice-sensitive writing -> writing
 7. Simple summaries or rewording -> general
 8. Deep analysis requiring reasoning -> analysis
+9. Questions about current/recent events, news, prices, weather, scores -> realtime
+10. Questions containing "today", "latest", "current", "recent", "now", "this week" -> realtime
 
 When uncertain between simple/general, choose simple.
 When uncertain between general/analysis, choose general.
