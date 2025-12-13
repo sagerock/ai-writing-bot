@@ -27,6 +27,7 @@ const MODEL_OPTIONS = [
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', category: 'Google' },
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', category: 'Google' },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', category: 'Google' },
+  { id: 'sonar-pro', name: 'Sonar Pro', category: 'Perplexity' },
 ];
 
 const getModelDisplayName = (modelId) => {
