@@ -166,6 +166,30 @@ const AccountPanel = ({ auth }) => {
             setProfileLoading(true);
             try {
                 const token = await auth.currentUser.getIdToken();
+
+                // First try auto-generate (will only generate if needed)
+                const autoGenResponse = await fetch(`${API_URL}/user/profile/auto-generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (autoGenResponse.ok) {
+                    const autoGenData = await autoGenResponse.json();
+                    if (autoGenData.action === 'generated') {
+                        console.log('Profile auto-generated:', autoGenData.reason);
+                        setProfile(autoGenData.profile);
+                        setProfileLoading(false);
+                        return;
+                    } else if (autoGenData.profile) {
+                        // Already have a profile, use it
+                        setProfile(autoGenData.profile);
+                        setProfileLoading(false);
+                        return;
+                    }
+                }
+
+                // Fallback to regular fetch
                 const response = await fetch(`${API_URL}/user/profile`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -538,6 +562,20 @@ const AccountPanel = ({ auth }) => {
                     </div>
                 ) : editingProfile ? (
                     <form onSubmit={handleSaveUserProfile} className="profile-edit-form">
+                        <div className="profile-field always-remember-field">
+                            <label>Always Remember (max 500 characters):</label>
+                            <textarea
+                                value={profile.always_remember || ''}
+                                onChange={(e) => {
+                                    if (e.target.value.length <= 500) {
+                                        handleProfileFieldChange('always_remember', e.target.value);
+                                    }
+                                }}
+                                placeholder="Things you always want the AI to know about you - your name, birthday, important facts..."
+                                rows={3}
+                            />
+                            <span className="char-count">{(profile.always_remember || '').length}/500</span>
+                        </div>
                         <div className="profile-field">
                             <label>Work:</label>
                             <input
@@ -635,6 +673,16 @@ const AccountPanel = ({ auth }) => {
                     </form>
                 ) : (
                     <div className="profile-display">
+                        {/* Always Remember - prominent display */}
+                        <div className="always-remember-display">
+                            <label>Always Remember:</label>
+                            {profile.always_remember ? (
+                                <p className="always-remember-content">{profile.always_remember}</p>
+                            ) : (
+                                <p className="always-remember-empty">Click "Edit Profile" to add things you want the AI to always remember about you.</p>
+                            )}
+                        </div>
+
                         <div className="profile-content">
                             {profile.work && <p><strong>Work:</strong> {profile.work}</p>}
                             {profile.background && <p><strong>Background:</strong> {profile.background}</p>}

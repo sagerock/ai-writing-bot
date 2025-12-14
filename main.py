@@ -862,6 +862,10 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             profile = profile_doc.to_dict()
             profile_parts = []
 
+            # Always Remember goes first - user-specified priority info
+            if profile.get("always_remember"):
+                profile_parts.append(f"IMPORTANT - User wants you to always remember: {profile['always_remember']}")
+
             # Format profile into readable context
             if profile.get("work"):
                 profile_parts.append(f"Work: {profile['work']}")
@@ -1099,6 +1103,7 @@ async def delete_all_user_memories(user: dict = Depends(get_current_user)):
 
 class UserProfile(BaseModel):
     """Structured user profile built from conversation history."""
+    always_remember: Optional[str] = ""  # User-defined permanent notes (max 500 chars)
     family: Optional[List[str]] = []
     pets: Optional[List[str]] = []
     work: Optional[str] = ""
@@ -1110,6 +1115,7 @@ class UserProfile(BaseModel):
     projects: Optional[List[str]] = []
     other: Optional[List[str]] = []
     last_updated: Optional[str] = None
+    last_archive_count: Optional[int] = 0  # Track archive count at last generation
 
 @main_app.get("/user/profile")
 async def get_user_profile(user: dict = Depends(get_current_user)):
@@ -1124,6 +1130,7 @@ async def get_user_profile(user: dict = Depends(get_current_user)):
         else:
             # Return empty profile structure
             return JSONResponse(content={"profile": {
+                "always_remember": "",
                 "family": [],
                 "pets": [],
                 "work": "",
@@ -1134,7 +1141,8 @@ async def get_user_profile(user: dict = Depends(get_current_user)):
                 "communication_preferences": [],
                 "projects": [],
                 "other": [],
-                "last_updated": None
+                "last_updated": None,
+                "last_archive_count": 0
             }})
     except Exception as e:
         print(f"Error fetching profile: {e}")
@@ -1160,13 +1168,21 @@ async def generate_user_profile(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
 
     try:
+        # Get existing profile to preserve always_remember field
+        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        existing_profile = profile_ref.get()
+        existing_always_remember = ""
+        if existing_profile.exists:
+            existing_always_remember = existing_profile.to_dict().get("always_remember", "")
+
         # Fetch recent archives (limit to last 50 to avoid token limits)
         archives_ref = db.collection("users").document(user_id).collection("archives")
-        archives = archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream()
+        archives_list = list(archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream())
+        total_archive_count = len(list(archives_ref.stream()))  # Get total count for tracking
 
         # Extract conversation content
         all_conversations = []
-        for archive in archives:
+        for archive in archives_list:
             data = archive.to_dict()
             messages = data.get("messages", [])
             if messages:
@@ -1240,10 +1256,11 @@ Return ONLY valid JSON, no other text."""
             print(f"Raw response: {profile_text}")
             return JSONResponse(status_code=500, content={"error": "Failed to parse generated profile"})
 
-        # Add timestamp and save to Firestore
+        # Add timestamp, preserve always_remember, and track archive count
         profile_data["last_updated"] = datetime.now().isoformat()
+        profile_data["always_remember"] = existing_always_remember  # Preserve user's manual notes
+        profile_data["last_archive_count"] = total_archive_count
 
-        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
         profile_ref.set(profile_data)
 
         return JSONResponse(content={
@@ -1256,6 +1273,148 @@ Return ONLY valid JSON, no other text."""
         import traceback
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@main_app.post("/user/profile/auto-generate")
+async def auto_generate_profile(user: dict = Depends(get_current_user)):
+    """Check if profile needs auto-generation and generate if needed.
+
+    Auto-generates if:
+    - No profile exists and user has 5+ archives
+    - Profile exists but 10+ new archives since last generation
+    """
+    user_id = user['user_id']
+
+    try:
+        # Get current profile
+        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        profile_doc = profile_ref.get()
+
+        # Count total archives
+        archives_ref = db.collection("users").document(user_id).collection("archives")
+        total_archives = len(list(archives_ref.stream()))
+
+        if profile_doc.exists:
+            profile = profile_doc.to_dict()
+            last_archive_count = profile.get("last_archive_count", 0)
+
+            # Only regenerate if 10+ new archives since last generation
+            if total_archives - last_archive_count < 10:
+                return JSONResponse(content={
+                    "action": "skipped",
+                    "reason": f"Only {total_archives - last_archive_count} new archives since last generation",
+                    "profile": profile
+                })
+        else:
+            # No profile - only generate if user has 5+ archives
+            if total_archives < 5:
+                return JSONResponse(content={
+                    "action": "skipped",
+                    "reason": f"Only {total_archives} archives, need 5+ to generate profile",
+                    "profile": None
+                })
+
+        # Trigger profile generation
+        # Re-use the existing generate function logic
+        existing_always_remember = ""
+        if profile_doc.exists:
+            existing_always_remember = profile_doc.to_dict().get("always_remember", "")
+
+        archives_list = list(archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream())
+
+        all_conversations = []
+        for archive in archives_list:
+            data = archive.to_dict()
+            messages = data.get("messages", [])
+            if messages:
+                conv_text = []
+                for msg in messages:
+                    role = msg.get("role", "")
+                    content = msg.get("content", "")
+                    if role in ["user", "assistant"] and content:
+                        conv_text.append(f"{role}: {content[:500]}")
+                if conv_text:
+                    all_conversations.append("\n".join(conv_text[:10]))
+
+        if not all_conversations:
+            return JSONResponse(content={
+                "action": "skipped",
+                "reason": "No conversation content to analyze",
+                "profile": None
+            })
+
+        combined_text = "\n\n---\n\n".join(all_conversations[:30])
+        if len(combined_text) > 50000:
+            combined_text = combined_text[:50000]
+
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        profile_prompt = """Analyze these conversations and extract a thoughtful profile of the user.
+Focus on what the user would genuinely want remembered about themselves - meaningful personal details, not random conversational fragments.
+
+Extract ONLY information that is clearly stated or strongly implied. Leave fields empty if uncertain.
+
+Return a JSON object with these fields:
+- family: array of family members mentioned (e.g., ["wife Sarah", "son Jake, age 10"])
+- pets: array of pets (e.g., ["dog Max, golden retriever"])
+- work: string describing their job/profession
+- background: string with relevant background (education, career history)
+- location: string with location if mentioned
+- interests: array of hobbies/interests
+- philosophies: array of values, beliefs, or strong opinions they've expressed
+- communication_preferences: array of how they like to communicate (e.g., ["prefers concise responses", "likes bullet points"])
+- projects: array of ongoing projects they're working on
+- other: array of other meaningful facts that don't fit above categories
+
+Be selective - only include things that seem genuinely important to who this person is.
+Return ONLY valid JSON, no other text."""
+
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": profile_prompt},
+                {"role": "user", "content": f"Conversations:\n\n{combined_text}"}
+            ],
+            temperature=0.3,
+            max_tokens=2000
+        )
+
+        profile_text = response.choices[0].message.content.strip()
+
+        if profile_text.startswith("```"):
+            profile_text = profile_text.split("```")[1]
+            if profile_text.startswith("json"):
+                profile_text = profile_text[4:]
+        profile_text = profile_text.strip()
+
+        try:
+            profile_data = json.loads(profile_text)
+        except json.JSONDecodeError as e:
+            print(f"Auto-generate: Failed to parse profile JSON: {e}")
+            return JSONResponse(content={
+                "action": "failed",
+                "reason": "Failed to parse generated profile",
+                "profile": None
+            })
+
+        profile_data["last_updated"] = datetime.now().isoformat()
+        profile_data["always_remember"] = existing_always_remember
+        profile_data["last_archive_count"] = total_archives
+
+        profile_ref.set(profile_data)
+
+        return JSONResponse(content={
+            "action": "generated",
+            "reason": "Profile auto-generated successfully",
+            "profile": profile_data
+        })
+
+    except Exception as e:
+        print(f"Error in auto-generate profile: {e}")
+        return JSONResponse(content={
+            "action": "failed",
+            "reason": str(e),
+            "profile": None
+        })
 
 @main_app.get("/archives")
 async def get_archives(user: dict = Depends(get_current_user)):
