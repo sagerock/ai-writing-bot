@@ -29,6 +29,7 @@ const AccountPanel = ({ auth }) => {
     const [profileLoading, setProfileLoading] = useState(true);
     const [profileGenerating, setProfileGenerating] = useState(false);
     const [editingProfile, setEditingProfile] = useState(false);
+    const [editFormData, setEditFormData] = useState({});  // Raw text for editing
     const [emailPreferences, setEmailPreferences] = useState({
         feature_updates: true,
         bug_fixes: true,
@@ -473,13 +474,15 @@ const AccountPanel = ({ auth }) => {
 
         try {
             const token = await auth.currentUser.getIdToken();
+            const profileToSave = convertFormToProfile();
+
             const response = await fetch(`${API_URL}/user/profile`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(profile)
+                body: JSON.stringify(profileToSave)
             });
 
             if (!response.ok) {
@@ -496,20 +499,42 @@ const AccountPanel = ({ auth }) => {
         }
     };
 
-    const handleProfileFieldChange = (field, value) => {
-        setProfile(prev => ({
+    // Start editing - convert arrays to comma-separated strings
+    const startEditingProfile = () => {
+        setEditFormData({
+            always_remember: profile.always_remember || '',
+            work: profile.work || '',
+            background: profile.background || '',
+            location: profile.location || '',
+            family: (profile.family || []).join(', '),
+            pets: (profile.pets || []).join(', '),
+            interests: (profile.interests || []).join(', '),
+            philosophies: (profile.philosophies || []).join(', '),
+            communication_preferences: (profile.communication_preferences || []).join(', '),
+            projects: (profile.projects || []).join(', '),
+            other: (profile.other || []).join(', '),
+        });
+        setEditingProfile(true);
+    };
+
+    const handleEditFormChange = (field, value) => {
+        setEditFormData(prev => ({
             ...prev,
             [field]: value
         }));
     };
 
-    const handleProfileArrayChange = (field, value) => {
-        // Convert comma-separated string to array
-        const arrayValue = value.split(',').map(item => item.trim()).filter(item => item);
-        setProfile(prev => ({
-            ...prev,
-            [field]: arrayValue
-        }));
+    // Convert form data back to profile format for saving
+    const convertFormToProfile = () => {
+        const arrayFields = ['family', 'pets', 'interests', 'philosophies', 'communication_preferences', 'projects', 'other'];
+        const result = { ...editFormData };
+
+        arrayFields.forEach(field => {
+            const value = editFormData[field] || '';
+            result[field] = value.split(',').map(item => item.trim()).filter(item => item);
+        });
+
+        return result;
     };
 
     if (needsReauth) {
@@ -565,23 +590,23 @@ const AccountPanel = ({ auth }) => {
                         <div className="profile-field always-remember-field">
                             <label>Always Remember (max 500 characters):</label>
                             <textarea
-                                value={profile.always_remember || ''}
+                                value={editFormData.always_remember || ''}
                                 onChange={(e) => {
                                     if (e.target.value.length <= 500) {
-                                        handleProfileFieldChange('always_remember', e.target.value);
+                                        handleEditFormChange('always_remember', e.target.value);
                                     }
                                 }}
                                 placeholder="Things you always want the AI to know about you - your name, birthday, important facts..."
                                 rows={3}
                             />
-                            <span className="char-count">{(profile.always_remember || '').length}/500</span>
+                            <span className="char-count">{(editFormData.always_remember || '').length}/500</span>
                         </div>
                         <div className="profile-field">
                             <label>Work:</label>
                             <input
                                 type="text"
-                                value={profile.work || ''}
-                                onChange={(e) => handleProfileFieldChange('work', e.target.value)}
+                                value={editFormData.work || ''}
+                                onChange={(e) => handleEditFormChange('work', e.target.value)}
                                 placeholder="Your job or profession"
                             />
                         </div>
@@ -589,8 +614,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Background:</label>
                             <input
                                 type="text"
-                                value={profile.background || ''}
-                                onChange={(e) => handleProfileFieldChange('background', e.target.value)}
+                                value={editFormData.background || ''}
+                                onChange={(e) => handleEditFormChange('background', e.target.value)}
                                 placeholder="Education, career history"
                             />
                         </div>
@@ -598,8 +623,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Location:</label>
                             <input
                                 type="text"
-                                value={profile.location || ''}
-                                onChange={(e) => handleProfileFieldChange('location', e.target.value)}
+                                value={editFormData.location || ''}
+                                onChange={(e) => handleEditFormChange('location', e.target.value)}
                                 placeholder="City, region"
                             />
                         </div>
@@ -607,8 +632,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Family (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.family || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('family', e.target.value)}
+                                value={editFormData.family || ''}
+                                onChange={(e) => handleEditFormChange('family', e.target.value)}
                                 placeholder="e.g., wife Sarah, son Jake"
                             />
                         </div>
@@ -616,8 +641,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Pets (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.pets || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('pets', e.target.value)}
+                                value={editFormData.pets || ''}
+                                onChange={(e) => handleEditFormChange('pets', e.target.value)}
                                 placeholder="e.g., dog Max, cat Luna"
                             />
                         </div>
@@ -625,8 +650,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Interests (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.interests || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('interests', e.target.value)}
+                                value={editFormData.interests || ''}
+                                onChange={(e) => handleEditFormChange('interests', e.target.value)}
                                 placeholder="e.g., hiking, photography"
                             />
                         </div>
@@ -634,8 +659,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Values/Philosophies (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.philosophies || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('philosophies', e.target.value)}
+                                value={editFormData.philosophies || ''}
+                                onChange={(e) => handleEditFormChange('philosophies', e.target.value)}
                                 placeholder="e.g., values directness, prefers simplicity"
                             />
                         </div>
@@ -643,8 +668,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Communication Preferences (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.communication_preferences || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('communication_preferences', e.target.value)}
+                                value={editFormData.communication_preferences || ''}
+                                onChange={(e) => handleEditFormChange('communication_preferences', e.target.value)}
                                 placeholder="e.g., concise responses, bullet points"
                             />
                         </div>
@@ -652,8 +677,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Current Projects (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.projects || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('projects', e.target.value)}
+                                value={editFormData.projects || ''}
+                                onChange={(e) => handleEditFormChange('projects', e.target.value)}
                                 placeholder="e.g., RomaLume AI tool, website redesign"
                             />
                         </div>
@@ -661,8 +686,8 @@ const AccountPanel = ({ auth }) => {
                             <label>Other (comma-separated):</label>
                             <input
                                 type="text"
-                                value={(profile.other || []).join(', ')}
-                                onChange={(e) => handleProfileArrayChange('other', e.target.value)}
+                                value={editFormData.other || ''}
+                                onChange={(e) => handleEditFormChange('other', e.target.value)}
                                 placeholder="Other important details"
                             />
                         </div>
@@ -699,7 +724,7 @@ const AccountPanel = ({ auth }) => {
                             <span className="profile-updated">Last updated: {profile.last_updated ? new Date(profile.last_updated).toLocaleDateString() : 'Never'}</span>
                         </div>
                         <div className="profile-actions">
-                            <button onClick={() => setEditingProfile(true)}>Edit Profile</button>
+                            <button onClick={startEditingProfile}>Edit Profile</button>
                             <button
                                 onClick={handleGenerateProfile}
                                 disabled={profileGenerating}
