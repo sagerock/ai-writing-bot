@@ -289,6 +289,39 @@ const Chat = ({
     }
   };
 
+  // Save conversation to archive and clear chat
+  const handleSaveAndClear = async () => {
+    if (history.length === 0) return;
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+      await fetch(`${API_URL}/archive`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          history: history,
+          model: model,
+          archive_name: `Chat ${timestamp}`,
+          project_name: 'General',
+        }),
+      });
+
+      // Clear the conversation
+      setHistory([]);
+
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
+    } catch (error) {
+      console.error('Failed to save and clear conversation:', error);
+    }
+  };
+
   // Auto-save conversation after each response
   const autoSaveConversation = async (updatedHistory) => {
     if (updatedHistory.length < 2) return; // Need at least one exchange
@@ -310,21 +343,6 @@ const Chat = ({
           model: model,
           archive_name: `Chat ${timestamp}`,
           project_name: 'General',
-        }),
-      });
-
-      // Save to mem0 for AI memory
-      await fetch(`${API_URL}/save_memory`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          history: updatedHistory,
-          model: model,
-          search_web: false,
-          temperature: temperature,
         }),
       });
     } catch (error) {
@@ -533,6 +551,9 @@ const Chat = ({
               {searchDocs ? '📁 Search files: ON' : '📁 Search files'}
             </button>
             {loading && <button className="link-btn" onClick={handleStop}>Stop</button>}
+            {hasMessages && !loading && (
+              <button className="link-btn" onClick={handleSaveAndClear}>save/clear</button>
+            )}
           </div>
 
           {/* Clickable model selector */}

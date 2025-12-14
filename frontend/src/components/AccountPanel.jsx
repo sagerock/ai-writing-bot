@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
     updateProfile,
     updateEmail,
@@ -26,8 +25,10 @@ const AccountPanel = ({ auth }) => {
     const [viewingArchive, setViewingArchive] = useState(null);
     const [archiveContent, setArchiveContent] = useState(null);
     const [archiveContentLoading, setArchiveContentLoading] = useState(false);
-    const [memories, setMemories] = useState([]);
-    const [memoriesLoading, setMemoriesLoading] = useState(true);
+    const [profile, setProfile] = useState(null);
+    const [profileLoading, setProfileLoading] = useState(true);
+    const [profileGenerating, setProfileGenerating] = useState(false);
+    const [editingProfile, setEditingProfile] = useState(false);
     const [emailPreferences, setEmailPreferences] = useState({
         feature_updates: true,
         bug_fixes: true,
@@ -160,24 +161,24 @@ const AccountPanel = ({ auth }) => {
             }
         };
 
-        const fetchMemories = async () => {
+        const fetchProfile = async () => {
             if (!auth.currentUser) return;
-            setMemoriesLoading(true);
+            setProfileLoading(true);
             try {
                 const token = await auth.currentUser.getIdToken();
-                const response = await fetch(`${API_URL}/user/memories`, {
+                const response = await fetch(`${API_URL}/user/profile`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
                 if (response.ok) {
                     const data = await response.json();
-                    setMemories(data.memories || []);
+                    setProfile(data.profile || null);
                 }
             } catch (err) {
-                console.error('Could not load memories:', err);
+                console.error('Could not load profile:', err);
             } finally {
-                setMemoriesLoading(false);
+                setProfileLoading(false);
             }
         };
 
@@ -186,7 +187,7 @@ const AccountPanel = ({ auth }) => {
         fetchChatSettings();
         fetchDocuments();
         fetchArchives();
-        fetchMemories();
+        fetchProfile();
     }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
@@ -412,6 +413,81 @@ const AccountPanel = ({ auth }) => {
         setArchiveContent(null);
     };
 
+    const handleGenerateProfile = async () => {
+        setProfileGenerating(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/profile/generate`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate profile.');
+            }
+
+            const data = await response.json();
+            setProfile(data.profile);
+            setSuccess('Profile generated successfully from your conversation history!');
+        } catch (err) {
+            setError(`Failed to generate profile: ${err.message}`);
+            console.error(err);
+        } finally {
+            setProfileGenerating(false);
+        }
+    };
+
+    const handleSaveUserProfile = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(profile)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update profile.');
+            }
+
+            const data = await response.json();
+            setProfile(data.profile);
+            setEditingProfile(false);
+            setSuccess('Profile updated successfully!');
+        } catch (err) {
+            setError(`Failed to update profile: ${err.message}`);
+            console.error(err);
+        }
+    };
+
+    const handleProfileFieldChange = (field, value) => {
+        setProfile(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const handleProfileArrayChange = (field, value) => {
+        // Convert comma-separated string to array
+        const arrayValue = value.split(',').map(item => item.trim()).filter(item => item);
+        setProfile(prev => ({
+            ...prev,
+            [field]: arrayValue
+        }));
+    };
+
     if (needsReauth) {
         return (
             <div className="account-form-container">
@@ -443,20 +519,147 @@ const AccountPanel = ({ auth }) => {
 
             <hr />
 
-            <div className="account-memories-summary">
-                <h3>AI Memories</h3>
-                <p>The AI learns about you from your conversations to provide more personalized responses.</p>
+            <div className="account-profile-section">
+                <h3>Your Profile</h3>
+                <p>The AI uses this profile to personalize responses. Generate it from your conversation history or edit it manually.</p>
 
-                {memoriesLoading ? (
-                    <p className="memories-loading">Loading...</p>
+                {profileLoading ? (
+                    <p className="profile-loading">Loading profile...</p>
+                ) : !profile || !profile.last_updated ? (
+                    <div className="profile-empty">
+                        <p>No profile generated yet. Click below to analyze your conversation history and build your profile.</p>
+                        <button
+                            className="generate-profile-btn"
+                            onClick={handleGenerateProfile}
+                            disabled={profileGenerating}
+                        >
+                            {profileGenerating ? 'Generating...' : 'Generate Profile from Conversations'}
+                        </button>
+                    </div>
+                ) : editingProfile ? (
+                    <form onSubmit={handleSaveUserProfile} className="profile-edit-form">
+                        <div className="profile-field">
+                            <label>Work:</label>
+                            <input
+                                type="text"
+                                value={profile.work || ''}
+                                onChange={(e) => handleProfileFieldChange('work', e.target.value)}
+                                placeholder="Your job or profession"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Background:</label>
+                            <input
+                                type="text"
+                                value={profile.background || ''}
+                                onChange={(e) => handleProfileFieldChange('background', e.target.value)}
+                                placeholder="Education, career history"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Location:</label>
+                            <input
+                                type="text"
+                                value={profile.location || ''}
+                                onChange={(e) => handleProfileFieldChange('location', e.target.value)}
+                                placeholder="City, region"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Family (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.family || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('family', e.target.value)}
+                                placeholder="e.g., wife Sarah, son Jake"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Pets (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.pets || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('pets', e.target.value)}
+                                placeholder="e.g., dog Max, cat Luna"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Interests (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.interests || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('interests', e.target.value)}
+                                placeholder="e.g., hiking, photography"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Values/Philosophies (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.philosophies || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('philosophies', e.target.value)}
+                                placeholder="e.g., values directness, prefers simplicity"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Communication Preferences (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.communication_preferences || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('communication_preferences', e.target.value)}
+                                placeholder="e.g., concise responses, bullet points"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Current Projects (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.projects || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('projects', e.target.value)}
+                                placeholder="e.g., RomaLume AI tool, website redesign"
+                            />
+                        </div>
+                        <div className="profile-field">
+                            <label>Other (comma-separated):</label>
+                            <input
+                                type="text"
+                                value={(profile.other || []).join(', ')}
+                                onChange={(e) => handleProfileArrayChange('other', e.target.value)}
+                                placeholder="Other important details"
+                            />
+                        </div>
+                        <div className="profile-actions">
+                            <button type="submit">Save Profile</button>
+                            <button type="button" onClick={() => setEditingProfile(false)}>Cancel</button>
+                        </div>
+                    </form>
                 ) : (
-                    <div className="memories-summary-content">
-                        <span className="memories-count">
-                            {memories.length} memor{memories.length === 1 ? 'y' : 'ies'} stored
-                        </span>
-                        <Link to="/account/memories" className="view-memories-link">
-                            View & Manage Memories &rarr;
-                        </Link>
+                    <div className="profile-display">
+                        <div className="profile-content">
+                            {profile.work && <p><strong>Work:</strong> {profile.work}</p>}
+                            {profile.background && <p><strong>Background:</strong> {profile.background}</p>}
+                            {profile.location && <p><strong>Location:</strong> {profile.location}</p>}
+                            {profile.family?.length > 0 && <p><strong>Family:</strong> {profile.family.join(', ')}</p>}
+                            {profile.pets?.length > 0 && <p><strong>Pets:</strong> {profile.pets.join(', ')}</p>}
+                            {profile.interests?.length > 0 && <p><strong>Interests:</strong> {profile.interests.join(', ')}</p>}
+                            {profile.philosophies?.length > 0 && <p><strong>Values:</strong> {profile.philosophies.join(', ')}</p>}
+                            {profile.communication_preferences?.length > 0 && <p><strong>Communication:</strong> {profile.communication_preferences.join(', ')}</p>}
+                            {profile.projects?.length > 0 && <p><strong>Projects:</strong> {profile.projects.join(', ')}</p>}
+                            {profile.other?.length > 0 && <p><strong>Other:</strong> {profile.other.join(', ')}</p>}
+                        </div>
+                        <div className="profile-meta">
+                            <span className="profile-updated">Last updated: {profile.last_updated ? new Date(profile.last_updated).toLocaleDateString() : 'Never'}</span>
+                        </div>
+                        <div className="profile-actions">
+                            <button onClick={() => setEditingProfile(true)}>Edit Profile</button>
+                            <button
+                                onClick={handleGenerateProfile}
+                                disabled={profileGenerating}
+                                className="regenerate-btn"
+                            >
+                                {profileGenerating ? 'Generating...' : 'Regenerate from Conversations'}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

@@ -119,20 +119,9 @@ if not firebase_admin._apps:
 db = firestore.client()
 bucket = storage.bucket()
 
-# mem0 for universal user memory
-mem0_client = None
-try:
-    from mem0 import MemoryClient
-    mem0_api_key = os.getenv("MEM0_API_KEY")
-    if mem0_api_key:
-        mem0_client = MemoryClient(api_key=mem0_api_key)
-        print("✓ mem0 client initialized")
-    else:
-        print("⚠ MEM0_API_KEY not set - memory features disabled")
-except ImportError:
-    print("⚠ mem0ai not installed - memory features disabled")
-except Exception as e:
-    print(f"⚠ mem0 initialization failed: {e}")
+# mem0 removed - replaced with user profile system
+# Profiles are stored in Firestore at users/{user_id}/settings/profile
+print("✓ User profile system enabled (mem0 removed)")
 
 # Email Marketing Tool integration (for onboarding sequences)
 EMAIL_MARKETING_API_URL = os.getenv("EMAIL_MARKETING_API_URL", "https://api.mail.sagerock.com")
@@ -145,19 +134,6 @@ else:
 
 main_app = FastAPI()
 
-def save_to_mem0_background(user_id: str, user_message: str, assistant_message: str):
-    """Save a conversation exchange to mem0 in the background."""
-    if not mem0_client:
-        return
-    try:
-        messages = [
-            {"role": "user", "content": user_message},
-            {"role": "assistant", "content": assistant_message}
-        ]
-        mem0_client.add(messages, user_id=user_id)
-        print(f"Auto-saved conversation to mem0 for user {user_id}")
-    except Exception as e:
-        print(f"Failed to auto-save to mem0: {e}")
 
 
 def send_to_email_marketing_background(email: str, tags: List[str] = None):
@@ -623,7 +599,7 @@ async def route_to_best_model(user_message: str) -> tuple[str, str]:
 async def generate_gpt5_response(
     req: ChatRequest,
     user_id: str,
-    memory_context: str = "",
+    profile_context: str = "",
     original_model: str = None,
     routed_category: str = None
 ):
@@ -641,11 +617,11 @@ async def generate_gpt5_response(
             "content": msg.content
         })
 
-    # Add base system prompt with optional memory context
+    # Add base system prompt with optional profile context
     base_instruction = "When the user changes topics or asks about something new, respond to that topic directly without forcing connections to previous unrelated topics in this conversation. Treat each distinct subject independently unless there's a clear and explicit connection."
 
-    if memory_context:
-        system_content = f"{base_instruction}\n\nYou have the following memories about this user from previous conversations:\n{memory_context}\n\nUse these memories only when directly relevant to the current question."
+    if profile_context:
+        system_content = f"{base_instruction}\n\nHere is what you know about this user:\n{profile_context}\n\nUse this context only when directly relevant to the current question."
     else:
         system_content = base_instruction
 
@@ -876,43 +852,43 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         except Exception as e:
             print(f"RAG search failed (non-fatal): {e}")
 
-    # --- mem0: Retrieve relevant user memories ---
-    memory_context = ""
-    if mem0_client:
-        try:
-            # Find the last user message for memory search
-            last_user_msg = None
-            for msg in reversed(req.history):
-                if msg.role == 'user':
-                    last_user_msg = msg.content
-                    break
+    # --- Retrieve user profile for personalization ---
+    profile_context = ""
+    try:
+        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        profile_doc = profile_ref.get()
 
-            if last_user_msg:
-                print(f"mem0 searching for user {user_id}...")
-                # First check if user has any memories at all
-                all_memories = mem0_client.get_all(user_id=user_id)
-                print(f"mem0 get_all returned {len(all_memories) if all_memories else 0} total memories for user")
+        if profile_doc.exists:
+            profile = profile_doc.to_dict()
+            profile_parts = []
 
-                # Only search if user has memories
-                if all_memories and len(all_memories) > 0:
-                    # v2 API requires filters dict
-                    memories = mem0_client.search(
-                        last_user_msg,
-                        version="v2",
-                        filters={"user_id": user_id},
-                        top_k=5
-                    )
-                    print(f"mem0 search returned {len(memories) if memories else 0} results")
-                else:
-                    memories = []
-                    print("mem0: No memories stored for user, skipping search")
-                if memories and len(memories) > 0:
-                    memory_parts = [m.get('memory', '') for m in memories if m.get('memory')]
-                    if memory_parts:
-                        memory_context = "\n".join(f"- {m}" for m in memory_parts)
-                        print(f"mem0 found {len(memory_parts)} relevant memories for user {user_id}")
-        except Exception as e:
-            print(f"mem0 search failed (non-fatal): {e}")
+            # Format profile into readable context
+            if profile.get("work"):
+                profile_parts.append(f"Work: {profile['work']}")
+            if profile.get("background"):
+                profile_parts.append(f"Background: {profile['background']}")
+            if profile.get("location"):
+                profile_parts.append(f"Location: {profile['location']}")
+            if profile.get("family"):
+                profile_parts.append(f"Family: {', '.join(profile['family'])}")
+            if profile.get("pets"):
+                profile_parts.append(f"Pets: {', '.join(profile['pets'])}")
+            if profile.get("interests"):
+                profile_parts.append(f"Interests: {', '.join(profile['interests'])}")
+            if profile.get("philosophies"):
+                profile_parts.append(f"Values/Philosophies: {', '.join(profile['philosophies'])}")
+            if profile.get("communication_preferences"):
+                profile_parts.append(f"Communication preferences: {', '.join(profile['communication_preferences'])}")
+            if profile.get("projects"):
+                profile_parts.append(f"Current projects: {', '.join(profile['projects'])}")
+            if profile.get("other"):
+                profile_parts.append(f"Other: {', '.join(profile['other'])}")
+
+            if profile_parts:
+                profile_context = "\n".join(f"- {p}" for p in profile_parts)
+                print(f"Loaded user profile for {user_id} ({len(profile_parts)} fields)")
+    except Exception as e:
+        print(f"Profile retrieval failed (non-fatal): {e}")
 
     # Check if this is a GPT-5 model that requires Responses API
     if is_gpt5_model(req.model):
@@ -937,7 +913,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
         # Use the Responses API for GPT-5 models
         async for token in generate_gpt5_response(
-            req, user_id, memory_context,
+            req, user_id, profile_context,
             original_model=usage_log_data["original_model"],
             routed_category=usage_log_data["routed_category"]
         ):
@@ -948,11 +924,11 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     llm = get_llm(req.model, req.temperature)
     history_messages = [message.dict() for message in req.history]
 
-    # Add base system prompt with optional memory context for non-GPT5 models
+    # Add base system prompt with optional profile context for non-GPT5 models
     base_instruction = "When the user changes topics or asks about something new, respond to that topic directly without forcing connections to previous unrelated topics in this conversation. Treat each distinct subject independently unless there's a clear and explicit connection."
 
-    if memory_context:
-        system_content = f"{base_instruction}\n\nYou have the following memories about this user from previous conversations:\n{memory_context}\n\nUse these memories only when directly relevant to the current question."
+    if profile_context:
+        system_content = f"{base_instruction}\n\nHere is what you know about this user:\n{profile_context}\n\nUse this context only when directly relevant to the current question."
     else:
         system_content = base_instruction
 
@@ -1034,15 +1010,6 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         final_history = history_messages + [{"role": "assistant", "content": response_accum}]
         save_conversation(user_id, final_history)
 
-        # Auto-save to mem0 - get the last user message
-        last_user_msg = None
-        for msg in reversed(history_messages):
-            if msg.get('role') == 'user':
-                last_user_msg = msg.get('content')
-                break
-        if last_user_msg and response_accum:
-            save_to_mem0_background(user_id, last_user_msg, response_accum)
-
         # Log usage with actual token counts and costs
         input_text = "\n".join([m.get('content', '') for m in llm_history])
         log_usage_with_cost(
@@ -1104,92 +1071,190 @@ async def archive_chat(req: ArchiveRequest, user: dict = Depends(get_current_use
 
     return JSONResponse(content={"message": f"Chat archived to {archive_id} in project {project_name}"})
 
+# Legacy mem0 endpoints - deprecated in favor of user profile system
+# Kept for backward compatibility but return deprecation notices
+
 @main_app.post("/save_memory")
 async def save_memory(req: ChatRequest, user: dict = Depends(get_current_user)):
-    """Save conversation to mem0 for persistent user memory."""
-    user_id = user['user_id']
-
-    if not mem0_client:
-        return JSONResponse(status_code=503, content={"error": "Memory service not available"})
-
-    if not req.history or len(req.history) < 2:
-        return JSONResponse(status_code=400, content={"error": "Need at least 2 messages to save memory"})
-
-    try:
-        # Convert history to mem0 format (filter out context messages)
-        messages = []
-        for msg in req.history:
-            role = msg.role
-            if role == 'context':
-                continue  # Skip context messages, they're document uploads
-            messages.append({"role": role, "content": msg.content})
-
-        if messages:
-            mem0_client.add(messages, user_id=user_id)
-            print(f"Saved {len(messages)} messages to mem0 for user {user_id}")
-
-        return JSONResponse(content={"message": "Memory saved successfully"})
-    except Exception as e:
-        print(f"Error saving to mem0: {e}")
-        return JSONResponse(status_code=500, content={"error": f"Failed to save memory: {str(e)}"})
-
-@main_app.get("/debug/memories")
-async def debug_memories(user: dict = Depends(get_current_user)):
-    """Debug endpoint to list all mem0 memories for user."""
-    user_id = user['user_id']
-    if not mem0_client:
-        return {"error": "mem0 not available"}
-    try:
-        # Try get_all with user_id
-        memories = mem0_client.get_all(user_id=user_id)
-        return {"user_id": user_id, "count": len(memories) if memories else 0, "memories": memories}
-    except Exception as e:
-        return {"error": str(e)}
+    """Deprecated: Use /user/profile/generate instead."""
+    return JSONResponse(content={"message": "Memory system replaced with user profiles. Use /user/profile/generate to build your profile."})
 
 @main_app.get("/user/memories")
 async def get_user_memories(user: dict = Depends(get_current_user)):
-    """Get all AI memories for the current user."""
-    user_id = user['user_id']
-    if not mem0_client:
-        return JSONResponse(status_code=503, content={"error": "Memory service not available", "memories": []})
-    try:
-        memories = mem0_client.get_all(user_id=user_id)
-        return JSONResponse(content={"memories": memories or []})
-    except Exception as e:
-        print(f"Error fetching memories: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e), "memories": []})
+    """Deprecated: Use /user/profile instead."""
+    return JSONResponse(content={"memories": [], "message": "Memory system replaced with user profiles. Use GET /user/profile instead."})
 
 @main_app.delete("/user/memories/{memory_id}")
 async def delete_user_memory(memory_id: str, user: dict = Depends(get_current_user)):
-    """Delete a specific AI memory."""
-    user_id = user['user_id']
-    if not mem0_client:
-        return JSONResponse(status_code=503, content={"error": "Memory service not available"})
-    try:
-        # Verify the memory belongs to this user before deleting
-        memories = mem0_client.get_all(user_id=user_id)
-        memory_ids = [m.get('id') for m in memories] if memories else []
-
-        if memory_id not in memory_ids:
-            return JSONResponse(status_code=404, content={"error": "Memory not found"})
-
-        mem0_client.delete(memory_id)
-        return JSONResponse(content={"message": "Memory deleted successfully"})
-    except Exception as e:
-        print(f"Error deleting memory: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    """Deprecated: Memories replaced with user profile system."""
+    return JSONResponse(content={"message": "Memory system has been replaced with user profiles."})
 
 @main_app.delete("/user/memories")
 async def delete_all_user_memories(user: dict = Depends(get_current_user)):
-    """Delete all AI memories for the current user."""
+    """Deprecated: Memories replaced with user profile system."""
+    return JSONResponse(content={"message": "Memory system has been replaced with user profiles."})
+
+# --- User Profile System ---
+# Replaces mem0 with a thoughtful, curated user profile built from conversation archives
+
+class UserProfile(BaseModel):
+    """Structured user profile built from conversation history."""
+    family: Optional[List[str]] = []
+    pets: Optional[List[str]] = []
+    work: Optional[str] = ""
+    background: Optional[str] = ""
+    location: Optional[str] = ""
+    interests: Optional[List[str]] = []
+    philosophies: Optional[List[str]] = []
+    communication_preferences: Optional[List[str]] = []
+    projects: Optional[List[str]] = []
+    other: Optional[List[str]] = []
+    last_updated: Optional[str] = None
+
+@main_app.get("/user/profile")
+async def get_user_profile(user: dict = Depends(get_current_user)):
+    """Get the user's curated profile."""
     user_id = user['user_id']
-    if not mem0_client:
-        return JSONResponse(status_code=503, content={"error": "Memory service not available"})
     try:
-        mem0_client.delete_all(user_id=user_id)
-        return JSONResponse(content={"message": "All memories deleted successfully"})
+        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        profile_doc = profile_ref.get()
+
+        if profile_doc.exists:
+            return JSONResponse(content={"profile": profile_doc.to_dict()})
+        else:
+            # Return empty profile structure
+            return JSONResponse(content={"profile": {
+                "family": [],
+                "pets": [],
+                "work": "",
+                "background": "",
+                "location": "",
+                "interests": [],
+                "philosophies": [],
+                "communication_preferences": [],
+                "projects": [],
+                "other": [],
+                "last_updated": None
+            }})
     except Exception as e:
-        print(f"Error deleting all memories: {e}")
+        print(f"Error fetching profile: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@main_app.put("/user/profile")
+async def update_user_profile(profile: UserProfile, user: dict = Depends(get_current_user)):
+    """Manually update the user's profile."""
+    user_id = user['user_id']
+    try:
+        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        profile_data = profile.model_dump()
+        profile_data["last_updated"] = datetime.now().isoformat()
+        profile_ref.set(profile_data)
+        return JSONResponse(content={"message": "Profile updated successfully", "profile": profile_data})
+    except Exception as e:
+        print(f"Error updating profile: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@main_app.post("/user/profile/generate")
+async def generate_user_profile(user: dict = Depends(get_current_user)):
+    """Analyze conversation archives and generate a curated user profile."""
+    user_id = user['user_id']
+
+    try:
+        # Fetch recent archives (limit to last 50 to avoid token limits)
+        archives_ref = db.collection("users").document(user_id).collection("archives")
+        archives = archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream()
+
+        # Extract conversation content
+        all_conversations = []
+        for archive in archives:
+            data = archive.to_dict()
+            messages = data.get("messages", [])
+            if messages:
+                conv_text = []
+                for msg in messages:
+                    role = msg.get("role", "")
+                    content = msg.get("content", "")
+                    if role in ["user", "assistant"] and content:
+                        conv_text.append(f"{role}: {content[:500]}")  # Truncate long messages
+                if conv_text:
+                    all_conversations.append("\n".join(conv_text[:10]))  # Limit messages per conversation
+
+        if not all_conversations:
+            return JSONResponse(content={
+                "message": "No conversation history found to analyze",
+                "profile": None
+            })
+
+        # Combine conversations (limit total size)
+        combined_text = "\n\n---\n\n".join(all_conversations[:30])  # Limit to 30 conversations
+        if len(combined_text) > 50000:
+            combined_text = combined_text[:50000]
+
+        # Use GPT-4o-mini for cost-effective analysis
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        profile_prompt = """Analyze these conversations and extract a thoughtful profile of the user.
+Focus on what the user would genuinely want remembered about themselves - meaningful personal details, not random conversational fragments.
+
+Extract ONLY information that is clearly stated or strongly implied. Leave fields empty if uncertain.
+
+Return a JSON object with these fields:
+- family: array of family members mentioned (e.g., ["wife Sarah", "son Jake, age 10"])
+- pets: array of pets (e.g., ["dog Max, golden retriever"])
+- work: string describing their job/profession
+- background: string with relevant background (education, career history)
+- location: string with location if mentioned
+- interests: array of hobbies/interests
+- philosophies: array of values, beliefs, or strong opinions they've expressed
+- communication_preferences: array of how they like to communicate (e.g., ["prefers concise responses", "likes bullet points"])
+- projects: array of ongoing projects they're working on
+- other: array of other meaningful facts that don't fit above categories
+
+Be selective - only include things that seem genuinely important to who this person is.
+Return ONLY valid JSON, no other text."""
+
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": profile_prompt},
+                {"role": "user", "content": f"Conversations:\n\n{combined_text}"}
+            ],
+            temperature=0.3,
+            max_tokens=2000
+        )
+
+        # Parse the response
+        profile_text = response.choices[0].message.content.strip()
+
+        # Clean up potential markdown code blocks
+        if profile_text.startswith("```"):
+            profile_text = profile_text.split("```")[1]
+            if profile_text.startswith("json"):
+                profile_text = profile_text[4:]
+        profile_text = profile_text.strip()
+
+        try:
+            profile_data = json.loads(profile_text)
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse profile JSON: {e}")
+            print(f"Raw response: {profile_text}")
+            return JSONResponse(status_code=500, content={"error": "Failed to parse generated profile"})
+
+        # Add timestamp and save to Firestore
+        profile_data["last_updated"] = datetime.now().isoformat()
+
+        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        profile_ref.set(profile_data)
+
+        return JSONResponse(content={
+            "message": "Profile generated successfully",
+            "profile": profile_data
+        })
+
+    except Exception as e:
+        print(f"Error generating profile: {e}")
+        import traceback
+        traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @main_app.get("/archives")
@@ -2182,14 +2247,6 @@ async def admin_delete_user(user_id: str, _: dict = Depends(get_current_admin_us
 
         # Delete the user document itself
         user_ref.delete()
-
-        # Delete from mem0 if available
-        if mem0_client:
-            try:
-                mem0_client.delete_all(user_id=user_id)
-                print(f"Deleted mem0 memories for user {user_id}")
-            except Exception as mem0_error:
-                print(f"Failed to delete mem0 memories (non-fatal): {mem0_error}")
 
         # Delete from Firebase Auth (this must be last as it invalidates the user)
         firebase_auth.delete_user(user_id)
