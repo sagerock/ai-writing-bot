@@ -861,12 +861,13 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         if profile_doc.exists:
             profile = profile_doc.to_dict()
             profile_parts = []
+            currently_parts = []
 
             # Always Remember goes first - user-specified priority info
             if profile.get("always_remember"):
                 profile_parts.append(f"IMPORTANT - User wants you to always remember: {profile['always_remember']}")
 
-            # Format profile into readable context
+            # Format static profile into readable context
             if profile.get("work"):
                 profile_parts.append(f"Work: {profile['work']}")
             if profile.get("background"):
@@ -884,13 +885,22 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             if profile.get("communication_preferences"):
                 profile_parts.append(f"Communication preferences: {', '.join(profile['communication_preferences'])}")
             if profile.get("projects"):
-                profile_parts.append(f"Current projects: {', '.join(profile['projects'])}")
+                profile_parts.append(f"Ongoing projects: {', '.join(profile['projects'])}")
             if profile.get("other"):
                 profile_parts.append(f"Other: {', '.join(profile['other'])}")
 
-            if profile_parts:
-                profile_context = "\n".join(f"- {p}" for p in profile_parts)
-                print(f"Loaded user profile for {user_id} ({len(profile_parts)} fields)")
+            # Currently section - dynamic recent context
+            if profile.get("currently"):
+                currently_parts = profile['currently']
+
+            if profile_parts or currently_parts:
+                context_sections = []
+                if profile_parts:
+                    context_sections.append("About this user:\n" + "\n".join(f"- {p}" for p in profile_parts))
+                if currently_parts:
+                    context_sections.append("Currently:\n" + "\n".join(f"- {c}" for c in currently_parts))
+                profile_context = "\n\n".join(context_sections)
+                print(f"Loaded user profile for {user_id} ({len(profile_parts)} static fields, {len(currently_parts)} currently items)")
     except Exception as e:
         print(f"Profile retrieval failed (non-fatal): {e}")
 
@@ -1104,6 +1114,7 @@ async def delete_all_user_memories(user: dict = Depends(get_current_user)):
 class UserProfile(BaseModel):
     """Structured user profile built from conversation history."""
     always_remember: Optional[str] = ""  # User-defined permanent notes (max 500 chars)
+    currently: Optional[List[str]] = []  # Dynamic recent context (updated frequently)
     family: Optional[List[str]] = []
     pets: Optional[List[str]] = []
     work: Optional[str] = ""
@@ -1131,6 +1142,7 @@ async def get_user_profile(user: dict = Depends(get_current_user)):
             # Return empty profile structure
             return JSONResponse(content={"profile": {
                 "always_remember": "",
+                "currently": [],
                 "family": [],
                 "pets": [],
                 "work": "",
@@ -1164,36 +1176,47 @@ async def update_user_profile(profile: UserProfile, user: dict = Depends(get_cur
 
 @main_app.post("/user/profile/generate")
 async def generate_user_profile(user: dict = Depends(get_current_user)):
-    """Analyze conversation archives and generate a curated user profile."""
+    """Analyze conversation archives and generate a curated user profile.
+
+    - Static fields (work, family, etc.) are only filled if currently empty
+    - 'currently' field is always updated from recent conversations
+    - 'always_remember' is never touched
+    """
     user_id = user['user_id']
 
     try:
-        # Get existing profile to preserve always_remember field
+        # Get existing profile to preserve fields
         profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
-        existing_profile = profile_ref.get()
-        existing_always_remember = ""
-        if existing_profile.exists:
-            existing_always_remember = existing_profile.to_dict().get("always_remember", "")
+        existing_profile_doc = profile_ref.get()
+        existing_profile = existing_profile_doc.to_dict() if existing_profile_doc.exists else {}
 
-        # Fetch recent archives (limit to last 50 to avoid token limits)
+        # Fetch archives
         archives_ref = db.collection("users").document(user_id).collection("archives")
         archives_list = list(archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream())
-        total_archive_count = len(list(archives_ref.stream()))  # Get total count for tracking
+        total_archive_count = len(list(archives_ref.stream()))
+
+        # Split into recent (for "currently") and all (for static profile)
+        recent_archives = archives_list[:5]  # Last 5 for "currently"
 
         # Extract conversation content
-        all_conversations = []
-        for archive in archives_list:
-            data = archive.to_dict()
-            messages = data.get("messages", [])
-            if messages:
-                conv_text = []
-                for msg in messages:
-                    role = msg.get("role", "")
-                    content = msg.get("content", "")
-                    if role in ["user", "assistant"] and content:
-                        conv_text.append(f"{role}: {content[:500]}")  # Truncate long messages
-                if conv_text:
-                    all_conversations.append("\n".join(conv_text[:10]))  # Limit messages per conversation
+        def extract_conversations(archive_list, max_convs=30):
+            conversations = []
+            for archive in archive_list:
+                data = archive.to_dict()
+                messages = data.get("messages", [])
+                if messages:
+                    conv_text = []
+                    for msg in messages:
+                        role = msg.get("role", "")
+                        content = msg.get("content", "")
+                        if role in ["user", "assistant"] and content:
+                            conv_text.append(f"{role}: {content[:500]}")
+                    if conv_text:
+                        conversations.append("\n".join(conv_text[:10]))
+            return conversations[:max_convs]
+
+        all_conversations = extract_conversations(archives_list)
+        recent_conversations = extract_conversations(recent_archives, max_convs=5)
 
         if not all_conversations:
             return JSONResponse(content={
@@ -1201,64 +1224,110 @@ async def generate_user_profile(user: dict = Depends(get_current_user)):
                 "profile": None
             })
 
-        # Combine conversations (limit total size)
-        combined_text = "\n\n---\n\n".join(all_conversations[:30])  # Limit to 30 conversations
-        if len(combined_text) > 50000:
-            combined_text = combined_text[:50000]
-
-        # Use GPT-4o-mini for cost-effective analysis
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        profile_prompt = """Analyze these conversations and extract a thoughtful profile of the user.
-Focus on what the user would genuinely want remembered about themselves - meaningful personal details, not random conversational fragments.
+        # Check which static fields need filling
+        static_fields = ['family', 'pets', 'work', 'background', 'location',
+                         'interests', 'philosophies', 'communication_preferences', 'projects', 'other']
+        empty_fields = []
+        for field in static_fields:
+            val = existing_profile.get(field)
+            if not val or (isinstance(val, list) and len(val) == 0) or (isinstance(val, str) and val.strip() == ""):
+                empty_fields.append(field)
 
+        profile_data = dict(existing_profile)  # Start with existing data
+
+        # Only generate static fields if there are empty ones
+        if empty_fields:
+            combined_text = "\n\n---\n\n".join(all_conversations)
+            if len(combined_text) > 50000:
+                combined_text = combined_text[:50000]
+
+            profile_prompt = f"""Analyze these conversations and extract profile information for the user.
+Focus on meaningful personal details, not random conversational fragments.
 Extract ONLY information that is clearly stated or strongly implied. Leave fields empty if uncertain.
 
-Return a JSON object with these fields:
-- family: array of family members mentioned (e.g., ["wife Sarah", "son Jake, age 10"])
-- pets: array of pets (e.g., ["dog Max, golden retriever"])
+I ONLY need these fields (leave others out):
+{chr(10).join(f'- {field}' for field in empty_fields)}
+
+Field descriptions:
+- family: array of family members (e.g., ["wife Sarah", "son Jake"])
+- pets: array of pets (e.g., ["dog Max"])
 - work: string describing their job/profession
-- background: string with relevant background (education, career history)
+- background: string with relevant background
 - location: string with location if mentioned
 - interests: array of hobbies/interests
-- philosophies: array of values, beliefs, or strong opinions they've expressed
-- communication_preferences: array of how they like to communicate (e.g., ["prefers concise responses", "likes bullet points"])
-- projects: array of ongoing projects they're working on
-- other: array of other meaningful facts that don't fit above categories
+- philosophies: array of values/beliefs
+- communication_preferences: array of communication style preferences
+- projects: array of ongoing projects
+- other: array of other meaningful facts
 
-Be selective - only include things that seem genuinely important to who this person is.
-Return ONLY valid JSON, no other text."""
+Return ONLY valid JSON with just the requested fields, no other text."""
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": profile_prompt},
-                {"role": "user", "content": f"Conversations:\n\n{combined_text}"}
-            ],
-            temperature=0.3,
-            max_tokens=2000
-        )
+            response = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": profile_prompt},
+                    {"role": "user", "content": f"Conversations:\n\n{combined_text}"}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
 
-        # Parse the response
-        profile_text = response.choices[0].message.content.strip()
+            profile_text = response.choices[0].message.content.strip()
+            if profile_text.startswith("```"):
+                profile_text = profile_text.split("```")[1]
+                if profile_text.startswith("json"):
+                    profile_text = profile_text[4:]
+            profile_text = profile_text.strip()
 
-        # Clean up potential markdown code blocks
-        if profile_text.startswith("```"):
-            profile_text = profile_text.split("```")[1]
-            if profile_text.startswith("json"):
-                profile_text = profile_text[4:]
-        profile_text = profile_text.strip()
+            try:
+                new_fields = json.loads(profile_text)
+                # Only update empty fields
+                for field in empty_fields:
+                    if field in new_fields and new_fields[field]:
+                        profile_data[field] = new_fields[field]
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse static profile JSON: {e}")
 
-        try:
-            profile_data = json.loads(profile_text)
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse profile JSON: {e}")
-            print(f"Raw response: {profile_text}")
-            return JSONResponse(status_code=500, content={"error": "Failed to parse generated profile"})
+        # Always update "currently" from recent conversations
+        if recent_conversations:
+            recent_text = "\n\n---\n\n".join(recent_conversations)
 
-        # Add timestamp, preserve always_remember, and track archive count
+            currently_prompt = """Based on these recent conversations, extract what the user is CURRENTLY focused on.
+This should capture their recent context - what they're working on right now, recent topics, current focus areas.
+
+Return a JSON object with one field:
+- currently: array of 3-5 short phrases about their current focus (e.g., ["Building user profile system", "Exploring AI memory approaches", "Working on RomaLume project"])
+
+Focus on recent/current activities, not permanent traits. Return ONLY valid JSON."""
+
+            currently_response = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": currently_prompt},
+                    {"role": "user", "content": f"Recent conversations:\n\n{recent_text}"}
+                ],
+                temperature=0.3,
+                max_tokens=500
+            )
+
+            currently_text = currently_response.choices[0].message.content.strip()
+            if currently_text.startswith("```"):
+                currently_text = currently_text.split("```")[1]
+                if currently_text.startswith("json"):
+                    currently_text = currently_text[4:]
+            currently_text = currently_text.strip()
+
+            try:
+                currently_data = json.loads(currently_text)
+                profile_data["currently"] = currently_data.get("currently", [])
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse currently JSON: {e}")
+
+        # Preserve always_remember and update metadata
+        profile_data["always_remember"] = existing_profile.get("always_remember", "")
         profile_data["last_updated"] = datetime.now().isoformat()
-        profile_data["always_remember"] = existing_always_remember  # Preserve user's manual notes
         profile_data["last_archive_count"] = total_archive_count
 
         profile_ref.set(profile_data)
@@ -1280,7 +1349,7 @@ async def auto_generate_profile(user: dict = Depends(get_current_user)):
 
     Auto-generates if:
     - No profile exists and user has 5+ archives
-    - Profile exists but 10+ new archives since last generation
+    - Profile exists but 10+ new archives since last generation (updates 'currently')
     """
     user_id = user['user_id']
 
@@ -1313,99 +1382,21 @@ async def auto_generate_profile(user: dict = Depends(get_current_user)):
                     "profile": None
                 })
 
-        # Trigger profile generation
-        # Re-use the existing generate function logic
-        existing_always_remember = ""
-        if profile_doc.exists:
-            existing_always_remember = profile_doc.to_dict().get("always_remember", "")
+        # Trigger profile generation using the main generate function
+        result = await generate_user_profile(user)
+        result_data = json.loads(result.body.decode())
 
-        archives_list = list(archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream())
-
-        all_conversations = []
-        for archive in archives_list:
-            data = archive.to_dict()
-            messages = data.get("messages", [])
-            if messages:
-                conv_text = []
-                for msg in messages:
-                    role = msg.get("role", "")
-                    content = msg.get("content", "")
-                    if role in ["user", "assistant"] and content:
-                        conv_text.append(f"{role}: {content[:500]}")
-                if conv_text:
-                    all_conversations.append("\n".join(conv_text[:10]))
-
-        if not all_conversations:
-            return JSONResponse(content={
-                "action": "skipped",
-                "reason": "No conversation content to analyze",
-                "profile": None
-            })
-
-        combined_text = "\n\n---\n\n".join(all_conversations[:30])
-        if len(combined_text) > 50000:
-            combined_text = combined_text[:50000]
-
-        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-        profile_prompt = """Analyze these conversations and extract a thoughtful profile of the user.
-Focus on what the user would genuinely want remembered about themselves - meaningful personal details, not random conversational fragments.
-
-Extract ONLY information that is clearly stated or strongly implied. Leave fields empty if uncertain.
-
-Return a JSON object with these fields:
-- family: array of family members mentioned (e.g., ["wife Sarah", "son Jake, age 10"])
-- pets: array of pets (e.g., ["dog Max, golden retriever"])
-- work: string describing their job/profession
-- background: string with relevant background (education, career history)
-- location: string with location if mentioned
-- interests: array of hobbies/interests
-- philosophies: array of values, beliefs, or strong opinions they've expressed
-- communication_preferences: array of how they like to communicate (e.g., ["prefers concise responses", "likes bullet points"])
-- projects: array of ongoing projects they're working on
-- other: array of other meaningful facts that don't fit above categories
-
-Be selective - only include things that seem genuinely important to who this person is.
-Return ONLY valid JSON, no other text."""
-
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": profile_prompt},
-                {"role": "user", "content": f"Conversations:\n\n{combined_text}"}
-            ],
-            temperature=0.3,
-            max_tokens=2000
-        )
-
-        profile_text = response.choices[0].message.content.strip()
-
-        if profile_text.startswith("```"):
-            profile_text = profile_text.split("```")[1]
-            if profile_text.startswith("json"):
-                profile_text = profile_text[4:]
-        profile_text = profile_text.strip()
-
-        try:
-            profile_data = json.loads(profile_text)
-        except json.JSONDecodeError as e:
-            print(f"Auto-generate: Failed to parse profile JSON: {e}")
+        if "error" in result_data:
             return JSONResponse(content={
                 "action": "failed",
-                "reason": "Failed to parse generated profile",
+                "reason": result_data.get("error", "Unknown error"),
                 "profile": None
             })
-
-        profile_data["last_updated"] = datetime.now().isoformat()
-        profile_data["always_remember"] = existing_always_remember
-        profile_data["last_archive_count"] = total_archives
-
-        profile_ref.set(profile_data)
 
         return JSONResponse(content={
             "action": "generated",
             "reason": "Profile auto-generated successfully",
-            "profile": profile_data
+            "profile": result_data.get("profile")
         })
 
     except Exception as e:

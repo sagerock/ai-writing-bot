@@ -708,6 +708,18 @@ const AccountPanel = ({ auth }) => {
                             )}
                         </div>
 
+                        {/* Currently - dynamic recent context */}
+                        {profile.currently?.length > 0 && (
+                            <div className="currently-display">
+                                <label>Currently:</label>
+                                <ul className="currently-list">
+                                    {profile.currently.map((item, index) => (
+                                        <li key={index}>{item}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         <div className="profile-content">
                             {profile.work && <p><strong>Work:</strong> {profile.work}</p>}
                             {profile.background && <p><strong>Background:</strong> {profile.background}</p>}
