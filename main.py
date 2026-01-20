@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, List, Optional
 import asyncio
 from uuid import uuid4
@@ -366,14 +366,14 @@ async def check_signup_rate_limit(request: Request):
         attempts = data.get("attempts", [])
 
         # Filter to only attempts within the rate window
-        cutoff = datetime.utcnow() - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
         recent_attempts = [a for a in attempts if a > cutoff]
 
         if len(recent_attempts) >= SIGNUP_RATE_LIMIT:
             # Calculate when they can try again
             oldest_attempt = min(recent_attempts)
             can_retry_at = oldest_attempt + timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
-            hours_remaining = (can_retry_at - datetime.utcnow()).total_seconds() / 3600
+            hours_remaining = (can_retry_at - datetime.now(timezone.utc)).total_seconds() / 3600
 
             return {
                 "allowed": False,
@@ -402,7 +402,7 @@ async def record_signup(request: Request, background_tasks: BackgroundTasks, bod
     signup_ref = db.collection("signup_rate_limits").document(client_ip)
     signup_doc = signup_ref.get()
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
 
     if signup_doc.exists:
