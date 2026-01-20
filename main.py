@@ -337,6 +337,7 @@ class FeedbackRequest(BaseModel):
 # Limit new account creation to prevent abuse (3 accounts per IP per day)
 SIGNUP_RATE_LIMIT = 3
 SIGNUP_RATE_WINDOW_HOURS = 24
+SIGNUP_RATE_LIMIT_WHITELIST = ["108.194.182.188"]  # IPs exempt from rate limiting
 
 def get_client_ip(request: Request) -> str:
     """Extract client IP from request, handling proxies."""
@@ -356,6 +357,10 @@ def get_client_ip(request: Request) -> str:
 async def check_signup_rate_limit(request: Request):
     """Check if this IP can create a new account."""
     client_ip = get_client_ip(request)
+
+    # Skip rate limiting for whitelisted IPs
+    if client_ip in SIGNUP_RATE_LIMIT_WHITELIST:
+        return {"allowed": True, "attempts_remaining": 999}
 
     # Get signup attempts from this IP in the last 24 hours
     signup_ref = db.collection("signup_rate_limits").document(client_ip)
