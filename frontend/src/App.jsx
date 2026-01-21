@@ -259,7 +259,7 @@ function App() {
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
                         {isSubscriber ? (
-                            <Link to="/account" className="impact-button" title="View Your Impact">My Impact</Link>
+                            <Link to="/pricing" className="impact-button" title="View Your Impact">My Impact</Link>
                         ) : (
                             <Link to="/pricing" className="upgrade-button" title="Support Houseless Movement">Upgrade</Link>
                         )}
