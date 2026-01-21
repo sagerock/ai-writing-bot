@@ -1855,6 +1855,101 @@ async def create_stripe_portal(user: dict = Depends(get_current_user)):
         )
 
 
+class UpdateSubscriptionRequest(BaseModel):
+    amount_cents: int
+
+
+@main_app.post("/stripe/update-subscription")
+async def update_stripe_subscription(req: UpdateSubscriptionRequest, user: dict = Depends(get_current_user)):
+    """Update subscription amount (upgrade/downgrade)."""
+    if not STRIPE_ENABLED:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Payments not configured"}
+        )
+
+    if req.amount_cents < 2000 or req.amount_cents > 10000:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Amount must be between $20 and $100"}
+        )
+
+    user_id = user['user_id']
+
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_snapshot = user_ref.get()
+
+        if not user_snapshot.exists:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "User not found"}
+            )
+
+        user_data = user_snapshot.to_dict()
+        subscription_id = user_data.get("stripe_subscription_id")
+
+        if not subscription_id:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No active subscription found"}
+            )
+
+        # Retrieve current subscription
+        subscription = stripe.Subscription.retrieve(subscription_id)
+
+        if subscription.status != "active":
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Subscription is not active"}
+            )
+
+        # Get the current subscription item ID
+        subscription_item_id = subscription["items"]["data"][0]["id"]
+
+        # Update the subscription with new price
+        updated_subscription = stripe.Subscription.modify(
+            subscription_id,
+            items=[{
+                "id": subscription_item_id,
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": "RomaLume Subscription",
+                        "description": "Monthly subscription - 100% of profits go to Houseless Movement charity",
+                    },
+                    "unit_amount": req.amount_cents,
+                    "recurring": {"interval": "month"},
+                },
+            }],
+            proration_behavior="create_prorations",  # Charge/credit the difference immediately
+        )
+
+        # Update Firestore with new amount
+        user_ref.update({
+            "subscription_amount": req.amount_cents,
+        })
+
+        return JSONResponse(content={
+            "success": True,
+            "new_amount_cents": req.amount_cents,
+            "message": f"Subscription updated to ${req.amount_cents / 100:.0f}/month"
+        })
+
+    except stripe.error.StripeError as e:
+        print(f"Stripe update error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to update subscription: {str(e)}"}
+        )
+    except Exception as e:
+        print(f"Subscription update error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to update subscription"}
+        )
+
+
 @main_app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
     """Handle Stripe webhook events."""

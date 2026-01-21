@@ -31,8 +31,10 @@ const PricingPage = ({ auth }) => {
         }
         return 20;
     });
+    const [upgradeAmount, setUpgradeAmount] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [subscription, setSubscription] = useState(null);
     const navigate = useNavigate();
     const autoCheckoutTriggered = useRef(false);
@@ -64,6 +66,10 @@ const PricingPage = ({ auth }) => {
             if (response.ok) {
                 const data = await response.json();
                 setSubscription(data);
+                // Initialize upgrade amount to current + $10, capped at $100
+                if (data.amount_cents) {
+                    setUpgradeAmount(Math.min(data.amount_cents / 100 + 10, 100));
+                }
             }
         } catch (err) {
             console.error('Error checking subscription:', err);
@@ -135,6 +141,47 @@ const PricingPage = ({ auth }) => {
         }
     };
 
+    const handleUpgrade = async () => {
+        if (!upgradeAmount || upgradeAmount * 100 === subscription?.amount_cents) {
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/stripe/update-subscription`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount_cents: upgradeAmount * 100
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setSuccess(data.message);
+                // Update local subscription state
+                setSubscription(prev => ({
+                    ...prev,
+                    amount_cents: upgradeAmount * 100
+                }));
+            } else {
+                const err = await response.json();
+                setError(err.error || 'Failed to update subscription');
+            }
+        } catch (err) {
+            setError('Failed to update subscription. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Estimate based on average usage
     const estimatedAiCost = Math.min(amount * 0.4, 15); // ~40% to AI on average, max $15
     const estimatedCharity = amount - estimatedAiCost;
@@ -165,34 +212,61 @@ const PricingPage = ({ auth }) => {
                         </div>
 
                         <div className="upgrade-card">
-                            <h3>Want to Increase Your Impact?</h3>
+                            <h3>Adjust Your Contribution</h3>
                             <p>Every extra dollar goes directly to helping people experiencing homelessness in Akron, Ohio.</p>
 
-                            <div className="upgrade-examples">
-                                <div className="upgrade-example">
-                                    <span className="example-amount">$50/month</span>
-                                    <span className="example-impact">~$35 to charity</span>
+                            {upgradeAmount !== null && (
+                                <div className="upgrade-slider-section">
+                                    <div className="slider-container">
+                                        <input
+                                            type="range"
+                                            min="20"
+                                            max="100"
+                                            step="5"
+                                            value={upgradeAmount}
+                                            onChange={(e) => {
+                                                setUpgradeAmount(parseInt(e.target.value));
+                                                setSuccess(null);
+                                            }}
+                                            className="amount-slider"
+                                        />
+                                        <div className="amount-display">${upgradeAmount}/month</div>
+                                    </div>
+                                    <div className="amount-labels">
+                                        <span>$20</span>
+                                        <span>$100</span>
+                                    </div>
+                                    <div className="upgrade-impact-preview">
+                                        ~${Math.max(0, upgradeAmount - Math.min(upgradeAmount * 0.4, 15)).toFixed(0)} to Houseless Movement
+                                    </div>
                                 </div>
-                                <div className="upgrade-example">
-                                    <span className="example-amount">$75/month</span>
-                                    <span className="example-impact">~$60 to charity</span>
-                                </div>
-                                <div className="upgrade-example">
-                                    <span className="example-amount">$100/month</span>
-                                    <span className="example-impact">~$85 to charity</span>
-                                </div>
-                            </div>
+                            )}
 
                             {error && <div className="error-message">{error}</div>}
+                            {success && <div className="success-message">{success}</div>}
 
                             <button
-                                onClick={handleOpenPortal}
-                                disabled={loading}
+                                onClick={handleUpgrade}
+                                disabled={loading || upgradeAmount * 100 === subscription?.amount_cents}
                                 className="btn-upgrade"
                             >
-                                {loading ? 'Processing...' : 'Upgrade My Contribution'}
+                                {loading ? 'Processing...' :
+                                 upgradeAmount * 100 === subscription?.amount_cents ? 'Current Amount' :
+                                 upgradeAmount * 100 > subscription?.amount_cents ? 'Upgrade My Contribution' : 'Adjust My Contribution'}
                             </button>
-                            <p className="portal-note">Opens Stripe billing portal to update your subscription</p>
+                            {upgradeAmount * 100 !== subscription?.amount_cents && (
+                                <p className="portal-note">
+                                    {upgradeAmount * 100 > subscription?.amount_cents
+                                        ? "You'll be charged the prorated difference immediately"
+                                        : "Your next billing cycle will reflect the new amount"}
+                                </p>
+                            )}
+
+                            <div className="manage-subscription-link">
+                                <button onClick={handleOpenPortal} className="link-button" disabled={loading}>
+                                    Manage payment method or cancel subscription
+                                </button>
+                            </div>
                         </div>
 
                         <div className="charity-section">
