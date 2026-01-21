@@ -1434,12 +1434,14 @@ async def get_archives(user: dict = Depends(get_current_user)):
         preview = data.get("preview")
         messages = data.get("messages", [])
 
-        # If no title stored, use first user message as title (truncated)
+        # If no title stored, use first user message as title
         if not title and messages:
             for msg in messages:
                 if msg.get("role") == "user":
-                    title = msg.get("content", "")[:80]
-                    if len(msg.get("content", "")) > 80:
+                    content = msg.get("content", "")
+                    # Show full query up to 200 chars
+                    title = content[:200]
+                    if len(content) > 200:
                         title += "..."
                     break
 
