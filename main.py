@@ -1707,11 +1707,16 @@ async def get_user_subscription(user: dict = Depends(get_current_user)):
 
         user_data = user_snapshot.to_dict()
 
+        # Convert Firestore timestamp to ISO string if present
+        current_period_end = user_data.get("subscription_current_period_end")
+        if current_period_end:
+            current_period_end = current_period_end.isoformat() if hasattr(current_period_end, 'isoformat') else str(current_period_end)
+
         return JSONResponse(content={
             "status": user_data.get("subscription_status", "none"),
             "amount_cents": user_data.get("subscription_amount", 0),
             "stripe_customer_id": user_data.get("stripe_customer_id"),
-            "current_period_end": user_data.get("subscription_current_period_end"),
+            "current_period_end": current_period_end,
         })
 
     except Exception as e:
