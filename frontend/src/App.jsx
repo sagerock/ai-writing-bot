@@ -3,7 +3,7 @@ import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-r
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth'
 import Chat from './components/Chat'
-import ProjectsPanel from './components/ProjectsPanel'
+import RecentChats from './components/RecentChats'
 import AccountPage from './components/AccountPage'
 import MemoriesPage from './components/MemoriesPage'
 import AdminPage from './components/AdminPage'
@@ -274,11 +274,9 @@ function App() {
                 <div className="main-content">
                     {/* Collapsible sidebar - works on both desktop and mobile */}
                     <div className={`left-panel ${sidebarOpen ? 'open' : 'closed'}`}>
-                        <ProjectsPanel
+                        <RecentChats
                             auth={auth}
-                            onLoadArchive={handleLoadArchive}
-                            onSelectDocument={handleSelectDocument}
-                            onUploadSuccess={handleUploadSuccess}
+                            onLoadChat={handleLoadArchive}
                         />
                     </div>
                     {/* Backdrop for mobile when sidebar is open */}
