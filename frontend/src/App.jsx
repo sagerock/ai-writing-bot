@@ -277,6 +277,7 @@ function App() {
                         <RecentChats
                             auth={auth}
                             onLoadChat={handleLoadArchive}
+                            onLoadDocument={handleSelectDocument}
                         />
                     </div>
                     {/* Backdrop for mobile when sidebar is open */}

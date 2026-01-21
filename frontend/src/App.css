@@ -150,10 +150,34 @@
     border-bottom: 1px solid #e0e0e0;
 }
 
-.recent-chats-header h3 {
-    margin: 0;
-    font-size: 1.1em;
+.sidebar-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.sidebar-tab {
+    background: none;
+    border: none;
+    padding: 6px 12px;
+    font-size: 0.95em;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.sidebar-tab:hover {
+    background: #f0f0f0;
+}
+
+.sidebar-tab.active {
+    background: #e8e8e8;
     color: #333;
+}
+
+.file-icon {
+    margin-right: 6px;
 }
 
 .refresh-btn {
