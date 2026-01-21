@@ -81,17 +81,56 @@
 
 .left-panel {
     width: 280px;
-    min-width: 200px;
-    max-width: 500px;
     flex-shrink: 0;
     border-right: 1px solid #ccc;
     background-color: #f9f9f9;
     display: flex;
     flex-direction: column;
-    min-height: 0; /* Allow flexbox children to shrink */
-    position: relative; /* Establish positioning context */
-    resize: horizontal;
+    min-height: 0;
     overflow: auto;
+    transition: margin-left 0.3s ease, opacity 0.3s ease;
+}
+
+.left-panel.closed {
+    margin-left: -280px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.left-panel.open {
+    margin-left: 0;
+    opacity: 1;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 1.1em;
+    cursor: pointer;
+    margin-left: 12px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.sidebar-toggle:hover {
+    background-color: #f0f0f0;
+    border-color: #ccc;
+}
+
+.sidebar-toggle.active {
+    background-color: #e8e8e8;
+    border-color: #bbb;
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
 }
 
 .chat-area {
@@ -1917,23 +1956,36 @@ hr {
     height: auto;
   }
   .left-panel {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #ccc;
-    height: auto;
-    flex-shrink: 0; /* Prevent it from shrinking */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 100;
+    border-right: 1px solid #ccc;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    margin-left: 0; /* Reset margin for mobile */
+    opacity: 1;
+  }
+  .left-panel.closed {
+    transform: translateX(-100%);
+    margin-left: 0;
+  }
+  .left-panel.open {
+    transform: translateX(0);
   }
   .chat-area {
     width: 100%;
     height: auto;
-    min-height: 60vh; /* Give it a large, guaranteed height */
-    flex-grow: 1; /* Allow it to grow and fill remaining space */
+    min-height: 60vh;
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
   }
   .App-header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 10px;
     padding: 10px 10px;
   }

@@ -71,7 +71,7 @@ function App() {
     const [projects, setProjects] = useState({});
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [projectsError, setProjectsError] = useState('');
-    const [mobileProjectsDrawerOpen, setMobileProjectsDrawerOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [userSettings, setUserSettings] = useState({
         simplifiedMode: true,
@@ -250,11 +250,13 @@ function App() {
                 <header className="App-header">
                     <div className="logo-container">
                         <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />
-                        {isMobile && !userSettings.simplifiedMode && (
-                            <button className="hamburger" onClick={() => setMobileProjectsDrawerOpen(true)}>
-                                &#9776;
-                            </button>
-                        )}
+                        <button
+                            className={`sidebar-toggle ${sidebarOpen ? 'active' : ''}`}
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            title={sidebarOpen ? "Hide sidebar" : "Show documents & archives"}
+                        >
+                            📁
+                        </button>
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
@@ -270,33 +272,20 @@ function App() {
                 </header>
 
                 <div className="main-content">
-                    {/* Desktop left panel - hidden in simplified mode */}
-                    {!isMobile && !userSettings.simplifiedMode && (
-                        <div className="left-panel">
-                            <ProjectsPanel
-                                auth={auth}
-                                onLoadArchive={handleLoadArchive}
-                                onSelectDocument={handleSelectDocument}
-                                onUploadSuccess={handleUploadSuccess}
-                            />
-                        </div>
+                    {/* Collapsible sidebar - works on both desktop and mobile */}
+                    <div className={`left-panel ${sidebarOpen ? 'open' : 'closed'}`}>
+                        <ProjectsPanel
+                            auth={auth}
+                            onLoadArchive={handleLoadArchive}
+                            onSelectDocument={handleSelectDocument}
+                            onUploadSuccess={handleUploadSuccess}
+                        />
+                    </div>
+                    {/* Backdrop for mobile when sidebar is open */}
+                    {isMobile && sidebarOpen && (
+                        <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
                     )}
-                    {/* Mobile drawer for projects - hidden in simplified mode */}
-                    {isMobile && mobileProjectsDrawerOpen && !userSettings.simplifiedMode && (
-                        <>
-                            <div className="mobile-drawer-backdrop" onClick={() => setMobileProjectsDrawerOpen(false)} />
-                            <div className="mobile-drawer">
-                                <ProjectsPanel
-                                    auth={auth}
-                                    onLoadArchive={handleLoadArchive}
-                                    onSelectDocument={handleSelectDocument}
-                                    onUploadSuccess={handleUploadSuccess}
-                                />
-                                <button className="close-drawer" onClick={() => setMobileProjectsDrawerOpen(false)}>×</button>
-                            </div>
-                        </>
-                    )}
-                    <div className={`chat-area ${userSettings.simplifiedMode ? 'simplified' : ''}`}>
+                    <div className="chat-area">
                         <Chat
                             auth={auth}
                             history={history}
