@@ -1904,23 +1904,25 @@ async def update_stripe_subscription(req: UpdateSubscriptionRequest, user: dict 
                 content={"error": "Subscription is not active"}
             )
 
-        # Get the current subscription item ID
+        # Get the current subscription item ID and product ID
         subscription_item_id = subscription["items"]["data"][0]["id"]
+        current_price = subscription["items"]["data"][0]["price"]
+        product_id = current_price["product"]
 
-        # Update the subscription with new price
+        # Create a new price for the existing product
+        new_price = stripe.Price.create(
+            product=product_id,
+            unit_amount=req.amount_cents,
+            currency="usd",
+            recurring={"interval": "month"},
+        )
+
+        # Update the subscription with the new price
         updated_subscription = stripe.Subscription.modify(
             subscription_id,
             items=[{
                 "id": subscription_item_id,
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": "RomaLume Subscription",
-                        "description": "Monthly subscription - 100% of profits go to Houseless Movement charity",
-                    },
-                    "unit_amount": req.amount_cents,
-                    "recurring": {"interval": "month"},
-                },
+                "price": new_price.id,
             }],
             proration_behavior="create_prorations",  # Charge/credit the difference immediately
         )
