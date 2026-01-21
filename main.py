@@ -1909,7 +1909,21 @@ async def update_stripe_subscription(req: UpdateSubscriptionRequest, user: dict 
         current_price = subscription["items"]["data"][0]["price"]
         product_id = current_price["product"]
 
-        # Create a new price for the existing product
+        # Check if product is active, reactivate or create new if needed
+        try:
+            product = stripe.Product.retrieve(product_id)
+            if not product.active:
+                # Reactivate the product
+                stripe.Product.modify(product_id, active=True)
+        except stripe.error.StripeError:
+            # If we can't retrieve/modify, create a new product
+            product = stripe.Product.create(
+                name="RomaLume Subscription",
+                description="Monthly subscription - 100% of profits go to Houseless Movement charity",
+            )
+            product_id = product.id
+
+        # Create a new price for the product
         new_price = stripe.Price.create(
             product=product_id,
             unit_amount=req.amount_cents,
