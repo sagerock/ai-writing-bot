@@ -1898,11 +1898,6 @@ async def stripe_webhook(request: Request):
                     "subscription_current_period_end": datetime.fromtimestamp(subscription.current_period_end),
                 }, merge=True)
 
-                # Add to all-time charity tracking
-                db.collection("users").document(user_id).set({
-                    "all_time_charity_cents": firestore.Increment(amount_cents),
-                }, merge=True)
-
                 print(f"Subscription activated for user {user_id}: ${amount_cents/100}")
 
         elif event_type == "customer.subscription.updated":
