@@ -13,6 +13,8 @@ import AuthPage from './pages/AuthPage'
 import ModelDocsPage from './pages/ModelDocsPage'
 import ModelsPage from './pages/ModelsPage'
 import PricingPage from './pages/PricingPage'
+import AboutPage from './pages/AboutPage'
+import AuthActionPage from './pages/AuthActionPage'
 import SubscriptionSuccess from './pages/SubscriptionSuccess'
 import { API_URL } from './apiConfig'
 import './App.css'
@@ -44,6 +46,22 @@ function ProtectedRoute({ user, children }) {
     return children;
 }
 
+// Redirect logged-in users, but check for subscribe param first
+function AuthRedirect() {
+    const [searchParams] = useSearchParams();
+    const subscribeAmount = searchParams.get('subscribe');
+
+    if (subscribeAmount) {
+        return <Navigate to={`/pricing?amount=${subscribeAmount}`} replace />;
+    }
+    return <Navigate to="/chat" replace />;
+}
+
+function useSearchParams() {
+    const location = useLocation();
+    return [new URLSearchParams(location.search)];
+}
+
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -54,6 +72,7 @@ function App() {
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [projectsError, setProjectsError] = useState('');
     const [mobileProjectsDrawerOpen, setMobileProjectsDrawerOpen] = useState(false);
+    const [isSubscriber, setIsSubscriber] = useState(false);
     const [userSettings, setUserSettings] = useState({
         simplifiedMode: true,
         defaultModel: 'auto',
@@ -125,6 +144,22 @@ function App() {
         }
     };
 
+    const checkSubscription = async () => {
+        if (!auth.currentUser) return;
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/subscription`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setIsSubscriber(data.status === 'active');
+            }
+        } catch (err) {
+            console.error('Error checking subscription:', err);
+        }
+    };
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
@@ -133,10 +168,12 @@ function App() {
                 setUser(currentUser);
                 fetchProjects();
                 fetchUserSettings();
+                checkSubscription();
             } else {
                 setUser(null);
                 setHistory([]);
                 setProjects({});
+                setIsSubscriber(false);
                 setUserSettings({
                     simplifiedMode: true,
                     defaultModel: 'auto',
@@ -221,6 +258,11 @@ function App() {
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
+                        {isSubscriber ? (
+                            <Link to="/account" className="impact-button" title="View Your Impact">My Impact</Link>
+                        ) : (
+                            <Link to="/pricing" className="upgrade-button" title="Support Houseless Movement">Upgrade</Link>
+                        )}
                         {user.isAdmin && <Link to="/admin" className="account-button" title="Admin">⚙️</Link>}
                         <Link to="/account" className="account-button" title="My Account">👤</Link>
                         <button onClick={handleLogout}>Logout</button>
@@ -279,12 +321,14 @@ function App() {
         <Routes>
             {/* Public-only routes */}
             <Route path="/" element={!user ? <HomePage /> : <Navigate to="/chat" />} />
-            <Route path="/login" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
-            <Route path="/register" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
+            <Route path="/login" element={!user ? <AuthPage /> : <AuthRedirect />} />
+            <Route path="/register" element={!user ? <AuthPage /> : <AuthRedirect />} />
             <Route path="/forgot-password" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
             <Route path="/model-docs" element={<ModelDocsPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/pricing" element={<PricingPage auth={auth} />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/auth/action" element={<AuthActionPage />} />
 
             {/* Protected routes */}
             <Route path="/subscribe/success" element={
