@@ -2394,6 +2394,45 @@ async def delete_document(filename: str, user: dict = Depends(get_current_user))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {e}")
 
+
+@main_app.get("/document/{filename}/download")
+async def download_document(filename: str, user: dict = Depends(get_current_user)):
+    """Generate a signed URL to download the original file."""
+    user_id = user['user_id']
+
+    try:
+        # Verify document exists in Firestore
+        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
+        doc_snapshot = doc_ref.get()
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail="Document not found.")
+
+        doc_data = doc_snapshot.to_dict()
+        storage_path = doc_data.get("storagePath", f"{user_id}/documents/{filename}")
+
+        # Get blob and generate signed URL
+        blob = bucket.blob(storage_path)
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail="File not found in storage.")
+
+        # Generate signed URL valid for 1 hour
+        from datetime import timedelta
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=1),
+            method="GET",
+            response_disposition=f'attachment; filename="{filename}"'
+        )
+
+        return JSONResponse(content={"download_url": url, "filename": filename})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Download error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate download link: {e}")
+
+
 # --- Firestore Data Functions ---
 def get_conversation(user_id: str) -> List[dict]:
     """Loads the current conversation history from Firestore."""

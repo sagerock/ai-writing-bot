@@ -156,6 +156,28 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
         }
     };
 
+    const handleDownloadDocument = async (filename, e) => {
+        e.stopPropagation();
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/document/${encodeURIComponent(filename)}/download`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get download link');
+            }
+
+            const data = await response.json();
+
+            // Open the download URL in a new tab
+            window.open(data.download_url, '_blank');
+        } catch (err) {
+            alert('Failed to download document');
+        }
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return '';
 
@@ -277,13 +299,22 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
                                         )}
                                     </div>
                                 </div>
-                                <button
-                                    className="delete-chat-btn"
-                                    onClick={(e) => handleDeleteDocument(doc.filename, e)}
-                                    title="Delete"
-                                >
-                                    ×
-                                </button>
+                                <div className="document-actions">
+                                    <button
+                                        className="download-btn"
+                                        onClick={(e) => handleDownloadDocument(doc.filename, e)}
+                                        title="Download original file"
+                                    >
+                                        ⬇
+                                    </button>
+                                    <button
+                                        className="delete-chat-btn"
+                                        onClick={(e) => handleDeleteDocument(doc.filename, e)}
+                                        title="Delete"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>

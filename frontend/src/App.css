@@ -249,6 +249,34 @@
     color: #999;
 }
 
+.document-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.chat-item:hover .document-actions {
+    opacity: 1;
+}
+
+.download-btn {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 1em;
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.download-btn:hover {
+    background: #e8f4fc;
+    color: #2196f3;
+}
+
 .delete-chat-btn {
     background: none;
     border: none;
@@ -267,6 +295,10 @@
 
 .delete-chat-btn:hover {
     color: #e74c3c;
+}
+
+.document-actions .delete-chat-btn {
+    opacity: 1;
 }
 
 .empty-text {
