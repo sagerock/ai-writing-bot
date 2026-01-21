@@ -1,7 +1,25 @@
 import React, { useState } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { API_URL } from '../apiConfig';
+import './HomePage.css';
+
+const AuthNav = ({ isLogin }) => (
+    <nav className="home-nav">
+        <div className="nav-container">
+            <Link to="/" className="nav-logo">
+                <img src="/logo.png" alt="RomaLume" />
+            </Link>
+            <div className="nav-links">
+                <Link to="/" className="nav-link">Home</Link>
+                <Link to="/about" className="nav-link">About</Link>
+                <Link to="/pricing" className="nav-link">Pricing</Link>
+                <Link to="/login" className={`nav-link${isLogin ? ' active' : ''}`}>Login</Link>
+                <Link to="/register" className="nav-btn">Get Started</Link>
+            </div>
+        </div>
+    </nav>
+);
 
 // This component will handle Login, Registration, and Forgot Password
 const AuthPage = () => {
@@ -13,6 +31,8 @@ const AuthPage = () => {
   const auth = getAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const subscribeAmount = searchParams.get('subscribe');
 
   // Determine which form to show based on the URL path
   const isRegister = location.pathname === '/register';
@@ -45,8 +65,11 @@ const AuthPage = () => {
         body: JSON.stringify({ email: email })
       });
 
-      // User is now automatically signed in and can access the app immediately
-      // The onAuthStateChanged listener in App.jsx will handle navigation to the main app
+      // If user came from pricing page, redirect back to complete subscription
+      if (subscribeAmount) {
+        navigate(`/pricing?amount=${subscribeAmount}`);
+      }
+      // Otherwise, the onAuthStateChanged listener in App.jsx will handle navigation to /chat
     } catch (err) {
       setError(err.message);
     } finally {
@@ -61,7 +84,11 @@ const AuthPage = () => {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // The onAuthStateChanged listener in App.jsx will handle navigation
+      // If user came from pricing page, redirect back to complete subscription
+      if (subscribeAmount) {
+        navigate(`/pricing?amount=${subscribeAmount}`);
+      }
+      // Otherwise, the onAuthStateChanged listener in App.jsx will handle navigation
     } catch (err) {
       setError('Failed to log in. Please check your credentials.');
     } finally {
@@ -116,14 +143,19 @@ const AuthPage = () => {
       return (
         <form onSubmit={handleRegister}>
           <h2>Create an Account</h2>
+          {subscribeAmount && (
+            <p className="subscribe-context">
+              Sign up to complete your ${subscribeAmount}/month subscription
+            </p>
+          )}
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
           <button type="submit" disabled={isLoading}>
-            {isLoading ? <span className="spinner small"></span> : 'Register'}
+            {isLoading ? <span className="spinner small"></span> : (subscribeAmount ? 'Continue to Checkout' : 'Register')}
           </button>
           <div className="auth-links">
             <span>Already have an account? </span>
-            <Link to="/login">Login</Link>
+            <Link to={subscribeAmount ? `/login?subscribe=${subscribeAmount}` : '/login'}>Login</Link>
           </div>
         </form>
       );
@@ -132,13 +164,18 @@ const AuthPage = () => {
     return (
       <form onSubmit={handleLogin}>
         <h2>Login</h2>
+        {subscribeAmount && (
+          <p className="subscribe-context">
+            Log in to complete your ${subscribeAmount}/month subscription
+          </p>
+        )}
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         <button type="submit" disabled={isLoading}>
-          {isLoading ? <span className="spinner small"></span> : 'Login'}
+          {isLoading ? <span className="spinner small"></span> : (subscribeAmount ? 'Continue to Checkout' : 'Login')}
         </button>
         <div className="auth-links">
-          <div>No account? <Link to="/register">Create one</Link></div>
+          <div>No account? <Link to={subscribeAmount ? `/register?subscribe=${subscribeAmount}` : '/register'}>Create one</Link></div>
           <div><Link to="/forgot-password">Forgot Password?</Link></div>
         </div>
       </form>
@@ -146,12 +183,15 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <img src="/logo.png" alt="RomaLume Logo" className="auth-logo" />
-        {renderForm()}
-        {error && <p className="error">{error}</p>}
-        {info && <p className="success">{info}</p>}
+    <div className="auth-page-wrapper">
+      <AuthNav isLogin={!isRegister && !isForgotPassword} />
+      <div className="auth-page">
+        <div className="auth-container">
+          <img src="/logo.png" alt="RomaLume Logo" className="auth-logo" />
+          {renderForm()}
+          {error && <p className="error">{error}</p>}
+          {info && <p className="success">{info}</p>}
+        </div>
       </div>
     </div>
   );

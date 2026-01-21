@@ -1,17 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
+import './HomePage.css';
+
+const PricingNav = () => (
+    <nav className="home-nav">
+        <div className="nav-container">
+            <Link to="/" className="nav-logo">
+                <img src="/logo.png" alt="RomaLume" />
+            </Link>
+            <div className="nav-links">
+                <Link to="/" className="nav-link">Home</Link>
+                <Link to="/about" className="nav-link">About</Link>
+                <Link to="/pricing" className="nav-link active">Pricing</Link>
+                <Link to="/login" className="nav-link">Login</Link>
+                <Link to="/register" className="nav-btn">Get Started</Link>
+            </div>
+        </div>
+    </nav>
+);
 
 const PricingPage = ({ auth }) => {
-    const [amount, setAmount] = useState(20);
+    const [searchParams] = useSearchParams();
+    const urlAmount = searchParams.get('amount');
+    const [amount, setAmount] = useState(() => {
+        // Initialize with URL amount if present and valid
+        if (urlAmount) {
+            const parsed = parseInt(urlAmount);
+            if (parsed >= 20 && parsed <= 100) return parsed;
+        }
+        return 20;
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [subscription, setSubscription] = useState(null);
     const navigate = useNavigate();
+    const autoCheckoutTriggered = useRef(false);
 
     useEffect(() => {
         checkSubscription();
     }, [auth]);
+
+    // Auto-trigger checkout when returning from signup with amount param
+    useEffect(() => {
+        if (urlAmount && auth.currentUser && !autoCheckoutTriggered.current && !loading) {
+            autoCheckoutTriggered.current = true;
+            // Small delay to ensure everything is ready
+            setTimeout(() => {
+                handleSubscribe();
+            }, 500);
+        }
+    }, [urlAmount, auth.currentUser]);
 
     const checkSubscription = async () => {
         try {
@@ -33,7 +72,7 @@ const PricingPage = ({ auth }) => {
 
     const handleSubscribe = async () => {
         if (!auth.currentUser) {
-            navigate('/login');
+            navigate(`/register?subscribe=${amount}`);
             return;
         }
 
@@ -69,25 +108,108 @@ const PricingPage = ({ auth }) => {
         }
     };
 
+    const handleOpenPortal = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/stripe/create-portal`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                window.location.href = data.portal_url;
+            } else {
+                const err = await response.json();
+                setError(err.error || 'Failed to open billing portal');
+            }
+        } catch (err) {
+            setError('Failed to open billing portal. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Estimate based on average usage
     const estimatedAiCost = Math.min(amount * 0.4, 15); // ~40% to AI on average, max $15
     const estimatedCharity = amount - estimatedAiCost;
 
     return (
-        <div className="pricing-page">
-            <div className="pricing-container">
+        <div className="pricing-page-wrapper">
+            <PricingNav />
+            <div className="pricing-page">
+                <div className="pricing-container">
                 <h1>Simple, Transparent Pricing</h1>
                 <p className="pricing-subtitle">
                     100% of profits go to <strong>Houseless Movement</strong>
                 </p>
 
                 {subscription?.status === 'active' ? (
-                    <div className="already-subscribed">
-                        <h2>You're Already Subscribed!</h2>
-                        <p>Current plan: {subscription.amount_cents / 100}/month</p>
-                        <button onClick={() => navigate('/account')} className="btn-primary">
-                            Manage Subscription
-                        </button>
+                    <div className="subscriber-section">
+                        <div className="thank-you-card">
+                            <h2>Thank You for Your Support!</h2>
+                            <p className="current-plan">
+                                You're contributing <strong>${subscription.amount_cents / 100}/month</strong>
+                            </p>
+                            <div className="your-impact">
+                                <p>Your estimated monthly impact:</p>
+                                <div className="impact-amount">
+                                    ~${Math.max(0, (subscription.amount_cents / 100) - Math.min((subscription.amount_cents / 100) * 0.4, 15)).toFixed(0)} to Houseless Movement
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="upgrade-card">
+                            <h3>Want to Increase Your Impact?</h3>
+                            <p>Every extra dollar goes directly to helping people experiencing homelessness in Akron, Ohio.</p>
+
+                            <div className="upgrade-examples">
+                                <div className="upgrade-example">
+                                    <span className="example-amount">$50/month</span>
+                                    <span className="example-impact">~$35 to charity</span>
+                                </div>
+                                <div className="upgrade-example">
+                                    <span className="example-amount">$75/month</span>
+                                    <span className="example-impact">~$60 to charity</span>
+                                </div>
+                                <div className="upgrade-example">
+                                    <span className="example-amount">$100/month</span>
+                                    <span className="example-impact">~$85 to charity</span>
+                                </div>
+                            </div>
+
+                            {error && <div className="error-message">{error}</div>}
+
+                            <button
+                                onClick={handleOpenPortal}
+                                disabled={loading}
+                                className="btn-upgrade"
+                            >
+                                {loading ? 'Processing...' : 'Upgrade My Contribution'}
+                            </button>
+                            <p className="portal-note">Opens Stripe billing portal to update your subscription</p>
+                        </div>
+
+                        <div className="charity-section">
+                            <h2>About Houseless Movement</h2>
+                            <p>
+                                Houseless Movement is a 501(c)(3) charity helping people experiencing homelessness
+                                in Akron, Ohio find shelter, support, and dignity.
+                            </p>
+                            <a
+                                href="https://houselessmovement.org"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="learn-more-link"
+                            >
+                                Learn More About Our Impact
+                            </a>
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -211,6 +333,7 @@ const PricingPage = ({ auth }) => {
                         </div>
                     </>
                 )}
+                </div>
             </div>
         </div>
     );
