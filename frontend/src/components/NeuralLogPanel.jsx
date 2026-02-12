@@ -4,16 +4,16 @@ import React from 'react';
 const MODEL_DISPLAY_NAMES = {
   'gpt-5-nano-2025-08-07': 'GPT-5 Nano',
   'gpt-5-mini-2025-08-07': 'GPT-5 Mini',
-  'gpt-5-2025-08-07': 'GPT-5',
-  'gpt-5-pro': 'GPT-5 Pro',
-  'gpt-5.1': 'GPT-5.1',
-  'gpt-4.1-nano': 'GPT-4.1 Nano',
-  'gpt-4.1-mini': 'GPT-4.1 Mini',
-  'gpt-4.1': 'GPT-4.1',
-  'claude-sonnet-4-20250514': 'Claude 4.5 Sonnet',
-  'claude-opus-4-20250514': 'Claude 4.1 Opus',
+  'gpt-5.2-2025-12-11': 'GPT-5.2',
+  'gpt-5.2-pro-2025-12-11': 'GPT-5.2 Pro',
+  'gpt-5.2-codex-2025-12-11': 'GPT-5.2 Codex',
+  'claude-opus-4-6': 'Claude Opus 4.6',
+  'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
+  'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
+  'gemini-3-pro': 'Gemini 3 Pro',
   'gemini-2.5-flash': 'Gemini 2.5 Flash',
   'gemini-2.5-pro': 'Gemini 2.5 Pro',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
   'sonar-pro': 'Perplexity Sonar Pro'
 };
 

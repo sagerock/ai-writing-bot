@@ -510,7 +510,7 @@ def get_llm(model_name: str, temperature: float = 0.7):
 
 def is_gpt5_model(model_name: str) -> bool:
     """Check if model is a GPT-5 family model that requires Responses API."""
-    gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.1", "gpt-5.2"]
+    gpt5_models = ["gpt-5-mini", "gpt-5-nano", "gpt-5.2", "gpt-5.2-pro", "gpt-5.2-codex"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
 # Model routing configuration - optimized for cost efficiency
@@ -523,8 +523,8 @@ def is_gpt5_model(model_name: str) -> bool:
 #   Opus 4.5: $0.03 (premium quality)
 ROUTING_MODELS = {
     "simple": "gemini-2.0-flash",      # Quick facts - ultra cheap & fast
-    "general": "claude-sonnet-4-5",    # Everyday tasks - good quality, 40% cheaper than Opus
-    "coding": "claude-opus-4-5",       # Complex coding - needs highest intelligence
+    "general": "claude-sonnet-4-5",    # Everyday tasks - good quality, cost effective
+    "coding": "claude-opus-4-6",       # Complex coding - most intelligent model
     "writing": "claude-sonnet-4-5",    # Creative writing - great quality, cost effective
     "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, 63% cheaper
     "science": "gemini-2.5-pro",       # Scientific analysis - good at explanations, cheaper
@@ -2789,20 +2789,16 @@ async def fix_user_credits(user_id: str, credit_amount: int, _: dict = Depends(g
 # Formula: (input_price * 1K + output_price * 1K) / 1M = cost per 2K tokens
 MODEL_COSTS = {
     # OpenAI GPT-5 family
-    "gpt-5-nano": 0.0005,   # $0.05 input / $0.40 output
-    "gpt-5-mini": 0.002,    # $0.25 input / $2.00 output
-    "gpt-5-2025": 0.011,    # $1.25 input / $10.00 output
-    "gpt-5.1": 0.011,       # $1.25 input / $10.00 output
-    "gpt-5.2": 0.012,       # $1.50 input / $10.50 output (latest)
-    # OpenAI GPT-4.1 family
-    "gpt-4.1-nano": 0.0005, # $0.10 input / $0.40 output
-    "gpt-4.1-mini": 0.0004, # $0.40 input / $1.60 output -> ~0.002 but corrected
-    "gpt-4.1": 0.01,        # $2.00 input / $8.00 output
+    "gpt-5-nano": 0.0005,       # $0.05 input / $0.40 output
+    "gpt-5-mini": 0.002,        # $0.25 input / $2.00 output
+    "gpt-5.2-codex": 0.016,     # $1.75 input / $14.00 output (coding-optimized)
+    "gpt-5.2-pro": 0.19,        # $21.00 input / $168.00 output (premium)
+    "gpt-5.2": 0.016,           # $1.75 input / $14.00 output (flagship)
     # Anthropic Claude
-    "claude-sonnet": 0.018, # $3 input / $15 output
-    "claude-opus-4-5": 0.03,# $5 input / $25 output
-    "claude-opus-4-1": 0.09,# $15 input / $75 output
-    "claude-haiku": 0.006,  # $1 input / $5 output
+    "claude-opus-4-6": 0.03,   # $5 input / $25 output (flagship)
+    "claude-opus-4-5": 0.03,   # $5 input / $25 output (legacy)
+    "claude-sonnet": 0.018,    # $3 input / $15 output
+    "claude-haiku": 0.006,     # $1 input / $5 output
     # Google Gemini
     "gemini-3-pro": 0.014,  # $2 input / $12 output - best multimodal
     "gemini-2.5-pro": 0.011,# $1.25 input / $10 output - coding/reasoning

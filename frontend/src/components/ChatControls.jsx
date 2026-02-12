@@ -96,20 +96,15 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
             <option value="auto">Auto (Smart Routing)</option>
             <optgroup label="OpenAI - GPT-5 Series">
               <option value="gpt-5-nano-2025-08-07">GPT-5 Nano (Ultra-fast)</option>
-              <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Default)</option>
-              <option value="gpt-5-2025-08-07">GPT-5</option>
-              <option value="gpt-5.1-2025-11-13">GPT-5.1</option>
-              <option value="gpt-5.2">GPT-5.2 (Latest)</option>
-            </optgroup>
-            <optgroup label="OpenAI - GPT-4.1 Series">
-              <option value="gpt-4.1-nano-2025-04-14">GPT-4.1 Nano</option>
-              <option value="gpt-4.1-mini-2025-04-14">GPT-4.1 Mini</option>
-              <option value="gpt-4.1-2025-04-14">GPT-4.1</option>
+              <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Balanced)</option>
+              <option value="gpt-5.2-2025-12-11">GPT-5.2 (Flagship)</option>
+              <option value="gpt-5.2-pro-2025-12-11">GPT-5.2 Pro (Premium)</option>
+              <option value="gpt-5.2-codex-2025-12-11">GPT-5.2 Codex (Coding)</option>
             </optgroup>
             <optgroup label="Anthropic">
-              <option value="claude-opus-4-5-20251101">Claude Opus 4.5 (Premium)</option>
+              <option value="claude-opus-4-6">Claude Opus 4.6 (Flagship)</option>
               <option value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</option>
-              <option value="claude-opus-4-1-20250805">Claude Opus 4.1</option>
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast)</option>
             </optgroup>
             <optgroup label="Google">
               <option value="gemini-3-pro">Gemini 3 Pro (Preview)</option>
