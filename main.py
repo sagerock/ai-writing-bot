@@ -523,8 +523,8 @@ def is_gpt5_model(model_name: str) -> bool:
 #   Opus 4.5: $0.03 (premium quality)
 ROUTING_MODELS = {
     "simple": "gemini-2.0-flash",      # Quick facts - ultra cheap & fast
-    "general": "claude-sonnet-4-5",    # Everyday tasks - good quality, cost effective
-    "coding": "claude-opus-4-6",       # Complex coding - most intelligent model
+    "general": "gpt-5.2",              # Everyday tasks - good quality, 12% cheaper than Sonnet
+    "coding": "gpt-5.2-codex",        # Complex coding - purpose-built, 47% cheaper than Opus
     "writing": "claude-sonnet-4-5",    # Creative writing - great quality, cost effective
     "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, 63% cheaper
     "science": "gemini-2.5-pro",       # Scientific analysis - good at explanations, cheaper
