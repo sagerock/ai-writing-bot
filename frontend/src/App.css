@@ -4752,7 +4752,7 @@ hr {
     text-decoration: underline;
 }
 
-.btn-subscribe {
+.pricing-page .btn-subscribe {
     width: 100%;
     padding: 16px;
     font-size: 0.95em;
@@ -4768,12 +4768,12 @@ hr {
     font-family: 'DM Sans', sans-serif;
 }
 
-.btn-subscribe:hover {
+.pricing-page .btn-subscribe:hover {
     background: #e8c171;
     transform: translateY(-2px);
 }
 
-.btn-subscribe:disabled {
+.pricing-page .btn-subscribe:disabled {
     background: #3d3529;
     color: #6b6358;
     transform: none;
