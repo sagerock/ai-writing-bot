@@ -184,10 +184,18 @@ function App() {
     };
 
     useEffect(() => {
+        let settled = false;
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            settled = true;
             if (currentUser) {
-                const idTokenResult = await currentUser.getIdTokenResult();
-                currentUser.isAdmin = idTokenResult.claims.admin === true;
+                try {
+                    const idTokenResult = await currentUser.getIdTokenResult();
+                    currentUser.isAdmin = idTokenResult.claims.admin === true;
+                } catch (err) {
+                    console.error('Error getting token:', err);
+                    currentUser.isAdmin = false;
+                }
                 setUser(currentUser);
                 fetchProjects();
                 fetchUserSettings();
@@ -208,7 +216,19 @@ function App() {
             }
             setLoading(false);
         });
-        return () => unsubscribe();
+
+        // Fallback: if auth never fires within 5s, stop loading
+        const timeout = setTimeout(() => {
+            if (!settled) {
+                console.warn('Auth initialization timed out — continuing as logged out');
+                setLoading(false);
+            }
+        }, 5000);
+
+        return () => {
+            unsubscribe();
+            clearTimeout(timeout);
+        };
     }, []);
 
     const handleResendVerification = async () => {
@@ -357,7 +377,14 @@ function App() {
     };
 
     if (loading) {
-        return <div>Loading...</div>; // Or a spinner component
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0d0a' }}>
+                <div style={{ textAlign: 'center', color: '#b5ada0', fontFamily: 'DM Sans, sans-serif' }}>
+                    <img src="/logo.png" alt="RomaLume" style={{ height: 48, marginBottom: 16, opacity: 0.8 }} />
+                    <div style={{ fontSize: '0.9rem' }}>Loading...</div>
+                </div>
+            </div>
+        );
     }
 
     return (
