@@ -1811,8 +1811,11 @@ async def create_stripe_checkout(
         )
 
 
+class PortalRequest(BaseModel):
+    return_url: str = None
+
 @main_app.post("/stripe/create-portal")
-async def create_stripe_portal(user: dict = Depends(get_current_user)):
+async def create_stripe_portal(req: PortalRequest = None, user: dict = Depends(get_current_user)):
     """Create a Stripe customer portal session for managing subscription."""
     if not STRIPE_ENABLED:
         return JSONResponse(
@@ -1841,10 +1844,13 @@ async def create_stripe_portal(user: dict = Depends(get_current_user)):
                 content={"error": "No subscription found"}
             )
 
+        # Use return_url from frontend if provided, otherwise fall back to env/default
+        portal_return_url = (req and req.return_url) or os.getenv("FRONTEND_URL", "https://ai-writing-tool-bdebc.web.app") + "/account"
+
         # Create portal session
         session = stripe.billing_portal.Session.create(
             customer=stripe_customer_id,
-            return_url=os.getenv("FRONTEND_URL", "https://ai-writing-tool-bdebc.web.app") + "/account",
+            return_url=portal_return_url,
         )
 
         return JSONResponse(content={"portal_url": session.url})

@@ -95,7 +95,10 @@ const PricingPage = ({ auth }) => {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    return_url: `${window.location.origin}/pricing`
+                })
             });
 
             if (response.ok) {
