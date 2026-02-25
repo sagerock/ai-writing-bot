@@ -527,7 +527,7 @@
   box-shadow: 0 0 0 2px rgba(212, 168, 83, 0.1);
 }
 
-.auth-container button {
+.auth-page-wrapper .auth-container button {
   padding: 12px 20px;
   border: none;
   background-color: #d4a853;
@@ -542,11 +542,11 @@
   transition: background-color 0.2s ease;
 }
 
-.auth-container button:hover {
+.auth-page-wrapper .auth-container button:hover {
   background-color: #e8c171;
 }
 
-.auth-container button:disabled {
+.auth-page-wrapper .auth-container button:disabled {
   background-color: rgba(212, 168, 83, 0.4);
   cursor: not-allowed;
 }
