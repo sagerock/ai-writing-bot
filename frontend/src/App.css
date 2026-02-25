@@ -4692,140 +4692,22 @@ hr {
     border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
-.amount-selector {
+.price-hero {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
 
-.amount-selector label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 16px;
-    color: #f5f0e8;
-}
-
-.slider-container {
-    margin-bottom: 8px;
-}
-
-.amount-slider {
-    width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    background: #1a1714;
-    outline: none;
-    -webkit-appearance: none;
-}
-
-.amount-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #d4a853;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(212, 168, 83, 0.3);
-}
-
-.amount-slider::-moz-range-thumb {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #d4a853;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 2px 8px rgba(212, 168, 83, 0.3);
-}
-
-.amount-slider::-moz-range-track {
-    height: 8px;
-    border-radius: 4px;
-    background: #1a1714;
-    border: none;
-}
-
-.amount-display {
-    font-size: 2.5em;
+.price-amount {
+    font-size: 3.5em;
     font-weight: 700;
-    color: #f5f0e8;
-    margin: 16px 0;
-}
-
-.amount-labels {
-    display: flex;
-    justify-content: space-between;
-    color: #b5ada0;
-    font-size: 0.9em;
-}
-
-.pricing-breakdown {
-    background: rgba(212, 168, 83, 0.05);
-    border-radius: 2px;
-    padding: 20px;
-    margin-bottom: 24px;
-    border: 1px solid rgba(212, 168, 83, 0.1);
-}
-
-.pricing-breakdown h3 {
-    margin: 0 0 16px 0;
-    font-size: 1.1em;
-    color: #f5f0e8;
-}
-
-.breakdown-bar {
-    display: flex;
-    height: 32px;
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 16px;
-}
-
-.bar-ai {
-    background: #3d3529;
-    color: #b5ada0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8em;
-    font-weight: 500;
-}
-
-.bar-charity {
-    background: linear-gradient(90deg, #d4a853, #e8c171);
-    color: #0f0d0a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8em;
-    font-weight: 600;
-}
-
-.breakdown-details {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    color: #b5ada0;
-}
-
-.detail-item.highlight .detail-value {
     color: #d4a853;
-    font-weight: 600;
+    font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
-.detail-item.highlight .detail-label {
-    color: #f5f0e8;
-}
-
-.breakdown-note {
-    font-size: 0.8em;
-    color: rgba(245, 240, 232, 0.5);
-    margin-top: 12px;
-    font-style: italic;
+.price-period {
+    font-size: 1.3em;
+    color: #b5ada0;
+    font-weight: 400;
 }
 
 .features-list {
@@ -4905,42 +4787,12 @@ hr {
     margin-top: 12px;
 }
 
-.charity-section {
-    background: rgba(212, 168, 83, 0.05);
-    border-radius: 2px;
-    padding: 24px;
-    margin-top: 32px;
-    color: #f5f0e8;
-    text-align: center;
-    border: 1px solid rgba(212, 168, 83, 0.12);
-}
-
-.charity-section h2 {
-    margin: 0 0 16px 0;
-    font-family: 'Cormorant Garamond', Georgia, serif;
-}
-
-.charity-section p {
-    margin-bottom: 12px;
-    color: #b5ada0;
-}
-
-.learn-more-link {
-    color: #d4a853;
-    font-weight: 600;
-    text-decoration: none;
-}
-
-.learn-more-link:hover {
-    color: #e8c171;
-    text-decoration: underline;
-}
-
-/* Subscriber upgrade section */
+/* Subscriber section */
 .subscriber-section {
     display: flex;
     flex-direction: column;
     gap: 24px;
+    text-align: center;
 }
 
 .thank-you-card {
@@ -4958,136 +4810,9 @@ hr {
     font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
-.thank-you-card .current-plan {
-    font-size: 1.2em;
-    margin-bottom: 20px;
-    color: #b5ada0;
-}
-
 .thank-you-card .current-plan strong {
     font-size: 1.3em;
     color: #d4a853;
-}
-
-.your-impact {
-    background: rgba(212, 168, 83, 0.08);
-    border-radius: 2px;
-    padding: 16px;
-}
-
-.your-impact p {
-    margin: 0 0 8px 0;
-    font-size: 0.95em;
-    color: #b5ada0;
-}
-
-.impact-amount {
-    font-size: 1.4em;
-    font-weight: 700;
-    color: #d4a853;
-}
-
-.upgrade-card {
-    background: rgba(212, 168, 83, 0.03);
-    border-radius: 2px;
-    padding: 32px;
-    text-align: center;
-    border: 1px solid rgba(212, 168, 83, 0.12);
-}
-
-.upgrade-card h3 {
-    margin: 0 0 12px 0;
-    color: #f5f0e8;
-    font-family: 'Cormorant Garamond', Georgia, serif;
-}
-
-.upgrade-card > p {
-    color: #b5ada0;
-    margin-bottom: 24px;
-}
-
-.upgrade-examples {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-
-.upgrade-example {
-    background: rgba(212, 168, 83, 0.05);
-    border-radius: 2px;
-    padding: 16px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 120px;
-    border: 1px solid rgba(212, 168, 83, 0.1);
-}
-
-.example-amount {
-    font-weight: 600;
-    color: #f5f0e8;
-}
-
-.example-impact {
-    font-size: 0.9em;
-    color: #d4a853;
-    font-weight: 500;
-}
-
-.btn-upgrade {
-    background: #d4a853;
-    color: #0f0d0a;
-    border: none;
-    padding: 14px 32px;
-    border-radius: 2px;
-    font-size: 0.95em;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-family: 'DM Sans', sans-serif;
-}
-
-.btn-upgrade:hover {
-    background: #e8c171;
-    transform: translateY(-2px);
-}
-
-.btn-upgrade:disabled {
-    background: #3d3529;
-    color: #6b6358;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.portal-note {
-    font-size: 0.85em;
-    color: #b5ada0;
-    margin-top: 12px;
-}
-
-.upgrade-slider-section {
-    margin: 24px 0;
-}
-
-.upgrade-impact-preview {
-    font-size: 1.1em;
-    font-weight: 600;
-    color: #d4a853;
-    margin-top: 12px;
-}
-
-.pricing-page .success-message {
-    background: rgba(212, 168, 83, 0.1);
-    color: #d4a853;
-    padding: 12px 16px;
-    border-radius: 2px;
-    margin-bottom: 16px;
-    font-weight: 500;
-    border: 1px solid rgba(212, 168, 83, 0.2);
 }
 
 .manage-subscription-link {
@@ -5220,45 +4945,6 @@ hr {
 }
 
 /* Tax Info Section */
-.tax-info {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(212, 168, 83, 0.12);
-}
-
-.tax-note {
-    font-size: 0.9em;
-    color: #b5ada0;
-    margin-bottom: 8px;
-}
-
-.tax-note strong {
-    color: #f5f0e8;
-}
-
-.tax-explanation {
-    font-size: 0.85em;
-    color: #b5ada0;
-}
-
-.tax-explanation summary {
-    cursor: pointer;
-    color: #d4a853;
-    font-weight: 500;
-    margin-bottom: 8px;
-}
-
-.tax-explanation summary:hover {
-    color: #e8c171;
-    text-decoration: underline;
-}
-
-.tax-explanation p {
-    margin: 12px 0;
-    line-height: 1.6;
-    padding-left: 12px;
-    border-left: 2px solid rgba(212, 168, 83, 0.2);
-}
 
 /* Free Tier / Free Messages Styles */
 .free-tier-section {
