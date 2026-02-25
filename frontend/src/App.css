@@ -4110,7 +4110,7 @@ hr {
 
 .pricing-page {
     background: #0f0d0a;
-    padding: 40px 20px;
+    padding: 80px 20px 40px;
     min-height: calc(100vh - 66px);
     position: relative;
 }
