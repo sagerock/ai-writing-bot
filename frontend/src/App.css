@@ -1,3 +1,40 @@
+/* Thin themed scrollbars for all scrollable areas */
+.App ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.App ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.App ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.App ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.App.dark ::-webkit-scrollbar-thumb {
+  background: rgba(212, 168, 83, 0.15);
+}
+
+.App.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 168, 83, 0.3);
+}
+
+/* Firefox thin scrollbars */
+.App * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.App.dark * {
+  scrollbar-color: rgba(212, 168, 83, 0.15) transparent;
+}
+
 /* The .App container ensures proper height for flexbox layout */
 .App {
   height: 100vh;
