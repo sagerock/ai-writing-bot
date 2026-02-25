@@ -35,7 +35,7 @@ const AccountPanel = ({ auth }) => {
         bug_fixes: true,
         pricing_changes: true,
         usage_tips: true,
-        charity_updates: true
+        charity_updates: false
     });
     const [chatSettings, setChatSettings] = useState({
         simplified_mode: true,
@@ -957,17 +957,6 @@ const AccountPanel = ({ auth }) => {
                         💡 Usage Tips & Best Practices
                     </label>
 
-                    <label className="checkbox-label">
-                        <input
-                            type="checkbox"
-                            checked={emailPreferences.charity_updates}
-                            onChange={(e) => setEmailPreferences(prev => ({
-                                ...prev,
-                                charity_updates: e.target.checked
-                            }))}
-                        />
-                        ❤️ Houseless Movement Updates
-                    </label>
                 </div>
                 
                 <button type="submit">Update Email Preferences</button>

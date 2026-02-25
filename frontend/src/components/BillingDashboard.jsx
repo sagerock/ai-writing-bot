@@ -63,7 +63,7 @@ const BillingDashboard = ({ auth }) => {
     if (loading) {
         return (
             <div className="billing-dashboard">
-                <h3>Your Impact</h3>
+                <h3>Subscription</h3>
                 <p className="loading-text">Loading billing data...</p>
             </div>
         );
@@ -72,7 +72,7 @@ const BillingDashboard = ({ auth }) => {
     if (error) {
         return (
             <div className="billing-dashboard">
-                <h3>Your Impact</h3>
+                <h3>Subscription</h3>
                 <p className="error-text">{error}</p>
                 <button onClick={fetchBillingData}>Retry</button>
             </div>
@@ -87,7 +87,7 @@ const BillingDashboard = ({ auth }) => {
 
     return (
         <div className="billing-dashboard">
-            <h3>Your Impact</h3>
+            <h3>Subscription</h3>
 
             {/* Subscription Status */}
             {subscription.status === 'none' ? (
@@ -112,13 +112,13 @@ const BillingDashboard = ({ auth }) => {
                     {/* Subscribe CTA */}
                     <div className="subscription-cta">
                         <h4>Love RomaLume?</h4>
-                        <p>Subscribe for unlimited access and support Houseless Movement - a charity helping homeless individuals in Akron, Ohio.</p>
-                        <a href="/pricing" className="btn-primary">Subscribe from $20/month</a>
+                        <p>Subscribe for unlimited access to 17+ AI models for $10/month.</p>
+                        <a href="/pricing" className="btn-primary">Subscribe for $10/month</a>
                     </div>
                 </div>
             ) : (
                 <>
-                    {/* Current Month Breakdown */}
+                    {/* Current Month Usage */}
                     <div className="billing-section">
                         <h4>This Month ({current_month.month})</h4>
 
@@ -133,34 +133,25 @@ const BillingDashboard = ({ auth }) => {
 
                         <div className="cost-breakdown">
                             <div className="cost-item ai-cost">
-                                <span className="cost-label">AI Provider Costs</span>
+                                <span className="cost-label">AI Usage</span>
                                 <span className="cost-value">{current_month.ai_cost_display}</span>
-                            </div>
-                            <div className="cost-item charity-cost">
-                                <span className="cost-label">To Houseless Movement</span>
-                                <span className="cost-value highlight">{current_month.charity_display}</span>
                             </div>
                         </div>
 
                         {usage_warning && (
                             <div className="usage-warning">
                                 <p>Your AI usage is approaching your subscription amount.</p>
-                                <p>Consider increasing your contribution to help more!</p>
                             </div>
                         )}
                     </div>
 
-                    {/* All-Time Impact */}
+                    {/* All-Time Stats */}
                     <div className="billing-section all-time">
-                        <h4>Your All-Time Impact</h4>
+                        <h4>All-Time Usage</h4>
                         <div className="impact-stats">
                             <div className="impact-stat">
                                 <span className="stat-value">{all_time.ai_cost_display}</span>
-                                <span className="stat-label">Total AI Costs</span>
-                            </div>
-                            <div className="impact-stat highlight">
-                                <span className="stat-value">{all_time.charity_display}</span>
-                                <span className="stat-label">Donated to Charity</span>
+                                <span className="stat-label">Total AI Usage</span>
                             </div>
                             <div className="impact-stat">
                                 <span className="stat-value">{all_time.requests.toLocaleString()}</span>
@@ -181,18 +172,6 @@ const BillingDashboard = ({ auth }) => {
                     </div>
                 </>
             )}
-
-            {/* About the Charity */}
-            <div className="charity-info">
-                <h4>About Houseless Movement</h4>
-                <p>
-                    100% of subscription profits go to Houseless Movement,
-                    helping homeless individuals in Akron, Ohio find shelter and support.
-                </p>
-                <a href="https://houselessmovement.org" target="_blank" rel="noopener noreferrer">
-                    Learn More
-                </a>
-            </div>
         </div>
     );
 };

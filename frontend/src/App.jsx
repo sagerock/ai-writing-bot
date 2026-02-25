@@ -308,10 +308,8 @@ function App() {
                         >
                             {userSettings.darkMode ? '☀️' : '🌙'}
                         </button>
-                        {isSubscriber ? (
-                            <Link to="/pricing" className="impact-button" title="View Your Impact">My Impact</Link>
-                        ) : (
-                            <Link to="/pricing" className="upgrade-button" title="Support Houseless Movement">Upgrade</Link>
+                        {!isSubscriber && (
+                            <Link to="/pricing" className="upgrade-button" title="Subscribe to RomaLume">Upgrade</Link>
                         )}
                         {user.isAdmin && <Link to="/admin" className="account-button" title="Admin">⚙️</Link>}
                         <Link to="/account" className="account-button" title="My Account">👤</Link>

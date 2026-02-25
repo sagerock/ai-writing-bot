@@ -135,22 +135,6 @@
     transform: translateY(-1px);
 }
 
-.user-controls .impact-button {
-    background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
-    color: white;
-    text-decoration: none;
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.85em;
-    transition: opacity 0.2s, transform 0.2s;
-}
-
-.user-controls .impact-button:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-}
-
 .main-content {
     display: flex;
     flex-grow: 1;
@@ -4509,10 +4493,6 @@ hr {
     border-radius: 8px;
 }
 
-.cost-item.charity-cost {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-}
-
 .cost-label {
     font-size: 0.95em;
     color: #495057;
@@ -4597,27 +4577,6 @@ hr {
 .btn-secondary:disabled {
     background: #adb5bd;
     cursor: not-allowed;
-}
-
-.charity-info {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid #dee2e6;
-}
-
-.charity-info h4 {
-    color: #28a745;
-}
-
-.charity-info p {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-bottom: 8px;
-}
-
-.charity-info a {
-    color: #28a745;
-    font-weight: 500;
 }
 
 .subscription-cta {
