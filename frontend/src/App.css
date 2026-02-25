@@ -4102,42 +4102,61 @@ hr {
    ======================================== */
 
 .pricing-page-wrapper {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    color: #333;
-    background-color: #f8f9fa;
+    font-family: 'DM Sans', sans-serif;
+    color: #f5f0e8;
+    background-color: #0f0d0a;
     min-height: 100vh;
 }
 
 .pricing-page {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #0f0d0a;
     padding: 40px 20px;
     min-height: calc(100vh - 66px);
+    position: relative;
+}
+
+.pricing-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 600px;
+    background: radial-gradient(ellipse, rgba(212, 168, 83, 0.06) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .pricing-container {
     max-width: 600px;
     margin: 0 auto;
+    position: relative;
 }
 
 .pricing-page h1 {
-    color: white;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    color: #f5f0e8;
     text-align: center;
     margin-bottom: 8px;
     font-size: 2.2em;
 }
 
 .pricing-subtitle {
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(245, 240, 232, 0.7);
     text-align: center;
     font-size: 1.2em;
     margin-bottom: 32px;
 }
 
+.pricing-subtitle strong {
+    color: #d4a853;
+}
+
 .pricing-card {
-    background: white;
-    border-radius: 16px;
+    background: rgba(212, 168, 83, 0.03);
+    border-radius: 2px;
     padding: 32px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .amount-selector {
@@ -4149,7 +4168,7 @@ hr {
     display: block;
     font-weight: 600;
     margin-bottom: 16px;
-    color: #2c3e50;
+    color: #f5f0e8;
 }
 
 .slider-container {
@@ -4160,7 +4179,7 @@ hr {
     width: 100%;
     height: 8px;
     border-radius: 4px;
-    background: #e9ecef;
+    background: #1a1714;
     outline: none;
     -webkit-appearance: none;
 }
@@ -4170,49 +4189,67 @@ hr {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #d4a853;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(212, 168, 83, 0.3);
+}
+
+.amount-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #d4a853;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 8px rgba(212, 168, 83, 0.3);
+}
+
+.amount-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #1a1714;
+    border: none;
 }
 
 .amount-display {
     font-size: 2.5em;
     font-weight: 700;
-    color: #2c3e50;
+    color: #f5f0e8;
     margin: 16px 0;
 }
 
 .amount-labels {
     display: flex;
     justify-content: space-between;
-    color: #6c757d;
+    color: #b5ada0;
     font-size: 0.9em;
 }
 
 .pricing-breakdown {
-    background: #f8f9fa;
-    border-radius: 12px;
+    background: rgba(212, 168, 83, 0.05);
+    border-radius: 2px;
     padding: 20px;
     margin-bottom: 24px;
+    border: 1px solid rgba(212, 168, 83, 0.1);
 }
 
 .pricing-breakdown h3 {
     margin: 0 0 16px 0;
     font-size: 1.1em;
-    color: #2c3e50;
+    color: #f5f0e8;
 }
 
 .breakdown-bar {
     display: flex;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 2px;
     overflow: hidden;
     margin-bottom: 16px;
 }
 
 .bar-ai {
-    background: #6c757d;
-    color: white;
+    background: #3d3529;
+    color: #b5ada0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4221,13 +4258,13 @@ hr {
 }
 
 .bar-charity {
-    background: linear-gradient(90deg, #28a745, #20c997);
-    color: white;
+    background: linear-gradient(90deg, #d4a853, #e8c171);
+    color: #0f0d0a;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.8em;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .breakdown-details {
@@ -4239,16 +4276,21 @@ hr {
 .detail-item {
     display: flex;
     justify-content: space-between;
+    color: #b5ada0;
 }
 
 .detail-item.highlight .detail-value {
-    color: #28a745;
+    color: #d4a853;
     font-weight: 600;
+}
+
+.detail-item.highlight .detail-label {
+    color: #f5f0e8;
 }
 
 .breakdown-note {
     font-size: 0.8em;
-    color: #6c757d;
+    color: rgba(245, 240, 232, 0.5);
     margin-top: 12px;
     font-style: italic;
 }
@@ -4260,7 +4302,7 @@ hr {
 .features-list h3 {
     margin: 0 0 12px 0;
     font-size: 1.1em;
-    color: #2c3e50;
+    color: #f5f0e8;
 }
 
 .features-list ul {
@@ -4273,80 +4315,92 @@ hr {
     padding: 8px 0;
     padding-left: 24px;
     position: relative;
-    color: #495057;
+    color: #b5ada0;
 }
 
 .features-list li:before {
     content: "✓";
     position: absolute;
     left: 0;
-    color: #28a745;
+    color: #d4a853;
     font-weight: bold;
 }
 
 .features-list .inline-link {
-    color: #667eea;
+    color: #d4a853;
     text-decoration: none;
     font-weight: 500;
 }
 
 .features-list .inline-link:hover {
+    color: #e8c171;
     text-decoration: underline;
 }
 
 .btn-subscribe {
     width: 100%;
     padding: 16px;
-    font-size: 1.2em;
+    font-size: 0.95em;
     font-weight: 600;
-    color: white;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #0f0d0a;
+    background: #d4a853;
     border: none;
-    border-radius: 8px;
+    border-radius: 2px;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, transform 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'DM Sans', sans-serif;
 }
 
 .btn-subscribe:hover {
+    background: #e8c171;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-subscribe:disabled {
-    background: #adb5bd;
+    background: #3d3529;
+    color: #6b6358;
     transform: none;
-    box-shadow: none;
     cursor: not-allowed;
 }
 
 .cancel-note {
     text-align: center;
     font-size: 0.9em;
-    color: #6c757d;
+    color: rgba(245, 240, 232, 0.5);
     margin-top: 12px;
 }
 
 .charity-section {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    background: rgba(212, 168, 83, 0.05);
+    border-radius: 2px;
     padding: 24px;
     margin-top: 32px;
-    color: white;
+    color: #f5f0e8;
     text-align: center;
+    border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .charity-section h2 {
     margin: 0 0 16px 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 .charity-section p {
     margin-bottom: 12px;
-    opacity: 0.9;
+    color: #b5ada0;
 }
 
 .learn-more-link {
-    color: white;
+    color: #d4a853;
     font-weight: 600;
+    text-decoration: none;
+}
+
+.learn-more-link:hover {
+    color: #e8c171;
+    text-decoration: underline;
 }
 
 /* Subscriber upgrade section */
@@ -4357,58 +4411,65 @@ hr {
 }
 
 .thank-you-card {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.08) 100%);
+    border-radius: 2px;
     padding: 32px;
     text-align: center;
-    color: white;
+    color: #f5f0e8;
+    border: 1px solid rgba(212, 168, 83, 0.2);
 }
 
 .thank-you-card h2 {
     margin: 0 0 16px 0;
     font-size: 1.8em;
+    font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 .thank-you-card .current-plan {
     font-size: 1.2em;
     margin-bottom: 20px;
+    color: #b5ada0;
 }
 
 .thank-you-card .current-plan strong {
     font-size: 1.3em;
+    color: #d4a853;
 }
 
 .your-impact {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
+    background: rgba(212, 168, 83, 0.08);
+    border-radius: 2px;
     padding: 16px;
 }
 
 .your-impact p {
     margin: 0 0 8px 0;
     font-size: 0.95em;
-    opacity: 0.9;
+    color: #b5ada0;
 }
 
 .impact-amount {
     font-size: 1.4em;
     font-weight: 700;
+    color: #d4a853;
 }
 
 .upgrade-card {
-    background: white;
-    border-radius: 12px;
+    background: rgba(212, 168, 83, 0.03);
+    border-radius: 2px;
     padding: 32px;
     text-align: center;
+    border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .upgrade-card h3 {
     margin: 0 0 12px 0;
-    color: #333;
+    color: #f5f0e8;
+    font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 .upgrade-card > p {
-    color: #666;
+    color: #b5ada0;
     margin-bottom: 24px;
 }
 
@@ -4421,52 +4482,57 @@ hr {
 }
 
 .upgrade-example {
-    background: #f8f9fa;
-    border-radius: 8px;
+    background: rgba(212, 168, 83, 0.05);
+    border-radius: 2px;
     padding: 16px 20px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     min-width: 120px;
+    border: 1px solid rgba(212, 168, 83, 0.1);
 }
 
 .example-amount {
     font-weight: 600;
-    color: #333;
+    color: #f5f0e8;
 }
 
 .example-impact {
     font-size: 0.9em;
-    color: #28a745;
+    color: #d4a853;
     font-weight: 500;
 }
 
 .btn-upgrade {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: #d4a853;
+    color: #0f0d0a;
     border: none;
     padding: 14px 32px;
-    border-radius: 8px;
-    font-size: 1.1em;
+    border-radius: 2px;
+    font-size: 0.95em;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: background 0.2s, transform 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'DM Sans', sans-serif;
 }
 
 .btn-upgrade:hover {
-    opacity: 0.9;
+    background: #e8c171;
     transform: translateY(-2px);
 }
 
 .btn-upgrade:disabled {
-    opacity: 0.6;
+    background: #3d3529;
+    color: #6b6358;
     cursor: not-allowed;
     transform: none;
 }
 
 .portal-note {
     font-size: 0.85em;
-    color: #888;
+    color: #b5ada0;
     margin-top: 12px;
 }
 
@@ -4477,29 +4543,30 @@ hr {
 .upgrade-impact-preview {
     font-size: 1.1em;
     font-weight: 600;
-    color: #28a745;
+    color: #d4a853;
     margin-top: 12px;
 }
 
-.success-message {
-    background: #d4edda;
-    color: #155724;
+.pricing-page .success-message {
+    background: rgba(212, 168, 83, 0.1);
+    color: #d4a853;
     padding: 12px 16px;
-    border-radius: 8px;
+    border-radius: 2px;
     margin-bottom: 16px;
     font-weight: 500;
+    border: 1px solid rgba(212, 168, 83, 0.2);
 }
 
 .manage-subscription-link {
     margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .link-button {
     background: none;
     border: none;
-    color: #666;
+    color: #b5ada0;
     font-size: 0.9em;
     cursor: pointer;
     text-decoration: underline;
@@ -4507,7 +4574,7 @@ hr {
 }
 
 .link-button:hover {
-    color: #333;
+    color: #d4a853;
 }
 
 .link-button:disabled {
@@ -4521,7 +4588,7 @@ hr {
 
 .subscription-success {
     min-height: 100vh;
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    background: #0f0d0a;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4529,19 +4596,19 @@ hr {
 }
 
 .success-container {
-    background: white;
-    border-radius: 16px;
+    background: rgba(212, 168, 83, 0.03);
+    border-radius: 2px;
     padding: 48px;
     max-width: 500px;
     text-align: center;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .success-icon {
     width: 80px;
     height: 80px;
-    background: #28a745;
-    color: white;
+    background: rgba(212, 168, 83, 0.15);
+    color: #d4a853;
     font-size: 40px;
     border-radius: 50%;
     display: flex;
@@ -4551,26 +4618,28 @@ hr {
 }
 
 .success-container h1 {
-    color: #2c3e50;
+    color: #f5f0e8;
     margin-bottom: 16px;
+    font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 .success-message {
     font-size: 1.1em;
-    color: #495057;
+    color: #b5ada0;
     margin-bottom: 24px;
 }
 
 .impact-message {
-    background: #d4edda;
-    border-radius: 8px;
+    background: rgba(212, 168, 83, 0.08);
+    border-radius: 2px;
     padding: 16px;
     margin-bottom: 24px;
+    border: 1px solid rgba(212, 168, 83, 0.15);
 }
 
 .impact-message p {
     margin: 0;
-    color: #155724;
+    color: #d4a853;
 }
 
 .next-steps {
@@ -4579,7 +4648,7 @@ hr {
 }
 
 .next-steps h3 {
-    color: #2c3e50;
+    color: #f5f0e8;
     margin-bottom: 12px;
 }
 
@@ -4592,56 +4661,62 @@ hr {
     padding: 8px 0;
     padding-left: 24px;
     position: relative;
-    color: #495057;
+    color: #b5ada0;
 }
 
 .next-steps li:before {
     content: "→";
     position: absolute;
     left: 0;
-    color: #28a745;
+    color: #d4a853;
 }
 
 .redirect-notice {
-    color: #6c757d;
+    color: #b5ada0;
     font-size: 0.9em;
     margin-bottom: 16px;
 }
 
-.error-message {
-    background: #f8d7da;
-    color: #721c24;
+.pricing-page .error-message {
+    background: rgba(180, 60, 60, 0.15);
+    color: #e8a0a0;
     padding: 12px;
-    border-radius: 8px;
+    border-radius: 2px;
     margin-bottom: 16px;
+    border: 1px solid rgba(180, 60, 60, 0.2);
 }
 
 /* Tax Info Section */
 .tax-info {
     margin-top: 20px;
     padding-top: 16px;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .tax-note {
     font-size: 0.9em;
-    color: #6c757d;
+    color: #b5ada0;
     margin-bottom: 8px;
+}
+
+.tax-note strong {
+    color: #f5f0e8;
 }
 
 .tax-explanation {
     font-size: 0.85em;
-    color: #6c757d;
+    color: #b5ada0;
 }
 
 .tax-explanation summary {
     cursor: pointer;
-    color: #667eea;
+    color: #d4a853;
     font-weight: 500;
     margin-bottom: 8px;
 }
 
 .tax-explanation summary:hover {
+    color: #e8c171;
     text-decoration: underline;
 }
 
@@ -4649,7 +4724,7 @@ hr {
     margin: 12px 0;
     line-height: 1.6;
     padding-left: 12px;
-    border-left: 2px solid #e9ecef;
+    border-left: 2px solid rgba(212, 168, 83, 0.2);
 }
 
 /* Free Tier / Free Messages Styles */
@@ -4658,10 +4733,11 @@ hr {
 }
 
 .free-messages-display {
-    background: white;
-    border-radius: 12px;
+    background: rgba(212, 168, 83, 0.03);
+    border-radius: 2px;
     padding: 24px;
     margin-bottom: 20px;
+    border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
 .free-messages-count {
@@ -4672,61 +4748,64 @@ hr {
     display: block;
     font-size: 3em;
     font-weight: 700;
-    color: #28a745;
+    color: #d4a853;
     line-height: 1;
 }
 
 .count-label {
     font-size: 1.1em;
-    color: #6c757d;
+    color: #b5ada0;
 }
 
 .free-messages-bar {
     height: 12px;
-    background: #e9ecef;
-    border-radius: 6px;
+    background: #1a1714;
+    border-radius: 2px;
     overflow: hidden;
     margin-bottom: 8px;
 }
 
 .free-messages-progress {
     height: 100%;
-    background: linear-gradient(90deg, #28a745, #20c997);
-    border-radius: 6px;
+    background: linear-gradient(90deg, #d4a853, #e8c171);
+    border-radius: 2px;
     transition: width 0.3s ease;
 }
 
 .free-messages-note {
     font-size: 0.9em;
-    color: #6c757d;
+    color: #b5ada0;
     margin: 0;
 }
 
 .subscription-cta h4 {
-    color: #2c3e50;
+    color: #f5f0e8;
     margin-bottom: 8px;
 }
 
 .subscription-cta p {
-    color: #6c757d;
+    color: #b5ada0;
     margin-bottom: 16px;
     font-size: 0.95em;
 }
 
 .btn-primary {
     display: inline-block;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: #d4a853;
+    color: #0f0d0a;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: 2px;
     text-decoration: none;
     font-weight: 600;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, transform 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'DM Sans', sans-serif;
 }
 
 .btn-primary:hover {
+    background: #e8c171;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 /* ========================================

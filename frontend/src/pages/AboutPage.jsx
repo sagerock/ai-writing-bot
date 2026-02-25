@@ -4,7 +4,7 @@ import './HomePage.css';
 import './AboutPage.css';
 
 const AboutNav = () => (
-    <nav className="home-nav">
+    <nav className="home-nav nav-scrolled">
         <div className="nav-container">
             <Link to="/" className="nav-logo">
                 <img src="/logo.png" alt="RomaLume" />

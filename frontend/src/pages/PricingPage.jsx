@@ -4,7 +4,7 @@ import { API_URL } from '../apiConfig';
 import './HomePage.css';
 
 const PricingNav = () => (
-    <nav className="home-nav">
+    <nav className="home-nav nav-scrolled">
         <div className="nav-container">
             <Link to="/" className="nav-logo">
                 <img src="/logo.png" alt="RomaLume" />
