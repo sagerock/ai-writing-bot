@@ -40,7 +40,11 @@ const AuthPage = () => {
       }
 
       // Proceed with signup
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const signupPromise = createUserWithEmailAndPassword(auth, email, password);
+      const signupTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 10000)
+      );
+      const userCredential = await Promise.race([signupPromise, signupTimeout]);
 
       // Record successful signup for rate limiting and send to email marketing
       await fetch(`${API_URL}/signup/record`, {
@@ -55,7 +59,11 @@ const AuthPage = () => {
       }
       // Otherwise, the onAuthStateChanged listener in App.jsx will handle navigation to /chat
     } catch (err) {
-      setError(err.message);
+      if (err.message === 'timeout') {
+        setError('Registration is taking too long. Please close all browser tabs and try again.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -67,14 +75,22 @@ const AuthPage = () => {
     setInfo('');
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const loginPromise = signInWithEmailAndPassword(auth, email, password);
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 10000)
+      );
+      await Promise.race([loginPromise, timeout]);
       // If user came from pricing page, redirect back to complete subscription
       if (subscribeAmount) {
         navigate(`/pricing?amount=${subscribeAmount}`);
       }
       // Otherwise, the onAuthStateChanged listener in App.jsx will handle navigation
     } catch (err) {
-      setError('Failed to log in. Please check your credentials.');
+      if (err.message === 'timeout') {
+        setError('Login is taking too long. Please close all browser tabs and try again.');
+      } else {
+        setError('Failed to log in. Please check your credentials.');
+      }
     } finally {
       setIsLoading(false);
     }

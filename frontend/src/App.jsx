@@ -190,7 +190,11 @@ function App() {
             settled = true;
             if (currentUser) {
                 try {
-                    const idTokenResult = await currentUser.getIdTokenResult();
+                    const tokenPromise = currentUser.getIdTokenResult();
+                    const tokenTimeout = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Token request timed out')), 5000)
+                    );
+                    const idTokenResult = await Promise.race([tokenPromise, tokenTimeout]);
                     currentUser.isAdmin = idTokenResult.claims.admin === true;
                 } catch (err) {
                     console.error('Error getting token:', err);
