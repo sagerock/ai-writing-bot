@@ -4121,127 +4121,160 @@ hr {
     }
 }
 
-/* Account page dark mode */
-.App.dark .account-page {
+/* Account page dark mode
+   Note: account page renders outside .App, so use html.dark */
+html.dark .account-page {
     color: #f5f0e8;
+    background-color: #0f0d0a;
 }
 
-.App.dark .account-form-container {
+html.dark .account-form-container {
     background-color: #1a1714;
     border-color: rgba(212, 168, 83, 0.12);
 }
 
-.App.dark .account-form-container h2 {
+html.dark .account-form-container h2 {
     color: #f5f0e8;
     border-bottom-color: rgba(212, 168, 83, 0.12);
 }
 
-.App.dark .account-form h3 {
+html.dark .account-form h3 {
     color: #f5f0e8;
 }
 
-.App.dark .account-form p {
+html.dark .account-form p {
     color: #b5ada0;
 }
 
-.App.dark .account-form label {
+html.dark .account-form label {
     color: #b5ada0;
 }
 
-.App.dark .account-form input[type="text"],
-.App.dark .account-form input[type="email"],
-.App.dark .account-form input[type="password"] {
+html.dark .account-form input[type="text"],
+html.dark .account-form input[type="email"],
+html.dark .account-form input[type="password"] {
     background-color: #0f0d0a;
     border-color: rgba(212, 168, 83, 0.15);
     color: #f5f0e8;
 }
 
-.App.dark .account-form button {
+html.dark .account-form input::placeholder {
+    color: #6b6358;
+}
+
+html.dark .account-form button {
     background-color: #d4a853;
     color: #0f0d0a;
     border: none;
 }
 
-.App.dark .account-form button:hover {
+html.dark .account-form button:hover {
     background-color: #e8c171;
 }
 
-.App.dark .account-nav a {
+html.dark .account-page hr {
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+html.dark .account-nav a {
     color: #d4a853;
 }
 
-.App.dark .account-credits {
+html.dark .account-credits {
     background-color: #1a1714;
     border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
-.App.dark .account-credits h3 {
+html.dark .account-credits h3 {
     color: #f5f0e8;
 }
 
-.App.dark .account-documents {
+html.dark .account-documents {
     background-color: #1a1714;
     border: 1px solid rgba(212, 168, 83, 0.12);
 }
 
-.App.dark .account-documents h3 {
+html.dark .account-documents h3 {
     color: #f5f0e8;
 }
 
-.App.dark .account-documents > p {
+html.dark .account-documents > p {
     color: #b5ada0;
 }
 
-.App.dark .checkbox-label {
+html.dark .checkbox-label {
     color: #b5ada0;
 }
 
-.App.dark .checkbox-label span {
+html.dark .email-preferences {
     color: #b5ada0;
 }
 
-.App.dark .success {
+html.dark .success {
     color: #d4a853;
+}
+
+/* Chat settings section dark mode */
+html.dark .chat-settings-section {
+    background: #1a1714;
+    border: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+html.dark .toggle-label {
+    background: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+html.dark .toggle-text strong {
+    color: #f5f0e8;
+}
+
+html.dark .toggle-text small {
+    color: #b5ada0;
+}
+
+html.dark .toggle-switch input:checked + .toggle-slider {
+    background-color: #d4a853;
 }
 
 /* Billing dashboard dark mode */
-.App.dark .billing-dashboard {
+html.dark .billing-dashboard {
     background: #1a1714;
     border-color: rgba(212, 168, 83, 0.12);
 }
 
-.App.dark .billing-dashboard h3 {
+html.dark .billing-dashboard h3 {
     color: #f5f0e8;
 }
 
-.App.dark .subscription-status {
+html.dark .subscription-status {
     color: #b5ada0;
 }
 
-.App.dark .billing-dashboard .btn-secondary {
+html.dark .billing-dashboard .btn-secondary {
     background: #d4a853;
     color: #0f0d0a;
 }
 
-.App.dark .billing-dashboard .btn-secondary:hover {
+html.dark .billing-dashboard .btn-secondary:hover {
     background: #e8c171;
 }
 
-.App.dark .billing-dashboard .btn-secondary:disabled {
+html.dark .billing-dashboard .btn-secondary:disabled {
     background: #3d3529;
     color: #6b6358;
 }
 
-.App.dark .subscription-cta p {
+html.dark .subscription-cta p {
     color: #b5ada0;
 }
 
-.App.dark .billing-dashboard .btn-primary {
+html.dark .billing-dashboard .btn-primary {
     background: #d4a853;
     color: #0f0d0a;
 }
 
-.App.dark .billing-dashboard .btn-primary:hover {
+html.dark .billing-dashboard .btn-primary:hover {
     background: #e8c171;
 }
 
