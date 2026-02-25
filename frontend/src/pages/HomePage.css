@@ -543,12 +543,16 @@
     align-items: center;
   }
 
-  .home-page .btn-large {
-    padding: 0.875rem 2rem !important;
-    font-size: 0.8rem;
+  .cta-buttons .btn {
     width: 100%;
     max-width: 280px;
     text-align: center;
+    box-sizing: border-box;
+  }
+
+  .home-page .btn-large {
+    padding: 0.875rem 2rem !important;
+    font-size: 0.8rem;
   }
 
   .use-cases-section,
