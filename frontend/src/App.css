@@ -1,37 +1,79 @@
-/* Thin themed scrollbars for all scrollable areas */
-.App ::-webkit-scrollbar {
+/* Hide scrollbars by default, show thin themed ones on hover */
+.App .chat-list,
+.App .chat-window,
+.App .chat-messages,
+.App .projects-panel {
+  scrollbar-width: none; /* Firefox */
+}
+
+.App .chat-list::-webkit-scrollbar,
+.App .chat-window::-webkit-scrollbar,
+.App .chat-messages::-webkit-scrollbar,
+.App .projects-panel::-webkit-scrollbar {
+  width: 0; /* Webkit: hidden by default */
+  height: 0;
+}
+
+/* Show thin scrollbar on hover — Webkit */
+.App .chat-list:hover::-webkit-scrollbar,
+.App .chat-window:hover::-webkit-scrollbar,
+.App .chat-messages:hover::-webkit-scrollbar,
+.App .projects-panel:hover::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.App ::-webkit-scrollbar-track {
+.App .chat-list:hover::-webkit-scrollbar-track,
+.App .chat-window:hover::-webkit-scrollbar-track,
+.App .chat-messages:hover::-webkit-scrollbar-track,
+.App .projects-panel:hover::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.App ::-webkit-scrollbar-thumb {
+.App .chat-list:hover::-webkit-scrollbar-thumb,
+.App .chat-window:hover::-webkit-scrollbar-thumb,
+.App .chat-messages:hover::-webkit-scrollbar-thumb,
+.App .projects-panel:hover::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
   border-radius: 3px;
 }
 
-.App ::-webkit-scrollbar-thumb:hover {
+.App .chat-list:hover::-webkit-scrollbar-thumb:hover,
+.App .chat-window:hover::-webkit-scrollbar-thumb:hover,
+.App .chat-messages:hover::-webkit-scrollbar-thumb:hover,
+.App .projects-panel:hover::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
 }
 
-.App.dark ::-webkit-scrollbar-thumb {
-  background: rgba(212, 168, 83, 0.15);
-}
-
-.App.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 168, 83, 0.3);
-}
-
-/* Firefox thin scrollbars */
-.App * {
+/* Show thin scrollbar on hover — Firefox */
+.App .chat-list:hover,
+.App .chat-window:hover,
+.App .chat-messages:hover,
+.App .projects-panel:hover {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
-.App.dark * {
+/* Dark mode hover scrollbar — Webkit */
+.App.dark .chat-list:hover::-webkit-scrollbar-thumb,
+.App.dark .chat-window:hover::-webkit-scrollbar-thumb,
+.App.dark .chat-messages:hover::-webkit-scrollbar-thumb,
+.App.dark .projects-panel:hover::-webkit-scrollbar-thumb {
+  background: rgba(212, 168, 83, 0.15);
+}
+
+.App.dark .chat-list:hover::-webkit-scrollbar-thumb:hover,
+.App.dark .chat-window:hover::-webkit-scrollbar-thumb:hover,
+.App.dark .chat-messages:hover::-webkit-scrollbar-thumb:hover,
+.App.dark .projects-panel:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 168, 83, 0.3);
+}
+
+/* Dark mode hover scrollbar — Firefox */
+.App.dark .chat-list:hover,
+.App.dark .chat-window:hover,
+.App.dark .chat-messages:hover,
+.App.dark .projects-panel:hover {
   scrollbar-color: rgba(212, 168, 83, 0.15) transparent;
 }
 
@@ -124,7 +166,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     transition: margin-left 0.3s ease, opacity 0.3s ease;
 }
 
@@ -582,7 +624,7 @@
 
 .projects-panel {
   padding: 10px;
-  overflow-y: scroll; /* Force scrollbar to be visible */
+  overflow-y: auto;
   text-align: left;
   flex-grow: 1;
   min-height: 0; /* Allow scrolling in flex container */
