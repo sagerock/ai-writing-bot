@@ -28,64 +28,76 @@ const AboutPage = () => {
                 <div className="about-container">
                     <h1>About RomaLume</h1>
                     <p className="about-subtitle">
-                        An AI writing tool with a purpose
+                        The right model for the right job
                     </p>
 
-                    <section className="about-section">
-                        <h2>Why 100% of Profits Go to Charity</h2>
-                        <p>
-                            RomaLume was created by Sage Lewis, someone who has dedicated years to
-                            helping people experiencing homelessness in Akron, Ohio. Every dollar
-                            of profit from your subscription goes directly to <a href="https://houselessmovement.org" target="_blank" rel="noopener noreferrer">Houseless Movement</a>,
-                            a 501(c)(3) nonprofit continuing this work.
-                        </p>
-                    </section>
-
-                    <section className="about-section">
-                        <h2>The Story Behind the Mission</h2>
-                        <p>
-                            This isn't a corporate giving program or a marketing angle. It's personal.
-                        </p>
-                        <p>
-                            Sage has hosted a tent village on his property, giving people a safe place
-                            to stay. He's run a day center where folks could come in from the cold,
-                            get a meal, and find resources. He now operates a house providing stable
-                            housing for three senior homeless men.
-                        </p>
-                        <p>
-                            Today, he runs the <strong>Nomadic Spirit</strong> — a mobile community center
-                            built from a camper. It travels to where people are, bringing hot dogs, coffee,
-                            lemonade, and music. But more than anything, it brings connection.
-                        </p>
-                    </section>
-
                     <section className="about-section highlight">
-                        <h2>It's About Connection</h2>
+                        <h2>AI Won't Replace You</h2>
                         <p>
-                            The Nomadic Spirit isn't a soup kitchen on wheels. It's about sharing a moment
-                            with people who often feel invisible — left out of the larger community.
-                            It's about sitting down, having a conversation, and reminding someone that
-                            they matter.
+                            Let's get this out of the way: AI is not coming for your job. It's a tool — like
+                            a calculator, a search engine, or a really fast research assistant. The people who
+                            thrive will be the ones who learn to use it well.
                         </p>
                         <p>
-                            When you subscribe to RomaLume, you're not just getting access to powerful
-                            AI writing tools. You're directly funding this work.
+                            RomaLume helps you do exactly that. It gives you access to the best AI models
+                            available and helps you use the right one for what you're actually trying to do.
+                            The result? You get better output, faster — and you stay in the driver's seat.
                         </p>
                     </section>
 
                     <section className="about-section">
-                        <h2>About Houseless Movement</h2>
+                        <h2>Why Multiple Models Matter</h2>
                         <p>
-                            <a href="https://houselessmovement.org" target="_blank" rel="noopener noreferrer">Houseless Movement</a> is
-                            a 501(c)(3) nonprofit organization based in Akron, Ohio. It provides direct
-                            support to people experiencing homelessness through outreach, housing assistance,
-                            and community building.
+                            There's no single AI that's the best at everything. Each model has strengths,
+                            and picking the right one makes a real difference in the quality of what you get back.
+                            That's why RomaLume gives you access to 17+ models — and can automatically route
+                            your request to the one that fits best.
+                        </p>
+                    </section>
+
+                    <section className="about-section">
+                        <h2>What Each Model Does Best</h2>
+                        <p>
+                            <strong>GPT-4o</strong> — Fast and versatile. Great for everyday tasks like drafting emails,
+                            summarizing documents, brainstorming, and general Q&A.
+                        </p>
+                        <p>
+                            <strong>OpenAI o1 / o3</strong> — Purpose-built for complex reasoning. Excels at
+                            multi-step math, logic problems, scientific analysis, and anything that requires
+                            thinking through a problem carefully before answering.
+                        </p>
+                        <p>
+                            <strong>Claude (Anthropic)</strong> — Thoughtful and thorough. Particularly strong at
+                            long-form writing, nuanced creative work, detailed code generation, and following
+                            complex instructions with care.
+                        </p>
+                        <p>
+                            <strong>Gemini (Google)</strong> — Built for scale. Handles massive documents with ease,
+                            integrates well with search and data tools, and shines at multi-step research tasks.
+                        </p>
+                        <p>
+                            <strong>Command R+ (Cohere)</strong> — The document specialist. Optimized for
+                            answering questions grounded in your uploaded files, with citations you
+                            can trace back to the source.
+                        </p>
+                    </section>
+
+                    <section className="about-section">
+                        <h2>Better Results, Not More Complexity</h2>
+                        <p>
+                            You don't need to understand the technical differences between models.
+                            RomaLume's auto-routing reads your request and picks the best model for you.
+                            Or, if you prefer, you can choose a specific model yourself.
+                        </p>
+                        <p>
+                            Either way, the goal is simple: help you get better results from AI
+                            so you can be better at the things you already do.
                         </p>
                     </section>
 
                     <div className="about-cta">
-                        <p>Ready to write better while making a difference?</p>
-                        <Link to="/register" className="btn btn-primary btn-large">Get Started Free</Link>
+                        <p>Ready to put AI to work for you?</p>
+                        <Link to="/register" className="btn btn-primary btn-large">Get Started</Link>
                         <Link to="/pricing" className="btn btn-secondary">View Pricing</Link>
                     </div>
                 </div>
