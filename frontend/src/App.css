@@ -4415,6 +4415,89 @@ html.dark .generate-profile-btn:hover:not(:disabled) {
     background: #e8c171;
 }
 
+/* Admin page dark mode */
+html.dark .admin-page {
+    color: #f5f0e8;
+}
+
+html.dark .admin-panel {
+    background-color: #1a1714;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .admin-panel h1,
+html.dark .admin-panel h2,
+html.dark .admin-panel h3 {
+    color: #f5f0e8;
+}
+
+html.dark .daily-trend h3,
+html.dark .model-breakdown h3 {
+    color: #f5f0e8;
+}
+
+html.dark .simple-chart {
+    background: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+html.dark .chart-labels {
+    color: #7a7269;
+}
+
+html.dark .top-model-note {
+    color: #7a7269;
+}
+
+html.dark .users-table th,
+html.dark .users-table td {
+    border-color: rgba(212, 168, 83, 0.12);
+    color: #b5ada0;
+}
+
+html.dark .users-table thead {
+    background-color: #1a1714;
+}
+
+html.dark .users-table th {
+    color: #f5f0e8;
+}
+
+html.dark .users-table tr:nth-of-type(even) {
+    background-color: rgba(212, 168, 83, 0.03);
+}
+
+html.dark .users-table tr:hover {
+    background-color: rgba(212, 168, 83, 0.08);
+}
+
+html.dark .users-table button {
+    background-color: #1a1714;
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #b5ada0;
+}
+
+html.dark .users-table button:hover {
+    background-color: #d4a853;
+    color: #0f0d0a;
+}
+
+html.dark .admin-panel select {
+    background-color: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #f5f0e8;
+}
+
+html.dark .admin-nav-button {
+    background-color: #d4a853;
+    color: #0f0d0a;
+}
+
+html.dark .admin-nav-button:hover {
+    background-color: #e8c171;
+    color: #0f0d0a;
+}
+
 /* Mobile adjustments for simplified mode */
 @media (max-width: 768px) {
     .welcome-message {
