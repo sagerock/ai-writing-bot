@@ -34,6 +34,10 @@
 
       gtag('config', 'G-5MGNFXX5Y3');
     </script>
+    <script>
+      var saved = localStorage.getItem('romalume-dark-mode');
+      if (saved !== 'false') document.documentElement.classList.add('dark');
+    </script>
   </head>
   <body>
     <div id="root"></div>

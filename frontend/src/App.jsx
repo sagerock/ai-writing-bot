@@ -77,7 +77,8 @@ function App() {
         simplifiedMode: true,
         defaultModel: 'auto',
         defaultTemperature: 0.7,
-        alwaysAskMode: false
+        alwaysAskMode: false,
+        darkMode: true
     });
     const navigate = useNavigate();
     const location = useLocation();
@@ -100,6 +101,16 @@ function App() {
         }
         document.title = title;
     }, [location]);
+
+    // Sync dark mode with DOM and localStorage
+    useEffect(() => {
+        if (userSettings.darkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        localStorage.setItem('romalume-dark-mode', String(userSettings.darkMode));
+    }, [userSettings.darkMode]);
 
     const fetchProjects = async () => {
         if (!auth.currentUser) return;
@@ -132,12 +143,15 @@ function App() {
             });
             if (response.ok) {
                 const data = await response.json();
+                const darkMode = data.dark_mode ?? true;
                 setUserSettings({
                     simplifiedMode: data.simplified_mode ?? true,
                     defaultModel: data.default_model ?? 'auto',
                     defaultTemperature: data.default_temperature ?? 0.7,
-                    alwaysAskMode: data.always_ask_mode ?? false
+                    alwaysAskMode: data.always_ask_mode ?? false,
+                    darkMode
                 });
+                localStorage.setItem('romalume-dark-mode', String(darkMode));
             }
         } catch (err) {
             console.error('Failed to fetch user settings:', err);
@@ -178,8 +192,10 @@ function App() {
                     simplifiedMode: true,
                     defaultModel: 'auto',
                     defaultTemperature: 0.7,
-                    alwaysAskMode: false
+                    alwaysAskMode: false,
+                    darkMode: true
                 });
+                localStorage.removeItem('romalume-dark-mode');
             }
             setLoading(false);
         });
@@ -240,13 +256,38 @@ function App() {
         setHistory(prev => [...prev, contextMessage]);
     };
 
+    const handleToggleDarkMode = () => {
+        const newValue = !userSettings.darkMode;
+        setUserSettings(prev => ({ ...prev, darkMode: newValue }));
+        localStorage.setItem('romalume-dark-mode', String(newValue));
+        // Fire-and-forget API save
+        if (auth.currentUser) {
+            auth.currentUser.getIdToken().then(token => {
+                fetch(`${API_URL}/user/chat-settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        simplified_mode: userSettings.simplifiedMode,
+                        default_model: userSettings.defaultModel,
+                        default_temperature: userSettings.defaultTemperature,
+                        always_ask_mode: userSettings.alwaysAskMode,
+                        dark_mode: newValue
+                    })
+                }).catch(() => {});
+            });
+        }
+    };
+
     const renderChatInterface = () => {
         if (!user) {
             return null;
         }
 
         return (
-            <div className="App">
+            <div className={`App ${userSettings.darkMode ? 'dark' : ''}`}>
                 <header className="App-header">
                     <div className="logo-container">
                         <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />
@@ -260,6 +301,13 @@ function App() {
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
+                        <button
+                            className="theme-toggle-btn"
+                            onClick={handleToggleDarkMode}
+                            title={userSettings.darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                        >
+                            {userSettings.darkMode ? '☀️' : '🌙'}
+                        </button>
                         {isSubscriber ? (
                             <Link to="/pricing" className="impact-button" title="View Your Impact">My Impact</Link>
                         ) : (

@@ -325,6 +325,7 @@ class UserChatSettings(BaseModel):
     default_model: str = "auto"
     default_temperature: float = 0.7
     always_ask_mode: bool = False
+    dark_mode: bool = True
 
 class FeedbackRequest(BaseModel):
     message_id: str  # Unique identifier for the message (generated on frontend)
@@ -3202,7 +3203,8 @@ async def get_user_chat_settings(user: dict = Depends(get_current_user)):
         "simplified_mode": True,
         "default_model": "auto",
         "default_temperature": 0.7,
-        "always_ask_mode": False
+        "always_ask_mode": False,
+        "dark_mode": True
     }
 
     if user_doc.exists:
@@ -3224,7 +3226,8 @@ async def update_user_chat_settings(
             "simplified_mode": settings.simplified_mode,
             "default_model": settings.default_model,
             "default_temperature": settings.default_temperature,
-            "always_ask_mode": settings.always_ask_mode
+            "always_ask_mode": settings.always_ask_mode,
+            "dark_mode": settings.dark_mode
         }
     }, merge=True)
 

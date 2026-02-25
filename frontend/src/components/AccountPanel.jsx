@@ -41,7 +41,8 @@ const AccountPanel = ({ auth }) => {
         simplified_mode: true,
         default_model: 'auto',
         default_temperature: 0.7,
-        always_ask_mode: false
+        always_ask_mode: false,
+        dark_mode: true
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -991,6 +992,24 @@ const AccountPanel = ({ auth }) => {
                                 onChange={(e) => setChatSettings(prev => ({
                                     ...prev,
                                     simplified_mode: e.target.checked
+                                }))}
+                            />
+                            <span className="toggle-slider"></span>
+                        </div>
+                    </label>
+
+                    <label className="toggle-label">
+                        <span className="toggle-text">
+                            <strong>Dark Mode</strong>
+                            <small>Use the warm editorial dark theme</small>
+                        </span>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={chatSettings.dark_mode}
+                                onChange={(e) => setChatSettings(prev => ({
+                                    ...prev,
+                                    dark_mode: e.target.checked
                                 }))}
                             />
                             <span className="toggle-slider"></span>

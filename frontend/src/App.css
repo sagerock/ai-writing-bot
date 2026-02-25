@@ -11,8 +11,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+    background-color: #f5f2ed;
+    border-bottom: 1px solid #ddd6cb;
     flex-shrink: 0; /* Prevent header from shrinking */
 }
 
@@ -82,8 +82,8 @@
 .left-panel {
     width: 280px;
     flex-shrink: 0;
-    border-right: 1px solid #ccc;
-    background-color: #f9f9f9;
+    border-right: 1px solid #ddd6cb;
+    background-color: #f5f2ed;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -206,8 +206,8 @@
     display: flex;
     align-items: flex-start;
     padding: 12px;
-    background: white;
-    border: 1px solid #e8e8e8;
+    background: #faf8f5;
+    border: 1px solid #e8e2d8;
     border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
@@ -906,37 +906,7 @@
   margin: 8px 12px;
 }
 
-/* Dark mode for model docs dropdown */
-.dark .model-docs-dropdown {
-  background: #1a202c;
-  border-color: #4a5568;
-}
-
-.dark .model-docs-header {
-  color: #a0aec0;
-  border-color: #4a5568;
-}
-
-.dark .model-docs-link {
-  color: #e2e8f0;
-}
-
-.dark .model-docs-link:hover {
-  background: #2d3748;
-  color: #9f7aea;
-}
-
-.dark .model-pricing-link {
-  color: #9f7aea;
-}
-
-.dark .model-pricing-link:hover {
-  background: #2d3748;
-}
-
-.dark .model-docs-dropdown .model-docs-divider {
-  background: #4a5568;
-}
+/* Dark mode for model docs dropdown — see .App.dark overrides below */
 
 .archive-controls {
   display: flex;
@@ -976,14 +946,14 @@
   height: 100%;
   min-height: 0; /* Allow proper flex calculations */
   overflow: hidden;
-  background-color: #fff;
+  background-color: #faf8f5;
 }
 
 .chat-window {
   flex-grow: 1;
   padding: 20px;
   overflow-y: auto;
-  background-color: #f0f0f0; /* Slightly different background */
+  background-color: #f0ece5;
   display: flex;
   flex-direction: column;
   min-height: 0; /* Allow proper flex shrinking */
@@ -2291,10 +2261,10 @@ hr {
     margin-bottom: 0.5rem;
   }
   
-  .dark .mobile-accordion .mobile-accordion-header {
-    background-color: #2d3748;
-    border-color: #4a5568;
-    color: #e2e8f0;
+  .App.dark .mobile-accordion .mobile-accordion-header {
+    background-color: #1a1714;
+    border-color: rgba(212, 168, 83, 0.12);
+    color: #f5f0e8;
   }
   
   .mobile-accordion .mobile-accordion-header h2 {
@@ -2313,8 +2283,8 @@ hr {
     padding: 0 1rem;
   }
 
-  .dark .mobile-accordion .mobile-accordion-panel {
-    border-color: #4a5568;
+  .App.dark .mobile-accordion .mobile-accordion-panel {
+    border-color: rgba(212, 168, 83, 0.12);
   }
 
   .mobile-accordion .mobile-accordion-panel.is-open {
@@ -2906,7 +2876,7 @@ hr {
     flex-direction: column;
     height: 100%;
     width: 100%;
-    background: #fff;
+    background: #faf8f5;
     overflow-x: hidden;
 }
 
@@ -2948,7 +2918,7 @@ hr {
 }
 
 .chat-simplified .message.user {
-    background: #f0f0f0;
+    background: #ede8df;
     margin-left: auto;
     color: #333;
 }
@@ -2985,10 +2955,10 @@ hr {
 .pill-input {
     display: flex;
     align-items: center;
-    background: #f4f4f4;
+    background: #f0ece5;
     border-radius: 28px;
     padding: 8px 8px 8px 20px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #ddd6cb;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -3140,15 +3110,7 @@ hr {
     letter-spacing: 0.5px;
 }
 
-/* Dark mode */
-.dark .routed-model-indicator {
-    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-    color: #a0aec0;
-}
-
-.dark .routed-model-indicator strong {
-    color: #e2e8f0;
-}
+/* Dark mode — see .App.dark overrides below */
 
 .model-docs-divider {
     color: #ccc;
@@ -3165,13 +3127,7 @@ hr {
     text-decoration: underline;
 }
 
-.dark .model-docs-divider {
-    color: #4a5568;
-}
-
-.dark .model-docs-inline-link {
-    color: #9f7aea;
-}
+/* model-docs-divider/inline-link dark — see .App.dark overrides below */
 
 /* Model Selector Dropdown */
 .model-selector-container {
@@ -3281,53 +3237,7 @@ hr {
     text-decoration: underline;
 }
 
-/* Dark mode for model selector */
-.dark .model-selector-btn {
-    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-    border-color: #4a5568;
-    color: #a0aec0;
-}
-
-.dark .model-selector-btn:hover {
-    background: linear-gradient(135deg, #3d4758 0%, #2a303c 100%);
-    border-color: #5a6578;
-}
-
-.dark .model-selector-btn strong {
-    color: #e2e8f0;
-}
-
-.dark .model-selector-dropdown {
-    background: #1a202c;
-    border-color: #4a5568;
-}
-
-.dark .model-option:hover {
-    background: #2d3748;
-}
-
-.dark .model-option.selected {
-    background: #2c3e50;
-}
-
-.dark .model-option .model-name {
-    color: #e2e8f0;
-}
-
-.dark .model-option .model-category {
-    background: #4a5568;
-    color: #a0aec0;
-}
-
-.dark .model-docs-link-bottom {
-    background: #2d3748;
-    border-color: #4a5568;
-    color: #9f7aea;
-}
-
-.dark .model-docs-link-bottom:hover {
-    background: #3d4758;
-}
+/* Dark mode for model selector — see .App.dark overrides below */
 
 /* Wider chat area when sidebar is hidden */
 .chat-area.simplified {
@@ -3602,6 +3512,550 @@ hr {
     font-size: 13px;
     color: #666;
     text-align: right;
+}
+
+/* ==========================================
+   DARK MODE - Warm Editorial Theme
+   ========================================== */
+
+/* Theme toggle button */
+.theme-toggle-btn {
+    background: none;
+    border: 1px solid #ddd6cb;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.theme-toggle-btn:hover {
+    background-color: #ede8df;
+    border-color: #c5bfb4;
+}
+
+.App.dark .theme-toggle-btn {
+    border-color: rgba(212, 168, 83, 0.2);
+}
+
+.App.dark .theme-toggle-btn:hover {
+    background-color: #1e1b17;
+    border-color: rgba(212, 168, 83, 0.4);
+}
+
+/* Header */
+.App.dark .App-header {
+    background-color: #131110;
+    border-bottom: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .user-controls span {
+    color: #b5ada0;
+}
+
+.App.dark .user-controls button {
+    background-color: #1a1714;
+    color: #b5ada0;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+.App.dark .user-controls button:hover {
+    background-color: #2a2520;
+    border-color: rgba(212, 168, 83, 0.3);
+}
+
+.App.dark .user-controls .account-button {
+    color: #d4a853;
+}
+
+/* Sidebar toggle */
+.App.dark .sidebar-toggle {
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #b5ada0;
+}
+
+.App.dark .sidebar-toggle:hover {
+    background-color: #1e1b17;
+    border-color: rgba(212, 168, 83, 0.3);
+}
+
+.App.dark .sidebar-toggle.active {
+    background-color: #1a1714;
+    border-color: rgba(212, 168, 83, 0.25);
+}
+
+/* Sidebar */
+.App.dark .left-panel {
+    background-color: #131110;
+    border-right: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .recent-chats-header {
+    border-bottom-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .sidebar-tab {
+    color: #b5ada0;
+}
+
+.App.dark .sidebar-tab:hover {
+    background: #1a1714;
+}
+
+.App.dark .sidebar-tab.active {
+    background: #1a1714;
+    color: #f5f0e8;
+}
+
+.App.dark .refresh-btn {
+    color: #b5ada0;
+}
+
+.App.dark .refresh-btn:hover {
+    background: #1a1714;
+}
+
+/* Chat items in sidebar */
+.App.dark .chat-item {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.1);
+}
+
+.App.dark .chat-item:hover {
+    background: #1e1b17;
+    border-color: rgba(212, 168, 83, 0.2);
+}
+
+.App.dark .chat-title {
+    color: #f5f0e8;
+}
+
+.App.dark .chat-preview {
+    color: #b5ada0;
+}
+
+.App.dark .chat-meta {
+    color: #7a7269;
+}
+
+.App.dark .empty-text {
+    color: #7a7269;
+}
+
+.App.dark .delete-chat-btn {
+    color: #7a7269;
+}
+
+.App.dark .delete-chat-btn:hover {
+    color: #e74c3c;
+}
+
+/* Chat area */
+.App.dark .chat-area {
+    background-color: #0f0d0a;
+}
+
+.App.dark .chat-container {
+    background-color: #0f0d0a;
+}
+
+.App.dark .chat-window {
+    background-color: #0f0d0a;
+}
+
+/* Simplified chat */
+.App.dark .chat-simplified {
+    background: #0f0d0a;
+}
+
+.App.dark .welcome-message {
+    color: #f5f0e8;
+}
+
+/* User messages */
+.App.dark .chat-simplified .message.user {
+    background: #1e1b17;
+    color: #f5f0e8;
+}
+
+.App.dark .message.user {
+    background-color: #1e1b17;
+    color: #f5f0e8;
+}
+
+/* Assistant messages */
+.App.dark .chat-simplified .message.assistant {
+    color: #f5f0e8;
+}
+
+.App.dark .message.assistant {
+    background-color: #1a1714;
+    color: #f5f0e8;
+}
+
+/* Context messages */
+.App.dark .message.context {
+    color: #7a7269;
+}
+
+/* Message action buttons */
+.App.dark .copy-btn,
+.App.dark .feedback-btn {
+    background: #2a2520;
+    border-color: #3d3529;
+    color: #b5ada0;
+}
+
+.App.dark .copy-btn:hover,
+.App.dark .feedback-btn:hover:not(:disabled) {
+    background: #3d3529;
+    color: #f5f0e8;
+}
+
+/* Pill input */
+.App.dark .pill-input {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+.App.dark .pill-input:focus-within {
+    border-color: rgba(212, 168, 83, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.App.dark .pill-input textarea {
+    color: #f5f0e8;
+}
+
+.App.dark .pill-input textarea::placeholder {
+    color: #7a7269;
+}
+
+/* Send button */
+.App.dark .pill-input .send-btn {
+    background: #d4a853;
+    color: #0f0d0a;
+}
+
+.App.dark .pill-input .send-btn:hover:not(:disabled) {
+    background: #e8c171;
+}
+
+.App.dark .pill-input .send-btn:disabled {
+    background: #3d3529;
+    color: #7a7269;
+}
+
+/* Attach button */
+.App.dark .pill-input .attach-btn {
+    color: #7a7269;
+}
+
+.App.dark .pill-input .attach-btn:hover:not(:disabled) {
+    background: #1e1b17;
+    color: #b5ada0;
+}
+
+/* Action links */
+.App.dark .action-links .link-btn {
+    color: #7a7269;
+}
+
+.App.dark .action-links .link-btn:hover:not(:disabled) {
+    color: #f5f0e8;
+    background: #1e1b17;
+}
+
+.App.dark .action-links .link-btn.active {
+    color: #d4a853;
+    background: rgba(212, 168, 83, 0.1);
+}
+
+.App.dark .action-links .search-files-btn.active {
+    border-color: rgba(212, 168, 83, 0.3);
+}
+
+/* Chat input (standard mode) */
+.App.dark .chat-input {
+    background-color: #131110;
+    border-top-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .chat-input textarea {
+    background-color: #1a1714;
+    color: #f5f0e8;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+.App.dark .chat-input button {
+    background-color: #d4a853;
+    color: #0f0d0a;
+}
+
+.App.dark .chat-input button:hover {
+    background-color: #e8c171;
+}
+
+/* Model selector */
+.App.dark .model-selector-btn {
+    background: linear-gradient(135deg, #1a1714 0%, #131110 100%);
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #b5ada0;
+}
+
+.App.dark .model-selector-btn:hover {
+    background: linear-gradient(135deg, #1e1b17 0%, #1a1714 100%);
+    border-color: rgba(212, 168, 83, 0.3);
+}
+
+.App.dark .model-selector-btn strong {
+    color: #f5f0e8;
+}
+
+.App.dark .model-selector-btn .dropdown-arrow {
+    color: #7a7269;
+}
+
+.App.dark .model-selector-dropdown {
+    background: #161310;
+    border-color: rgba(212, 168, 83, 0.15);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.App.dark .model-option:hover {
+    background: #1a1714;
+}
+
+.App.dark .model-option.selected {
+    background: rgba(212, 168, 83, 0.08);
+}
+
+.App.dark .model-option .model-name {
+    color: #f5f0e8;
+}
+
+.App.dark .model-option .model-category {
+    background: #2a2520;
+    color: #b5ada0;
+}
+
+.App.dark .model-docs-link-bottom {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.12);
+    color: #d4a853;
+}
+
+.App.dark .model-docs-link-bottom:hover {
+    background: #1e1b17;
+}
+
+/* Routed model indicator */
+.App.dark .routed-model-indicator {
+    background: linear-gradient(135deg, #1a1714 0%, #131110 100%);
+    color: #b5ada0;
+}
+
+.App.dark .routed-model-indicator strong {
+    color: #f5f0e8;
+}
+
+.App.dark .routed-model-indicator .category-tag {
+    background: #d4a853;
+    color: #0f0d0a;
+}
+
+/* Model docs dropdown */
+.App.dark .model-docs-dropdown {
+    background: #161310;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+.App.dark .model-docs-header {
+    color: #b5ada0;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .model-docs-link {
+    color: #f5f0e8;
+}
+
+.App.dark .model-docs-link:hover {
+    background: #1a1714;
+    color: #d4a853;
+}
+
+.App.dark .model-pricing-link {
+    color: #d4a853;
+}
+
+.App.dark .model-pricing-link:hover {
+    background: #1a1714;
+}
+
+.App.dark .model-docs-dropdown .model-docs-divider {
+    background: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .model-docs-divider {
+    color: #3d3529;
+}
+
+.App.dark .model-docs-inline-link {
+    color: #d4a853;
+}
+
+/* Info text */
+.App.dark .info-text {
+    color: #b5ada0;
+    background-color: #1a1714;
+}
+
+/* Chat controls bar */
+.App.dark .chat-controls-bar {
+    background: #131110;
+    border-bottom-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .chat-controls {
+    background: #131110;
+    border-bottom-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .control-group label {
+    color: #b5ada0;
+}
+
+.App.dark .control-group select {
+    background-color: #1a1714;
+    color: #f5f0e8;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+/* Archive controls */
+.App.dark .archive-controls {
+    background-color: #131110;
+}
+
+.App.dark .archive-controls input {
+    background-color: #1a1714;
+    color: #f5f0e8;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+/* Loading indicator */
+.App.dark .loading-indicator {
+    color: #b5ada0;
+}
+
+.App.dark .loading-indicator .spinner {
+    border-top-color: #d4a853;
+}
+
+/* Upload overlay */
+.App.dark .upload-overlay {
+    background: rgba(15, 13, 10, 0.9);
+}
+
+.App.dark .upload-overlay .spinner {
+    border-top-color: #d4a853;
+}
+
+.App.dark .upload-overlay p {
+    color: #f5f0e8;
+}
+
+/* Sidebar backdrop */
+.App.dark .sidebar-backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* Markdown content in dark mode */
+.App.dark .message.assistant pre,
+.App.dark .chat-simplified .message.assistant pre {
+    background-color: #1a1714;
+    border: 1px solid rgba(212, 168, 83, 0.1);
+}
+
+.App.dark .message.assistant code,
+.App.dark .chat-simplified .message.assistant code {
+    background-color: #1a1714;
+    color: #d4a853;
+}
+
+.App.dark .message.assistant pre code {
+    color: #f5f0e8;
+}
+
+.App.dark .message.assistant table,
+.App.dark .chat-simplified .message.assistant table {
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .message.assistant th {
+    background-color: #1a1714;
+    border-color: rgba(212, 168, 83, 0.12);
+    color: #f5f0e8;
+}
+
+.App.dark .message.assistant td {
+    border-color: rgba(212, 168, 83, 0.1);
+    color: #f5f0e8;
+}
+
+.App.dark .message.assistant blockquote {
+    border-left-color: #d4a853;
+    color: #b5ada0;
+    background-color: rgba(212, 168, 83, 0.05);
+}
+
+.App.dark .message.assistant a {
+    color: #d4a853;
+}
+
+.App.dark .message.assistant a:hover {
+    color: #e8c171;
+}
+
+.App.dark .message.assistant hr {
+    border-top-color: rgba(212, 168, 83, 0.12);
+}
+
+/* Neural log panel in dark mode */
+.App.dark .neural-log-panel {
+    background: linear-gradient(135deg, #1a1714 0%, #131110 100%);
+    border-bottom-color: rgba(212, 168, 83, 0.12);
+}
+
+/* Mobile drawer dark */
+.App.dark .mobile-drawer {
+    background-color: #131110;
+    border-right-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .mobile-drawer .projects-panel {
+    background-color: #131110;
+}
+
+/* Mobile specific dark overrides */
+@media (max-width: 768px) {
+    .App.dark .left-panel {
+        border-right-color: rgba(212, 168, 83, 0.12);
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .App.dark .chat-controls {
+        background: #131110;
+        border-bottom-color: rgba(212, 168, 83, 0.12);
+    }
+
+    .App.dark .archive-controls {
+        background: #131110;
+    }
 }
 
 /* Mobile adjustments for simplified mode */
