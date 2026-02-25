@@ -87,17 +87,26 @@ function App() {
 
     useEffect(() => {
         const path = location.pathname;
-        let title = "RomaLume - ";
-        if (path === '/') {
-            title += "Your intelligent assistant for research, writing, and discovery.";
-        } else if (path === '/chat') {
-            title += "Chat";
+        const base = "RomaLume - AI Writing Assistant";
+        let title = base;
+        if (path === '/chat') {
+            title = "RomaLume - Chat";
         } else if (path === '/account') {
-            title += "My Account";
+            title = "RomaLume - My Account";
+        } else if (path === '/account/memories') {
+            title = "RomaLume - Memories";
         } else if (path === '/admin') {
-            title += "Admin Panel";
-        } else if (path === '/login' || path === '/signup') {
-            title += "Login & Signup";
+            title = "RomaLume - Admin Panel";
+        } else if (path === '/admin/users') {
+            title = "RomaLume - Admin Users";
+        } else if (path === '/login' || path === '/register') {
+            title = "RomaLume - Login";
+        } else if (path === '/pricing') {
+            title = "RomaLume - Pricing";
+        } else if (path === '/about') {
+            title = "RomaLume - About";
+        } else if (path === '/models') {
+            title = "RomaLume - Models";
         }
         document.title = title;
     }, [location]);
