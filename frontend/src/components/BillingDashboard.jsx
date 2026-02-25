@@ -91,86 +91,21 @@ const BillingDashboard = ({ auth }) => {
 
             {/* Subscription Status */}
             {subscription.status === 'none' ? (
-                <div className="free-tier-section">
-                    {/* Free Messages Display */}
-                    <div className="free-messages-display">
-                        <div className="free-messages-count">
-                            <span className="count-number">{free_tier?.messages_remaining ?? 100}</span>
-                            <span className="count-label">free messages remaining</span>
-                        </div>
-                        <div className="free-messages-bar">
-                            <div
-                                className="free-messages-progress"
-                                style={{ width: `${((free_tier?.messages_remaining ?? 100) / 100) * 100}%` }}
-                            />
-                        </div>
-                        <p className="free-messages-note">
-                            {free_tier?.messages_used || 0} of 100 free messages used
-                        </p>
-                    </div>
-
-                    {/* Subscribe CTA */}
-                    <div className="subscription-cta">
-                        <h4>Love RomaLume?</h4>
-                        <p>Subscribe for unlimited access to 17+ AI models for $10/month.</p>
-                        <a href="/pricing" className="btn-primary">Subscribe for $10/month</a>
-                    </div>
+                <div className="subscription-cta">
+                    <p>Subscribe for unlimited access to 17+ AI models.</p>
+                    <a href="/pricing" className="btn-primary">Subscribe for $10/month</a>
                 </div>
             ) : (
-                <>
-                    {/* Current Month Usage */}
-                    <div className="billing-section">
-                        <h4>This Month ({current_month.month})</h4>
-
-                        {/* Progress bar */}
-                        <div className="usage-progress">
-                            <div
-                                className={`usage-bar ${usage_warning ? 'warning' : ''}`}
-                                style={{ width: `${Math.min(current_month.usage_percent, 100)}%` }}
-                            />
-                        </div>
-                        <p className="usage-percent">{current_month.usage_percent}% of {subscription.amount_display} used</p>
-
-                        <div className="cost-breakdown">
-                            <div className="cost-item ai-cost">
-                                <span className="cost-label">AI Usage</span>
-                                <span className="cost-value">{current_month.ai_cost_display}</span>
-                            </div>
-                        </div>
-
-                        {usage_warning && (
-                            <div className="usage-warning">
-                                <p>Your AI usage is approaching your subscription amount.</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* All-Time Stats */}
-                    <div className="billing-section all-time">
-                        <h4>All-Time Usage</h4>
-                        <div className="impact-stats">
-                            <div className="impact-stat">
-                                <span className="stat-value">{all_time.ai_cost_display}</span>
-                                <span className="stat-label">Total AI Usage</span>
-                            </div>
-                            <div className="impact-stat">
-                                <span className="stat-value">{all_time.requests.toLocaleString()}</span>
-                                <span className="stat-label">AI Requests</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Manage Subscription */}
-                    <div className="billing-actions">
-                        <button
-                            onClick={handleManageSubscription}
-                            disabled={portalLoading}
-                            className="btn-secondary"
-                        >
-                            {portalLoading ? 'Loading...' : 'Manage Subscription'}
-                        </button>
-                    </div>
-                </>
+                <div className="billing-actions">
+                    <p className="subscription-status">Active — {subscription.amount_display}/month</p>
+                    <button
+                        onClick={handleManageSubscription}
+                        disabled={portalLoading}
+                        className="btn-secondary"
+                    >
+                        {portalLoading ? 'Loading...' : 'Manage Subscription'}
+                    </button>
+                </div>
             )}
         </div>
     );

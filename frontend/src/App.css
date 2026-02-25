@@ -4121,6 +4121,130 @@ hr {
     }
 }
 
+/* Account page dark mode */
+.App.dark .account-page {
+    color: #f5f0e8;
+}
+
+.App.dark .account-form-container {
+    background-color: #1a1714;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .account-form-container h2 {
+    color: #f5f0e8;
+    border-bottom-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .account-form h3 {
+    color: #f5f0e8;
+}
+
+.App.dark .account-form p {
+    color: #b5ada0;
+}
+
+.App.dark .account-form label {
+    color: #b5ada0;
+}
+
+.App.dark .account-form input[type="text"],
+.App.dark .account-form input[type="email"],
+.App.dark .account-form input[type="password"] {
+    background-color: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #f5f0e8;
+}
+
+.App.dark .account-form button {
+    background-color: #d4a853;
+    color: #0f0d0a;
+    border: none;
+}
+
+.App.dark .account-form button:hover {
+    background-color: #e8c171;
+}
+
+.App.dark .account-nav a {
+    color: #d4a853;
+}
+
+.App.dark .account-credits {
+    background-color: #1a1714;
+    border: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .account-credits h3 {
+    color: #f5f0e8;
+}
+
+.App.dark .account-documents {
+    background-color: #1a1714;
+    border: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .account-documents h3 {
+    color: #f5f0e8;
+}
+
+.App.dark .account-documents > p {
+    color: #b5ada0;
+}
+
+.App.dark .checkbox-label {
+    color: #b5ada0;
+}
+
+.App.dark .checkbox-label span {
+    color: #b5ada0;
+}
+
+.App.dark .success {
+    color: #d4a853;
+}
+
+/* Billing dashboard dark mode */
+.App.dark .billing-dashboard {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+.App.dark .billing-dashboard h3 {
+    color: #f5f0e8;
+}
+
+.App.dark .subscription-status {
+    color: #b5ada0;
+}
+
+.App.dark .billing-dashboard .btn-secondary {
+    background: #d4a853;
+    color: #0f0d0a;
+}
+
+.App.dark .billing-dashboard .btn-secondary:hover {
+    background: #e8c171;
+}
+
+.App.dark .billing-dashboard .btn-secondary:disabled {
+    background: #3d3529;
+    color: #6b6358;
+}
+
+.App.dark .subscription-cta p {
+    color: #b5ada0;
+}
+
+.App.dark .billing-dashboard .btn-primary {
+    background: #d4a853;
+    color: #0f0d0a;
+}
+
+.App.dark .billing-dashboard .btn-primary:hover {
+    background: #e8c171;
+}
+
 /* Mobile adjustments for simplified mode */
 @media (max-width: 768px) {
     .welcome-message {
@@ -4428,136 +4552,27 @@ hr {
    ======================================== */
 
 .billing-dashboard {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
     padding: 24px;
     margin-bottom: 20px;
+    border: 1px solid #e1e4e8;
 }
 
 .billing-dashboard h3 {
-    margin: 0 0 20px 0;
+    margin: 0 0 16px 0;
     font-size: 1.3em;
     color: #2c3e50;
 }
 
-.billing-dashboard h4 {
-    margin: 0 0 12px 0;
-    font-size: 1.1em;
-    color: #34495e;
-}
-
-.billing-section {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 16px;
-}
-
-.usage-progress {
-    height: 12px;
-    background: #e9ecef;
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-
-.usage-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #28a745, #20c997);
-    border-radius: 6px;
-    transition: width 0.3s ease;
-}
-
-.usage-bar.warning {
-    background: linear-gradient(90deg, #ffc107, #fd7e14);
-}
-
-.usage-percent {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-bottom: 16px;
-}
-
-.cost-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.cost-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.cost-label {
-    font-size: 0.95em;
-    color: #495057;
-}
-
-.cost-value {
-    font-weight: 600;
-    font-size: 1.1em;
-}
-
-.cost-value.highlight {
-    color: #28a745;
-}
-
-.usage-warning {
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 16px;
-}
-
-.usage-warning p {
-    margin: 0;
-    font-size: 0.9em;
-    color: #856404;
-}
-
-.billing-section.all-time {
-    background: linear-gradient(135deg, #e8f4f8 0%, #d1ecf1 100%);
-}
-
-.impact-stats {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.impact-stat {
-    flex: 1;
-    min-width: 100px;
-    text-align: center;
-    padding: 12px;
-    background: white;
-    border-radius: 8px;
-}
-
-.impact-stat.highlight {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.4em;
-    font-weight: 700;
-    color: #2c3e50;
-}
-
-.stat-label {
-    font-size: 0.8em;
-    color: #6c757d;
-}
-
 .billing-actions {
-    margin-top: 16px;
+    margin-top: 0;
+}
+
+.subscription-status {
+    font-size: 1.05em;
+    color: #495057;
+    margin-bottom: 12px;
 }
 
 .btn-secondary {
@@ -4565,9 +4580,10 @@ hr {
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 0.95em;
+    transition: background 0.2s;
 }
 
 .btn-secondary:hover {
@@ -4581,7 +4597,7 @@ hr {
 
 .subscription-cta {
     text-align: center;
-    padding: 20px;
+    padding: 20px 0 0;
 }
 
 .subscription-cta p {
