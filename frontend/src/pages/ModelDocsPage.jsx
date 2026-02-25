@@ -10,7 +10,7 @@ const ModelDocsPage = () => {
                 { label: 'Models Overview', url: 'https://ai.google.dev/gemini-api/docs/models' },
                 { label: 'Pricing', url: 'https://ai.google.dev/gemini-api/docs/pricing' }
             ],
-            models: ['Gemini 3 Pro', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash', 'Gemini 2.0 Flash']
+            models: ['Gemini 3.1 Pro', 'Gemini 3 Pro', 'Gemini 3 Flash', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash', 'Gemini 2.5 Flash-Lite']
         },
         {
             name: 'Anthropic Claude',
@@ -18,7 +18,7 @@ const ModelDocsPage = () => {
             links: [
                 { label: 'Models Overview', url: 'https://docs.anthropic.com/en/docs/about-claude/models/all-models' }
             ],
-            models: ['Claude Opus 4.5', 'Claude Sonnet 4.5', 'Claude Haiku 4.5']
+            models: ['Claude Opus 4.6', 'Claude Sonnet 4.6', 'Claude Haiku 4.5'],
         },
         {
             name: 'OpenAI GPT',

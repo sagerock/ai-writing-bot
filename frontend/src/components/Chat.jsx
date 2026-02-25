@@ -22,12 +22,14 @@ const MODEL_OPTIONS = [
   { id: 'gpt-5.2-pro-2025-12-11', name: 'GPT-5.2 Pro', category: 'OpenAI' },
   { id: 'gpt-5.2-codex-2025-12-11', name: 'GPT-5.2 Codex', category: 'OpenAI' },
   { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', category: 'Anthropic' },
-  { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', category: 'Anthropic' },
+  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', category: 'Anthropic' },
   { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', category: 'Anthropic' },
+  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', category: 'Google' },
   { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', category: 'Google' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', category: 'Google' },
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', category: 'Google' },
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', category: 'Google' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', category: 'Google' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', category: 'Google' },
   { id: 'sonar-pro', name: 'Sonar Pro', category: 'Perplexity' },
 ];
 

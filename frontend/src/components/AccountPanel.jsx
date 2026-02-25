@@ -55,12 +55,14 @@ const AccountPanel = ({ auth }) => {
         { value: 'gpt-5.2-pro-2025-12-11', label: 'GPT-5.2 Pro (Premium)' },
         { value: 'gpt-5.2-codex-2025-12-11', label: 'GPT-5.2 Codex (Coding)' },
         { value: 'claude-opus-4-6', label: 'Claude Opus 4.6 (Flagship)' },
-        { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+        { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
         { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (Fast)' },
-        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
+        { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview)' },
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview)' },
+        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
         { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
         { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+        { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
     ];
 
     useEffect(() => {

@@ -513,20 +513,19 @@ def is_gpt5_model(model_name: str) -> bool:
     gpt5_models = ["gpt-5-mini", "gpt-5-nano", "gpt-5.2", "gpt-5.2-pro", "gpt-5.2-codex"]
     return any(model_name.startswith(model) for model in gpt5_models)
 
-# Model routing configuration - optimized for cost efficiency
+# Model routing configuration - optimized for Anthropic defaults
 # Costs per ~2K tokens:
-#   Gemini 2.0 Flash: $0.0005 (cheapest)
-#   GPT-5 Mini: $0.002
+#   Gemini 2.5 Flash-Lite: $0.0005 (cheapest)
 #   Haiku 4.5: $0.006
 #   Gemini 2.5 Flash: $0.003
-#   Sonnet 4.5: $0.018
-#   Opus 4.5: $0.03 (premium quality)
+#   Sonnet 4.6: $0.018
+#   Opus 4.6: $0.03 (premium quality)
 ROUTING_MODELS = {
-    "simple": "gemini-2.0-flash",      # Quick facts - ultra cheap & fast
-    "general": "gpt-5.2",              # Everyday tasks - good quality, 12% cheaper than Sonnet
-    "coding": "gpt-5.2-codex",        # Complex coding - purpose-built, 47% cheaper than Opus
-    "writing": "claude-sonnet-4-5",    # Creative writing - great quality, cost effective
-    "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, 63% cheaper
+    "simple": "gemini-2.5-flash-lite", # Quick facts - ultra cheap & fast
+    "general": "claude-sonnet-4-6",    # Everyday tasks - best speed/intelligence balance
+    "coding": "claude-opus-4-6",       # Complex coding - best-in-class for code
+    "writing": "claude-sonnet-4-6",    # Creative writing - great quality, cost effective
+    "analysis": "gemini-2.5-pro",      # Analysis, research - strong reasoning, cost effective
     "science": "gemini-2.5-pro",       # Scientific analysis - good at explanations, cheaper
     "realtime": "sonar-pro",           # Current events, live data - needs web search
 }
@@ -2800,10 +2799,12 @@ MODEL_COSTS = {
     "claude-sonnet": 0.018,    # $3 input / $15 output
     "claude-haiku": 0.006,     # $1 input / $5 output
     # Google Gemini
+    "gemini-3.1-pro": 0.014,  # $2 input / $12 output - newest reasoning
     "gemini-3-pro": 0.014,  # $2 input / $12 output - best multimodal
+    "gemini-3-flash": 0.004, # $0.50 input / $3.00 output - fast frontier
     "gemini-2.5-pro": 0.011,# $1.25 input / $10 output - coding/reasoning
     "gemini-2.5-flash": 0.003, # $0.30 input / $2.50 output - hybrid reasoning
-    "gemini-2.0-flash": 0.0005, # $0.10 input / $0.40 output - balanced
+    "gemini-2.5-flash-lite": 0.0005, # $0.10 input / $0.40 output - ultra cheap
     # Perplexity
     "sonar-pro": 0.01,
 }

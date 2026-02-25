@@ -103,14 +103,16 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
             </optgroup>
             <optgroup label="Anthropic">
               <option value="claude-opus-4-6">Claude Opus 4.6 (Flagship)</option>
-              <option value="claude-sonnet-4-5-20250929">Claude Sonnet 4.5</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
               <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast)</option>
             </optgroup>
             <optgroup label="Google">
-              <option value="gemini-3-pro">Gemini 3 Pro (Preview)</option>
+              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Preview)</option>
+              <option value="gemini-3-pro-preview">Gemini 3 Pro (Preview)</option>
+              <option value="gemini-3-flash-preview">Gemini 3 Flash (Preview)</option>
               <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
+              <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Fast)</option>
             </optgroup>
             <optgroup label="Perplexity">
               <option value="sonar-pro">Sonar Pro (Real-time Search)</option>
