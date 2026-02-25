@@ -307,12 +307,14 @@
   opacity: 0;
   transform: translateY(40px);
   transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  will-change: opacity, transform; /* Ensures sections occupy layout space */
 }
 
 .scroll-reveal.visible {
   opacity: 1;
   transform: translateY(0);
 }
+
 
 /* ============================================
    USE CASES — Editorial Layout
@@ -530,7 +532,14 @@
 
   .home-header {
     padding: 5rem 1.5rem 3rem;
-    min-height: 90vh;
+    min-height: 85vh;
+  }
+
+  /* On mobile, show sections immediately to prevent scroll-stuck issues
+     where the browser doesn't recognise content below the hero viewport */
+  .scroll-reveal {
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   .home-header::before {

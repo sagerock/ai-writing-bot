@@ -58,13 +58,9 @@ const AboutPage = () => {
                     <section className="about-section">
                         <h2>What Each Model Does Best</h2>
                         <p>
-                            <strong>GPT-4o</strong> — Fast and versatile. Great for everyday tasks like drafting emails,
-                            summarizing documents, brainstorming, and general Q&A.
-                        </p>
-                        <p>
-                            <strong>OpenAI o1 / o3</strong> — Purpose-built for complex reasoning. Excels at
-                            multi-step math, logic problems, scientific analysis, and anything that requires
-                            thinking through a problem carefully before answering.
+                            <strong>OpenAI (GPT)</strong> — The most well-known name in AI. Strong across the board — writing,
+                            coding, analysis, and general knowledge. Great when you need a fast, reliable answer
+                            to just about anything.
                         </p>
                         <p>
                             <strong>Claude (Anthropic)</strong> — Thoughtful and thorough. Particularly strong at
