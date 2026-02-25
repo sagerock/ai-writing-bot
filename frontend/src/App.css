@@ -4278,6 +4278,143 @@ html.dark .billing-dashboard .btn-primary:hover {
     background: #e8c171;
 }
 
+/* Profile section dark mode */
+html.dark .account-profile-section {
+    background-color: #1a1714;
+    border: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+html.dark .account-profile-section h3 {
+    color: #f5f0e8;
+}
+
+html.dark .account-profile-section > p {
+    color: #b5ada0;
+}
+
+html.dark .profile-display {
+    background: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+html.dark .profile-content p {
+    color: #b5ada0;
+}
+
+html.dark .profile-content strong {
+    color: #f5f0e8;
+}
+
+html.dark .profile-meta {
+    border-top-color: rgba(212, 168, 83, 0.12);
+}
+
+html.dark .profile-updated {
+    color: #7a7269;
+}
+
+html.dark .profile-actions button:first-child {
+    background: #d4a853;
+    color: #0f0d0a;
+}
+
+html.dark .profile-actions button:first-child:hover {
+    background: #e8c171;
+}
+
+html.dark .regenerate-btn {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #b5ada0;
+}
+
+html.dark .regenerate-btn:hover:not(:disabled) {
+    background: #2a2520;
+    color: #f5f0e8;
+}
+
+html.dark .always-remember-display,
+html.dark .always-remember-field {
+    background: rgba(212, 168, 83, 0.08);
+    border-color: rgba(212, 168, 83, 0.25);
+}
+
+html.dark .always-remember-display label,
+html.dark .always-remember-field label {
+    color: #d4a853;
+}
+
+html.dark .always-remember-content {
+    color: #b5ada0;
+}
+
+html.dark .always-remember-empty {
+    color: #7a7269;
+}
+
+html.dark .always-remember-field textarea {
+    background: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.2);
+    color: #f5f0e8;
+}
+
+html.dark .always-remember-field .char-count {
+    color: #7a7269;
+}
+
+html.dark .currently-display {
+    background: rgba(212, 168, 83, 0.05);
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+html.dark .currently-display label {
+    color: #d4a853;
+}
+
+html.dark .currently-list li {
+    color: #b5ada0;
+}
+
+html.dark .profile-edit-form {
+    background: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.12);
+}
+
+html.dark .profile-field label {
+    color: #b5ada0;
+}
+
+html.dark .profile-field input,
+html.dark .profile-field textarea {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #f5f0e8;
+}
+
+html.dark .profile-field input:focus,
+html.dark .profile-field textarea:focus {
+    border-color: #d4a853;
+    box-shadow: 0 0 0 2px rgba(212, 168, 83, 0.15);
+}
+
+html.dark .profile-empty {
+    background: #1a1714;
+    border-color: rgba(212, 168, 83, 0.15);
+}
+
+html.dark .profile-empty p {
+    color: #b5ada0;
+}
+
+html.dark .generate-profile-btn {
+    background: #d4a853;
+    color: #0f0d0a;
+}
+
+html.dark .generate-profile-btn:hover:not(:disabled) {
+    background: #e8c171;
+}
+
 /* Mobile adjustments for simplified mode */
 @media (max-width: 768px) {
     .welcome-message {
