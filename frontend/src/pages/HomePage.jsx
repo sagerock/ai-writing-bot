@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import PublicNav from '../components/PublicNav';
 import './HomePage.css';
 
 const HomePage = () => {
@@ -49,22 +50,15 @@ const HomePage = () => {
 
   return (
     <div className="home-page">
-      {/* Navigation Bar */}
-      <nav className="home-nav" ref={navRef}>
-        <div className="nav-container">
-          <Link to="/" className="nav-logo">
-            <img src="/logo.png" alt="RomaLume" />
-          </Link>
-          <div className="nav-links">
-            <a href="#features">Features</a>
-            <a href="#use-cases">Use Cases</a>
-            <Link to="/about" className="nav-link">About</Link>
-            <Link to="/pricing" className="nav-link">Pricing</Link>
-            <Link to="/login" className="nav-link">Login</Link>
-            <Link to="/register" className="nav-btn">Get Started</Link>
-          </div>
-        </div>
-      </nav>
+      <PublicNav
+        activePage="home"
+        navRef={navRef}
+        alwaysScrolled={false}
+        extraLinks={[
+          { href: '#features', label: 'Features' },
+          { href: '#use-cases', label: 'Use Cases' },
+        ]}
+      />
 
       {/* Hero Section */}
       <header className="home-header" ref={heroRef}>

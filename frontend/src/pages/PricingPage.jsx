@@ -1,26 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
+import PublicNav from '../components/PublicNav';
 import './HomePage.css';
 
 const PRICE = 10;
-
-const PricingNav = () => (
-    <nav className="home-nav nav-scrolled">
-        <div className="nav-container">
-            <Link to="/" className="nav-logo">
-                <img src="/logo.png" alt="RomaLume" />
-            </Link>
-            <div className="nav-links">
-                <Link to="/" className="nav-link">Home</Link>
-                <Link to="/about" className="nav-link">About</Link>
-                <Link to="/pricing" className="nav-link active">Pricing</Link>
-                <Link to="/login" className="nav-link">Login</Link>
-                <Link to="/register" className="nav-btn">Get Started</Link>
-            </div>
-        </div>
-    </nav>
-);
 
 const PricingPage = ({ auth }) => {
     const [searchParams] = useSearchParams();
@@ -130,7 +114,7 @@ const PricingPage = ({ auth }) => {
 
     return (
         <div className="pricing-page-wrapper">
-            <PricingNav />
+            <PublicNav activePage="pricing" />
             <div className="pricing-page">
                 <div className="pricing-container">
                 <h1>Simple Pricing</h1>

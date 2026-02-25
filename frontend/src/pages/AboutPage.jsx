@@ -1,29 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import PublicNav from '../components/PublicNav';
 import './HomePage.css';
 import './AboutPage.css';
-
-const AboutNav = () => (
-    <nav className="home-nav nav-scrolled">
-        <div className="nav-container">
-            <Link to="/" className="nav-logo">
-                <img src="/logo.png" alt="RomaLume" />
-            </Link>
-            <div className="nav-links">
-                <Link to="/" className="nav-link">Home</Link>
-                <Link to="/about" className="nav-link active">About</Link>
-                <Link to="/pricing" className="nav-link">Pricing</Link>
-                <Link to="/login" className="nav-link">Login</Link>
-                <Link to="/register" className="nav-btn">Get Started</Link>
-            </div>
-        </div>
-    </nav>
-);
 
 const AboutPage = () => {
     return (
         <div className="about-page-wrapper">
-            <AboutNav />
+            <PublicNav activePage="about" />
             <div className="about-page">
                 <div className="about-container">
                     <h1>About RomaLume</h1>

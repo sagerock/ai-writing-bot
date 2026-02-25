@@ -2,24 +2,8 @@ import React, { useState } from 'react';
 import { useLocation, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { API_URL } from '../apiConfig';
+import PublicNav from '../components/PublicNav';
 import './HomePage.css';
-
-const AuthNav = ({ isLogin }) => (
-    <nav className="home-nav nav-scrolled">
-        <div className="nav-container">
-            <Link to="/" className="nav-logo">
-                <img src="/logo.png" alt="RomaLume" />
-            </Link>
-            <div className="nav-links">
-                <Link to="/" className="nav-link">Home</Link>
-                <Link to="/about" className="nav-link">About</Link>
-                <Link to="/pricing" className="nav-link">Pricing</Link>
-                <Link to="/login" className={`nav-link${isLogin ? ' active' : ''}`}>Login</Link>
-                <Link to="/register" className="nav-btn">Get Started</Link>
-            </div>
-        </div>
-    </nav>
-);
 
 // This component will handle Login, Registration, and Forgot Password
 const AuthPage = () => {
@@ -184,7 +168,7 @@ const AuthPage = () => {
 
   return (
     <div className="auth-page-wrapper">
-      <AuthNav isLogin={!isRegister && !isForgotPassword} />
+      <PublicNav activePage="auth" />
       <div className="auth-page">
         <div className="auth-container">
           <img src="/logo.png" alt="RomaLume Logo" className="auth-logo" />

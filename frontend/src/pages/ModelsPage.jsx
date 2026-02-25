@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
+import PublicNav from '../components/PublicNav';
+import './HomePage.css';
+import './ModelsPage.css';
 
 const ModelsPage = () => {
     const [models, setModels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [pricingNote, setPricingNote] = useState('');
     const [autoRoutingInfo, setAutoRoutingInfo] = useState('');
     const [selectedProvider, setSelectedProvider] = useState('all');
 
@@ -20,7 +22,6 @@ const ModelsPage = () => {
             if (!response.ok) throw new Error('Failed to fetch models');
             const data = await response.json();
             setModels(data.models);
-            setPricingNote(data.pricing_note);
             setAutoRoutingInfo(data.auto_routing_info);
         } catch (err) {
             setError(err.message);
@@ -34,30 +35,33 @@ const ModelsPage = () => {
         ? models
         : models.filter(m => m.provider === selectedProvider);
 
-    // Group models by category
+    // Group models by provider
     const groupedModels = filteredModels.reduce((acc, model) => {
-        const key = model.category;
+        const key = model.provider;
         if (!acc[key]) acc[key] = [];
         acc[key].push(model);
         return acc;
     }, {});
-
-    const formatPrice = (price) => {
-        if (price < 0.10) return `$${price.toFixed(3)}`;
-        if (price < 1) return `$${price.toFixed(2)}`;
-        return `$${price.toFixed(2)}`;
-    };
 
     const formatContext = (tokens) => {
         if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(0)}M`;
         return `${(tokens / 1000).toFixed(0)}K`;
     };
 
+    const badgeClass = (badge) => {
+        const b = badge.toLowerCase();
+        if (b === 'latest') return 'models-badge-latest';
+        if (b === 'premium') return 'models-badge-premium';
+        if (b === 'preview') return 'models-badge-preview';
+        return 'models-badge-web';
+    };
+
     if (loading) {
         return (
-            <div className="models-page">
-                <div className="models-container">
-                    <div className="loading-spinner">Loading models...</div>
+            <div className="models-page-wrapper">
+                <PublicNav activePage="models" />
+                <div className="models-page-content">
+                    <div className="models-loading">Loading models...</div>
                 </div>
             </div>
         );
@@ -65,107 +69,88 @@ const ModelsPage = () => {
 
     if (error) {
         return (
-            <div className="models-page">
-                <div className="models-container">
-                    <div className="error-message">Error: {error}</div>
+            <div className="models-page-wrapper">
+                <PublicNav activePage="models" />
+                <div className="models-page-content">
+                    <div className="models-error">Unable to load models. Please try again later.</div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="models-page">
-            <nav className="models-nav">
-                <Link to="/">&larr; Back to Home</Link>
-            </nav>
-
-            <div className="models-container">
-                <header className="models-header">
-                    <h1>AI Models & Pricing</h1>
+        <div className="models-page-wrapper">
+            <PublicNav activePage="models" />
+            <div className="models-page-content">
+                <div className="models-container">
+                    <h1>AI Models</h1>
                     <p className="models-subtitle">
-                        Access to {models.length}+ AI models from leading providers
+                        {models.length}+ models from leading providers — all included in your subscription
                     </p>
-                </header>
 
-                <div className="auto-routing-banner">
-                    <h3>Smart Auto-Routing</h3>
-                    <p>{autoRoutingInfo}</p>
-                </div>
-
-                <div className="provider-filter">
-                    {providers.map(provider => (
-                        <button
-                            key={provider}
-                            className={`filter-btn ${selectedProvider === provider ? 'active' : ''}`}
-                            onClick={() => setSelectedProvider(provider)}
-                        >
-                            {provider === 'all' ? 'All Providers' : provider}
-                        </button>
-                    ))}
-                </div>
-
-                {Object.entries(groupedModels).map(([category, categoryModels]) => (
-                    <div key={category} className="models-category">
-                        <h2 className="category-title">{category}</h2>
-                        <div className="models-grid">
-                            {categoryModels.map(model => (
-                                <div key={model.id} className="model-card">
-                                    <div className="model-card-header">
-                                        <h3>{model.name}</h3>
-                                        {model.badge && (
-                                            <span className={`model-badge badge-${model.badge.toLowerCase()}`}>
-                                                {model.badge}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="model-provider">{model.provider}</p>
-                                    <p className="model-description">{model.description}</p>
-
-                                    <div className="model-pricing">
-                                        <div className="price-row">
-                                            <span className="price-label">Input</span>
-                                            <span className="price-value">{formatPrice(model.input_price)}/M tokens</span>
-                                        </div>
-                                        <div className="price-row">
-                                            <span className="price-label">Output</span>
-                                            <span className="price-value">{formatPrice(model.output_price)}/M tokens</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="model-context">
-                                        <span className="context-icon">📄</span>
-                                        <span>{formatContext(model.context_window)} context</span>
-                                    </div>
-
-                                    <div className="model-best-for">
-                                        <span className="best-for-label">Best for:</span>
-                                        <div className="best-for-tags">
-                                            {model.best_for.map((use, i) => (
-                                                <span key={i} className="use-tag">{use}</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                    {autoRoutingInfo && (
+                        <div className="models-auto-routing">
+                            <h3>Smart Auto-Routing</h3>
+                            <p>{autoRoutingInfo}</p>
                         </div>
+                    )}
+
+                    <div className="models-provider-filter">
+                        {providers.map(provider => (
+                            <button
+                                key={provider}
+                                className={`models-filter-btn ${selectedProvider === provider ? 'active' : ''}`}
+                                onClick={() => setSelectedProvider(provider)}
+                            >
+                                {provider === 'all' ? 'All Providers' : provider}
+                            </button>
+                        ))}
                     </div>
-                ))}
 
-                <div className="pricing-notes">
-                    <h3>Pricing Notes</h3>
-                    <ul>
-                        <li>{pricingNote}</li>
-                        <li>Your subscription covers all model usage - no per-message charges.</li>
-                        <li>We track costs transparently so you can see exactly what's being spent on AI.</li>
-                    </ul>
-                </div>
+                    {Object.entries(groupedModels).map(([provider, providerModels]) => (
+                        <div key={provider} className="models-provider-group">
+                            <h2 className="models-provider-title">{provider}</h2>
+                            <div className="models-grid">
+                                {providerModels.map(model => (
+                                    <div key={model.id} className="models-card">
+                                        <div className="models-card-header">
+                                            <h3>{model.name}</h3>
+                                            {model.badge && (
+                                                <span className={`models-badge ${badgeClass(model.badge)}`}>
+                                                    {model.badge}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="models-card-description">{model.description}</p>
+                                        <div className="models-card-context">
+                                            <span>{formatContext(model.context_window)} context window</span>
+                                        </div>
+                                        <div className="models-card-best-for">
+                                            <span className="models-best-for-label">Best for</span>
+                                            <div className="models-best-for-tags">
+                                                {model.best_for.map((use, i) => (
+                                                    <span key={i} className="models-use-tag">{use}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
 
-                <div className="cta-section">
-                    <h2>Ready to Get Started?</h2>
-                    <p>Subscribe to get unlimited access to all models.</p>
-                    <Link to="/pricing" className="btn-primary">View Subscription Plans</Link>
+                    <div className="models-cta">
+                        <h2>All models. One price.</h2>
+                        <p>Every model included with your $10/month subscription.</p>
+                        <Link to="/pricing" className="btn btn-primary">View Pricing</Link>
+                        <Link to="/register" className="btn btn-secondary">Get Started</Link>
+                    </div>
                 </div>
             </div>
+
+            <footer className="home-footer">
+                <p>&copy; {new Date().getFullYear()} RomaLume. All rights reserved.</p>
+            </footer>
         </div>
     );
 };
