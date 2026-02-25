@@ -4498,6 +4498,52 @@ html.dark .admin-nav-button:hover {
     color: #0f0d0a;
 }
 
+html.dark .email-form {
+    background: #0f0d0a;
+    border: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+html.dark .form-group label {
+    color: #b5ada0;
+}
+
+html.dark .form-group input,
+html.dark .form-group select,
+html.dark .form-group textarea {
+    background-color: #1a1714;
+    border-color: rgba(212, 168, 83, 0.15);
+    color: #f5f0e8;
+}
+
+html.dark .form-group input::placeholder {
+    color: #6b6358;
+}
+
+html.dark .admin-panel button {
+    background-color: #d4a853;
+    color: #0f0d0a;
+    border: none;
+}
+
+html.dark .admin-panel button:hover:not(:disabled) {
+    background-color: #e8c171;
+}
+
+html.dark .admin-panel button:disabled {
+    background-color: #3d3529;
+    color: #6b6358;
+}
+
+html.dark .email-preview {
+    background: #0f0d0a;
+    border-color: rgba(212, 168, 83, 0.12);
+    color: #b5ada0;
+}
+
+html.dark .admin-panel p {
+    color: #b5ada0;
+}
+
 /* Mobile adjustments for simplified mode */
 @media (max-width: 768px) {
     .welcome-message {
