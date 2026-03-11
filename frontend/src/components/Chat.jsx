@@ -383,6 +383,51 @@ const Chat = ({
     }
   };
 
+  const handlePaste = async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        // Give pasted images a filename with extension from mime type
+        const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+        formData.append('file', file, `pasted-image.${ext}`);
+
+        try {
+          const token = await auth.currentUser.getIdToken();
+          const response = await fetch(`${API_URL}/upload_quick`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+          });
+
+          if (!response.ok) throw new Error('Image paste upload failed.');
+
+          const result = await response.json();
+          if (result.text) {
+            setHistory(prev => [...prev, {
+              role: 'context',
+              content: result.text,
+              display_text: `Pasted image`
+            }]);
+          }
+        } catch (error) {
+          console.error("Error uploading pasted image:", error);
+          alert('Failed to upload pasted image.');
+        } finally {
+          setIsUploading(false);
+        }
+        return; // Only handle the first image
+      }
+    }
+  };
+
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -528,6 +573,7 @@ const Chat = ({
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask anything"
               rows={1}
+              onPaste={handlePaste}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -674,6 +720,7 @@ const Chat = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type your message here..."
+            onPaste={handlePaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
