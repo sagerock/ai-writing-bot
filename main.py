@@ -20,6 +20,7 @@ from starlette.responses import StreamingResponse
 from pypdf import PdfReader
 import csv
 import base64
+import re
 from ddgs import DDGS
 
 # RAG Service (lazy import to avoid startup failure if Qdrant unavailable)
@@ -615,12 +616,24 @@ async def generate_gpt5_response(
     messages = []
     for msg in req.history:
         role = msg.role
+        content = msg.content
         if role == 'context':
             role = 'user'  # API only accepts: system, assistant, user, function, tool, developer
-        messages.append({
-            "role": role,
-            "content": msg.content
-        })
+
+        # Detect image data URIs and convert to multimodal content format
+        image_match = re.search(r'(data:image/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+)', content) if isinstance(content, str) else None
+        if image_match and role == 'user':
+            image_url = image_match.group(1)
+            text_parts = content.replace(image_url, '').strip()
+            text_parts = re.sub(r'\[Image:\s*[^\]]*\]', '', text_parts).strip()
+            content_blocks = [
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
+            if text_parts:
+                content_blocks.insert(0, {"type": "text", "text": text_parts})
+            messages.append({"role": role, "content": content_blocks})
+        else:
+            messages.append({"role": role, "content": content})
 
     # Add base system prompt with optional profile context
     base_instruction = "When the user changes topics or asks about something new, respond to that topic directly without forcing connections to previous unrelated topics in this conversation. Treat each distinct subject independently unless there's a clear and explicit connection."
@@ -1013,10 +1026,32 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     llm_history = []
     for msg in history_messages:
-        if msg.get('role') == 'context':
-            llm_history.append({'role': 'user', 'content': msg.get('content', '')})
+        role = msg.get('role', 'user')
+        content = msg.get('content', '')
+
+        # Convert context role to user role
+        if role == 'context':
+            role = 'user'
+
+        # Detect image data URIs and convert to multimodal content format
+        # Images arrive as: "[Image: filename]\ndata:image/png;base64,..."
+        image_match = re.search(r'(data:image/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+)', content) if isinstance(content, str) else None
+        if image_match and role == 'user':
+            image_url = image_match.group(1)
+            # Extract any text before/after the data URI (e.g. "[Image: filename]")
+            text_parts = content.replace(image_url, '').strip()
+            # Remove the "[Image: ...]" label since the model can see the image
+            text_parts = re.sub(r'\[Image:\s*[^\]]*\]', '', text_parts).strip()
+
+            content_blocks = [
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
+            if text_parts:
+                content_blocks.insert(0, {"type": "text", "text": text_parts})
+
+            llm_history.append({'role': role, 'content': content_blocks})
         else:
-            llm_history.append(msg)
+            llm_history.append({'role': role, 'content': content})
 
     response_accum = ""
     try:
@@ -1030,7 +1065,11 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         save_conversation(user_id, final_history)
 
         # Log usage with actual token counts and costs
-        input_text = "\n".join([m.get('content', '') for m in llm_history])
+        input_text = "\n".join([
+            m.get('content', '') if isinstance(m.get('content'), str)
+            else ' '.join(b.get('text', '[image]') for b in m.get('content', []))
+            for m in llm_history
+        ])
         log_usage_with_cost(
             user_id=usage_log_data["user_id"],
             model=usage_log_data["model"],
