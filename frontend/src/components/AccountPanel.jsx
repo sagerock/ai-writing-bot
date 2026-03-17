@@ -42,8 +42,12 @@ const AccountPanel = ({ auth }) => {
         default_model: 'auto',
         default_temperature: 0.7,
         always_ask_mode: false,
-        dark_mode: true
+        dark_mode: true,
+        therapy_mode: false
     });
+    const [therapyNotes, setTherapyNotes] = useState([]);
+    const [therapyNotesLoading, setTherapyNotesLoading] = useState(false);
+    const [showTherapyNotes, setShowTherapyNotes] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
@@ -212,12 +216,34 @@ const AccountPanel = ({ auth }) => {
             }
         };
 
+        const fetchTherapyNotes = async () => {
+            if (!auth.currentUser) return;
+            setTherapyNotesLoading(true);
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${API_URL}/therapy/notes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setTherapyNotes(data.notes || []);
+                }
+            } catch (err) {
+                console.error('Could not load therapy notes:', err);
+            } finally {
+                setTherapyNotesLoading(false);
+            }
+        };
+
         fetchCredits();
         fetchEmailPreferences();
         fetchChatSettings();
         fetchDocuments();
         fetchArchives();
         fetchProfile();
+        fetchTherapyNotes();
     }, [auth.currentUser]);
 
     const handleActionRequiringReauth = async (action) => {
@@ -1046,6 +1072,72 @@ const AccountPanel = ({ auth }) => {
 
                 <button type="submit">Update Chat Settings</button>
             </form>
+
+            <hr />
+
+            <div className="therapy-notes-section">
+                <h3>
+                    Therapy Session Notes
+                    <button
+                        className="toggle-notes-btn"
+                        onClick={() => setShowTherapyNotes(!showTherapyNotes)}
+                    >
+                        {showTherapyNotes ? 'Hide' : 'Show'} ({therapyNotes.length})
+                    </button>
+                </h3>
+                <p>AI-generated notes from your therapy mode conversations. These help the AI provide continuity across sessions.</p>
+
+                {showTherapyNotes && (
+                    <div className="therapy-notes-list">
+                        {therapyNotesLoading ? (
+                            <p>Loading notes...</p>
+                        ) : therapyNotes.length === 0 ? (
+                            <p className="empty-state">No therapy session notes yet. Use therapy mode in chat to generate notes automatically.</p>
+                        ) : (
+                            therapyNotes.map((note, index) => (
+                                <div key={note.id || index} className="therapy-note-card">
+                                    <div className="note-header">
+                                        <span className="note-date">
+                                            {note.created_at ? new Date(note.created_at).toLocaleDateString('en-US', {
+                                                year: 'numeric', month: 'long', day: 'numeric'
+                                            }) : 'Unknown date'}
+                                        </span>
+                                        <span className={`note-mood mood-${note.session_mood}`}>
+                                            {note.session_mood || 'unknown'}
+                                        </span>
+                                    </div>
+                                    <p className="note-summary">{note.summary}</p>
+                                    {note.emotional_themes?.length > 0 && (
+                                        <div className="note-field">
+                                            <strong>Themes:</strong> {note.emotional_themes.join(', ')}
+                                        </div>
+                                    )}
+                                    {note.triggers?.length > 0 && (
+                                        <div className="note-field">
+                                            <strong>Triggers:</strong> {note.triggers.join(', ')}
+                                        </div>
+                                    )}
+                                    {note.coping_patterns?.length > 0 && (
+                                        <div className="note-field">
+                                            <strong>Coping patterns:</strong> {note.coping_patterns.join(', ')}
+                                        </div>
+                                    )}
+                                    {note.unresolved?.length > 0 && (
+                                        <div className="note-field">
+                                            <strong>To follow up:</strong> {note.unresolved.join(', ')}
+                                        </div>
+                                    )}
+                                    {note.safety_notes && (
+                                        <div className="note-field safety">
+                                            <strong>Safety:</strong> {note.safety_notes}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

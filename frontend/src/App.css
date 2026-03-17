@@ -5300,3 +5300,146 @@ html.dark .admin-panel p {
     background: #e8c171;
     transform: translateY(-2px);
 }
+
+/* === Therapy Mode === */
+
+/* Therapy toggle button - warm teal */
+.action-links .therapy-toggle-btn.active {
+    color: #4a9e8e;
+    background: rgba(74, 158, 142, 0.1);
+    border-color: rgba(74, 158, 142, 0.3);
+}
+
+.App.dark .action-links .therapy-toggle-btn.active {
+    color: #6bc4b0;
+    background: rgba(107, 196, 176, 0.1);
+}
+
+/* Therapy banner */
+.therapy-banner {
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 14px;
+    color: #4a9e8e;
+    background: rgba(74, 158, 142, 0.08);
+    border-bottom: 1px solid rgba(74, 158, 142, 0.15);
+    line-height: 1.4;
+}
+
+.therapy-banner small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.App.dark .therapy-banner {
+    color: #6bc4b0;
+    background: rgba(107, 196, 176, 0.06);
+    border-color: rgba(107, 196, 176, 0.12);
+}
+
+/* Therapy notes in Account page */
+.therapy-notes-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toggle-notes-btn {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #666;
+}
+
+.toggle-notes-btn:hover {
+    background: #f0f0f0;
+}
+
+.App.dark .toggle-notes-btn {
+    border-color: rgba(212, 168, 83, 0.2);
+    color: #b5ada0;
+}
+
+.App.dark .toggle-notes-btn:hover {
+    background: #1e1b17;
+}
+
+.therapy-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.therapy-note-card {
+    border: 1px solid #e0dcd4;
+    border-radius: 8px;
+    padding: 16px;
+    background: #faf8f5;
+}
+
+.App.dark .therapy-note-card {
+    border-color: rgba(212, 168, 83, 0.12);
+    background: #1a1714;
+}
+
+.note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.note-date {
+    font-size: 13px;
+    color: #888;
+}
+
+.note-mood {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: capitalize;
+}
+
+.note-mood.mood-distressed { background: rgba(220, 53, 69, 0.12); color: #dc3545; }
+.note-mood.mood-processing { background: rgba(253, 126, 20, 0.12); color: #fd7e14; }
+.note-mood.mood-stable { background: rgba(74, 158, 142, 0.12); color: #4a9e8e; }
+.note-mood.mood-hopeful { background: rgba(40, 167, 69, 0.12); color: #28a745; }
+
+.App.dark .note-mood.mood-distressed { background: rgba(220, 53, 69, 0.15); }
+.App.dark .note-mood.mood-processing { background: rgba(253, 126, 20, 0.15); }
+.App.dark .note-mood.mood-stable { background: rgba(107, 196, 176, 0.15); color: #6bc4b0; }
+.App.dark .note-mood.mood-hopeful { background: rgba(40, 167, 69, 0.15); }
+
+.note-summary {
+    font-size: 14px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.note-field {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.App.dark .note-field {
+    color: #b5ada0;
+}
+
+.note-field.safety {
+    color: #dc3545;
+}
+
+.therapy-notes-section .empty-state {
+    color: #999;
+    font-style: italic;
+    font-size: 14px;
+}
