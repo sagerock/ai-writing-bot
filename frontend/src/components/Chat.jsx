@@ -535,14 +535,6 @@ const Chat = ({
           />
         )}
 
-        {/* Therapy mode banner */}
-        {therapyMode && (
-          <div className="therapy-banner">
-            This is a safe space. I'm here to listen, not to judge.
-            <small>Not a replacement for professional therapy.</small>
-          </div>
-        )}
-
         {/* Messages - scrollable area */}
         {hasMessages && (
           <div className="chat-messages" ref={chatWindowRef} onScroll={handleScroll}>
@@ -598,8 +590,15 @@ const Chat = ({
         {/* Centered pill input */}
         <div className={`input-container ${hasMessages ? 'bottom' : 'centered'}`}>
           {/* Welcome message - only when no messages */}
-          {!hasMessages && (
+          {!hasMessages && !therapyMode && (
             <h1 className="welcome-message">Ready when you are.</h1>
+          )}
+          {/* Therapy mode banner */}
+          {therapyMode && (
+            <div className="therapy-banner">
+              This is a safe space. I'm here to listen, not to judge.
+              <small>Not a replacement for professional therapy.</small>
+            </div>
           )}
           <div className="pill-input">
             <button
