@@ -661,6 +661,80 @@ async def get_therapy_notes(user_id: str, limit: int = 5) -> str:
         return ""
 
 
+# --- URL fetching (Jina Reader) ---
+URL_REGEX = re.compile(r'https?://[^\s\])>"\'`]+', re.IGNORECASE)
+MAX_URLS_PER_MESSAGE = 3
+MAX_URL_CONTENT_CHARS = 50000  # ~12K tokens
+URL_FETCH_TIMEOUT = 15  # seconds
+
+
+def extract_urls(text: str) -> List[str]:
+    """Find unique URLs in a string, preserving order, capped at MAX_URLS_PER_MESSAGE."""
+    if not isinstance(text, str):
+        return []
+    found = []
+    seen = set()
+    for match in URL_REGEX.findall(text):
+        # Strip common trailing punctuation
+        cleaned = match.rstrip('.,;:!?')
+        if cleaned not in seen:
+            seen.add(cleaned)
+            found.append(cleaned)
+        if len(found) >= MAX_URLS_PER_MESSAGE:
+            break
+    return found
+
+
+async def fetch_url_content(url: str) -> Optional[dict]:
+    """Fetch a URL via Jina Reader (https://r.jina.ai/<url>) and return clean text.
+
+    Jina Reader handles JS-rendered pages and returns markdown-formatted text.
+    Returns dict with 'url' and 'content' on success, None on failure.
+    """
+    import requests
+    try:
+        reader_url = f"https://r.jina.ai/{url}"
+        # Run blocking request in a thread so we don't block the event loop
+        response = await asyncio.to_thread(
+            requests.get,
+            reader_url,
+            timeout=URL_FETCH_TIMEOUT,
+            headers={"Accept": "text/plain"},
+        )
+        if response.status_code != 200:
+            print(f"URL fetch failed for {url}: HTTP {response.status_code}")
+            return None
+        content = response.text
+        if len(content) > MAX_URL_CONTENT_CHARS:
+            content = content[:MAX_URL_CONTENT_CHARS] + "\n\n[...content truncated...]"
+        return {"url": url, "content": content}
+    except Exception as e:
+        print(f"URL fetch failed for {url}: {type(e).__name__}: {e}")
+        return None
+
+
+async def fetch_urls_from_text(text: str) -> List[dict]:
+    """Extract URLs from text and fetch them in parallel. Returns list of successful fetches."""
+    urls = extract_urls(text)
+    if not urls:
+        return []
+    print(f"Fetching {len(urls)} URL(s): {urls}")
+    results = await asyncio.gather(*[fetch_url_content(u) for u in urls])
+    return [r for r in results if r is not None]
+
+
+def build_url_context_block(fetched: List[dict]) -> str:
+    """Format fetched URL contents as an injectable context block."""
+    if not fetched:
+        return ""
+    parts = []
+    for item in fetched:
+        parts.append(
+            f"--- BEGIN PAGE: {item['url']} ---\n{item['content']}\n--- END PAGE ---"
+        )
+    return "\n\n".join(parts)
+
+
 async def generate_gpt5_response(
     req: ChatRequest,
     user_id: str,
@@ -908,6 +982,46 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         "search_web": req.search_web,
         "search_docs": req.search_docs,
     }
+
+    # --- URL fetching: auto-detect links in last user message and fetch their content ---
+    try:
+        last_user_idx = -1
+        for i in range(len(req.history) - 1, -1, -1):
+            if req.history[i].role == 'user':
+                last_user_idx = i
+                break
+
+        if last_user_idx != -1:
+            last_user_content = req.history[last_user_idx].content
+            urls = extract_urls(last_user_content) if isinstance(last_user_content, str) else []
+            if urls:
+                # Notify frontend that we're reading links
+                yield f"data: {json.dumps({'fetching_urls': urls})}\n\n"
+                fetched = await fetch_urls_from_text(last_user_content)
+                if fetched:
+                    url_block = build_url_context_block(fetched)
+                    new_content = (
+                        "The user's message contains links. Here is the content of those pages, "
+                        "fetched for you:\n\n"
+                        f"{url_block}\n\n"
+                        "Use this content to answer the user accurately. "
+                        "If a page failed to load, it will be missing from the list above.\n\n"
+                        f"User message: {last_user_content}"
+                    )
+                    # Rewrite the last user message in-place so both regular & GPT-5 paths see it
+                    new_history = list(req.history)
+                    new_history[last_user_idx] = Message(role='user', content=new_content)
+                    req = ChatRequest(
+                        history=new_history,
+                        model=req.model,
+                        search_web=req.search_web,
+                        search_docs=req.search_docs,
+                        temperature=req.temperature,
+                        therapy_mode=req.therapy_mode
+                    )
+                    yield f"data: {json.dumps({'fetched_urls': [f['url'] for f in fetched]})}\n\n"
+    except Exception as e:
+        print(f"URL fetching failed (non-fatal): {type(e).__name__}: {e}")
 
     # --- RAG: Search user's documents for relevant context (only if enabled) ---
     rag_context = ""
