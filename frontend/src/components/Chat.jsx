@@ -261,6 +261,19 @@ const Chat = ({
                   continue;
                 }
 
+                // Status events from the backend (URL fetching, RAG sources, etc.)
+                // These are objects, not string tokens — don't append to the response.
+                if (parsed && typeof parsed === 'object') {
+                  if (parsed.fetching_urls) {
+                    console.log('Fetching URLs:', parsed.fetching_urls);
+                  } else if (parsed.fetched_urls) {
+                    console.log('Fetched URLs:', parsed.fetched_urls);
+                  } else if (parsed.rag_sources) {
+                    console.log('RAG sources:', parsed.rag_sources);
+                  }
+                  continue;
+                }
+
                 // Regular token (string)
                 assistantResponse += parsed;
                 setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: assistantResponse } : msg));
