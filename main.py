@@ -1025,6 +1025,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     # --- RAG: Search user's documents for relevant context (only if enabled) ---
     rag_context = ""
+    rag_sources = []  # Ordered list of unique filenames cited as [1], [2], ...
     if req.search_docs:
         try:
             rag = get_rag_service()
@@ -1041,11 +1042,23 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                     results = rag.search(user_id, last_user_msg, top_k=5, score_threshold=0.5)
 
                     if results:
+                        # Dedupe filenames into a numbered source list so chunks from
+                        # the same document share one citation number.
+                        filename_to_num = {}
                         context_parts = []
                         for r in results:
-                            context_parts.append(f"[From: {r['filename']}]\n{r['chunk_text']}")
+                            fname = r['filename']
+                            if fname not in filename_to_num:
+                                filename_to_num[fname] = len(rag_sources) + 1
+                                rag_sources.append(fname)
+                            num = filename_to_num[fname]
+                            context_parts.append(
+                                f"[Source {num}: {fname}]\n{r['chunk_text']}"
+                            )
                         rag_context = "\n\n---\n\n".join(context_parts)
-                        print(f"RAG found {len(results)} relevant chunks for user {user_id}")
+                        print(f"RAG found {len(results)} relevant chunks across {len(rag_sources)} document(s) for user {user_id}")
+                        # Notify the frontend of the sources being used
+                        yield f"data: {json.dumps({'rag_sources': rag_sources})}\n\n"
         except Exception as e:
             print(f"RAG search failed (non-fatal): {e}")
 
@@ -1108,6 +1121,25 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         if therapy_notes_context:
             print(f"Loaded therapy notes for {user_id}")
 
+    # Build the RAG-augmented user prompt with citation instructions
+    def build_rag_prompt(original_query: str) -> str:
+        sources_list = "\n".join(f"[{i+1}] {fname}" for i, fname in enumerate(rag_sources))
+        return (
+            "The following excerpts come from the user's own document library. "
+            "Each excerpt is tagged with a source number like [Source 1: filename.pdf]. "
+            "When you use information from one of these excerpts, cite it inline using "
+            "bracketed numbers like [1] or [2]. At the end of your response, include a "
+            '"Sources" section listing each source you cited by number and filename. '
+            "Only cite sources you actually used. If the excerpts don't contain the answer, "
+            "say so plainly rather than guessing.\n\n"
+            "--- DOCUMENT EXCERPTS ---\n"
+            f"{rag_context}\n"
+            "--- END EXCERPTS ---\n\n"
+            "Available sources:\n"
+            f"{sources_list}\n\n"
+            f"User question: {original_query}"
+        )
+
     # Check if this is a GPT-5 model that requires Responses API
     if is_gpt5_model(req.model):
         # For GPT-5 models, inject RAG context into request history
@@ -1119,7 +1151,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                     original_query = modified_history[i].content
                     modified_history[i] = Message(
                         role='user',
-                        content=f"Based on the following relevant information from your documents:\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\n--- END CONTEXT ---\n\nUser question: {original_query}"
+                        content=build_rag_prompt(original_query)
                     )
                     break
             req = ChatRequest(
@@ -1166,7 +1198,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         for i in range(len(history_messages) - 1, -1, -1):
             if history_messages[i]['role'] == 'user':
                 original_query = history_messages[i]['content']
-                history_messages[i]['content'] = f"Based on the following relevant information from your documents:\n\n--- DOCUMENT CONTEXT ---\n{rag_context}\n--- END CONTEXT ---\n\nUser question: {original_query}"
+                history_messages[i]['content'] = build_rag_prompt(original_query)
                 break
 
     if req.search_web:
