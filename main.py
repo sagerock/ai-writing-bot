@@ -564,6 +564,29 @@ Message: "{message}"
 
 Category:"""
 
+import re as _re
+
+_REALTIME_PATTERNS = _re.compile(
+    r'\b('
+    r'today|tonight|yesterday|this (?:week|month|year)|last (?:week|month|year|night)'
+    r'|latest|current(?:ly)?|recent(?:ly)?|right now|just now'
+    r'|news|headline|weather|forecast|temperature outside'
+    r'|stock (?:price|market)|price of|how much (?:is|are|does)'
+    r'|score|who (?:won|lost|is winning)|game (?:tonight|today|yesterday)'
+    r'|election|poll|results'
+    r'|trending|viral'
+    r'|what (?:time|day) is it'
+    r'|search (?:for|the web|online|google)'
+    r'|look up|google'
+    r')\b',
+    _re.IGNORECASE
+)
+
+def _needs_web_search(message: str) -> bool:
+    """Lightweight keyword check to detect queries needing web search."""
+    return bool(_REALTIME_PATTERNS.search(message))
+
+
 async def route_to_best_model(user_message: str) -> tuple[str, str]:
     """
     Use Gemini 2.0 Flash to quickly classify the message and route to the best model.
@@ -950,11 +973,15 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         if last_user_msg:
             routed_model, routed_category = await route_to_best_model(last_user_msg)
             print(f"Auto-routing: '{last_user_msg[:50]}...' -> {routed_model} ({routed_category})")
+            # Auto-enable web search for realtime queries
+            auto_search_web = req.search_web or routed_category == "realtime"
+            if auto_search_web and not req.search_web:
+                print(f"Auto-enabling web search for realtime query")
             # Update the request model
             req = ChatRequest(
                 history=req.history,
                 model=routed_model,
-                search_web=req.search_web,
+                search_web=auto_search_web,
                 search_docs=req.search_docs,
                 temperature=req.temperature,
                 therapy_mode=req.therapy_mode
@@ -967,6 +994,24 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 history=req.history,
                 model=ROUTING_MODELS["general"],
                 search_web=req.search_web,
+                search_docs=req.search_docs,
+                temperature=req.temperature,
+                therapy_mode=req.therapy_mode
+            )
+
+    # --- Auto-detect web search need (for all models, not just "auto") ---
+    if not req.search_web:
+        last_user_msg_for_search = None
+        for msg in reversed(req.history):
+            if msg.role == 'user':
+                last_user_msg_for_search = msg.content if isinstance(msg.content, str) else ""
+                break
+        if last_user_msg_for_search and _needs_web_search(last_user_msg_for_search):
+            print(f"Auto-enabling web search (keyword match) for: {last_user_msg_for_search[:80]}")
+            req = ChatRequest(
+                history=req.history,
+                model=req.model,
+                search_web=True,
                 search_docs=req.search_docs,
                 temperature=req.temperature,
                 therapy_mode=req.therapy_mode
