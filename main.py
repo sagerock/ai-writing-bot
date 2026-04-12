@@ -568,16 +568,23 @@ import re as _re
 
 _REALTIME_PATTERNS = _re.compile(
     r'\b('
+    # Time-sensitive queries
     r'today|tonight|yesterday|this (?:week|month|year)|last (?:week|month|year|night)'
     r'|latest|current(?:ly)?|recent(?:ly)?|right now|just now'
+    # News, weather, sports, markets
     r'|news|headline|weather|forecast|temperature outside'
     r'|stock (?:price|market)|price of|how much (?:is|are|does)'
     r'|score|who (?:won|lost|is winning)|game (?:tonight|today|yesterday)'
     r'|election|poll|results'
     r'|trending|viral'
     r'|what (?:time|day) is it'
+    # Explicit search requests
     r'|search (?:for|the web|online|google)'
     r'|look up|google'
+    # People, places, and topic lookups
+    r'|who is|who are|who was|tell me about|what is .{0,20} known for'
+    r'|what (?:happened|is happening)'
+    r'|where is|what country|what state|what city'
     r')\b',
     _re.IGNORECASE
 )
