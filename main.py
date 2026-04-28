@@ -2939,7 +2939,8 @@ async def list_users(_: dict = Depends(get_current_admin_user)):
                 firestore_data = user_doc.to_dict()
                 user_data["credits"] = firestore_data.get("credits", 0)
                 user_data["credits_used"] = firestore_data.get("credits_used", 0)
-                
+                user_data["subscriptionStatus"] = firestore_data.get("subscription_status", "none")
+
             users_list.append(user_data)
             
         return users_list
@@ -3011,6 +3012,33 @@ async def admin_delete_user(user_id: str, _: dict = Depends(get_current_admin_us
         return {"message": f"User {user_id} deleted successfully"}
     except Exception as e:
         print(f"Error deleting user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.post("/admin/users/{user_id}/set-paid")
+async def set_user_paid(user_id: str, _: dict = Depends(get_current_admin_user)):
+    """Manually mark a user as a paid subscriber (bypasses Stripe)."""
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_ref.set({
+            "subscription_status": "active",
+            "subscription_started_at": firestore.SERVER_TIMESTAMP,
+        }, merge=True)
+        print(f"Admin manually set user {user_id} as paid")
+        return {"message": "User marked as paid subscriber"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@main_app.post("/admin/users/{user_id}/set-free")
+async def set_user_free(user_id: str, _: dict = Depends(get_current_admin_user)):
+    """Manually revert a user to free tier."""
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_ref.set({
+            "subscription_status": "none",
+        }, merge=True)
+        print(f"Admin manually set user {user_id} as free")
+        return {"message": "User reverted to free tier"}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @main_app.post("/admin/users/{user_id}/unsubscribe")

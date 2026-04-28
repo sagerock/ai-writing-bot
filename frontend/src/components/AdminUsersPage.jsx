@@ -188,6 +188,50 @@ const AdminUsersPage = ({ auth }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [openDropdown]);
 
+    const setUserPaid = async (uid, email) => {
+        if (!window.confirm(`Mark ${email} as a paid subscriber?\n\nThis bypasses Stripe and grants full access immediately.`)) {
+            return;
+        }
+        setOpenDropdown(null);
+        setSaving(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/users/${uid}/set-paid`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to update user');
+            setUsers(prev => prev.map(u => u.uid === uid ? { ...u, subscriptionStatus: 'active' } : u));
+            alert(`${email} is now a paid subscriber.`);
+        } catch (err) {
+            alert('Failed: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const setUserFree = async (uid, email) => {
+        if (!window.confirm(`Revert ${email} to the free tier?`)) {
+            return;
+        }
+        setOpenDropdown(null);
+        setSaving(true);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/admin/users/${uid}/set-free`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to update user');
+            setUsers(prev => prev.map(u => u.uid === uid ? { ...u, subscriptionStatus: 'none' } : u));
+            alert(`${email} has been reverted to the free tier.`);
+        } catch (err) {
+            alert('Failed: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const unsubscribeUser = async (uid, email) => {
         if (!window.confirm(`Unsubscribe ${email} from all system emails?`)) {
             return;
@@ -389,6 +433,15 @@ const AdminUsersPage = ({ auth }) => {
                                             </button>
                                             {openDropdown === user.uid && (
                                                 <div className="dropdown-menu">
+                                                    {user.subscriptionStatus !== 'active' ? (
+                                                        <button onClick={() => setUserPaid(user.uid, user.email)}>
+                                                            ✅ Mark as paid
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={() => setUserFree(user.uid, user.email)}>
+                                                            🔄 Revert to free
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => unsubscribeUser(user.uid, user.email)}>
                                                         📧 Unsubscribe from emails
                                                     </button>
