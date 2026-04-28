@@ -1006,6 +1006,23 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                 therapy_mode=req.therapy_mode
             )
 
+    # --- Free-tier model cap: redirect free users to Haiku 4.5 ---
+    FREE_TIER_MODEL = "claude-haiku-4-5-20251001"
+    PAID_ONLY_MODELS = {
+        "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-sonnet-4-5-20250929",
+        "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-5-20250514",
+    }
+    if not access_info["is_subscriber"] and req.model in PAID_ONLY_MODELS:
+        req = ChatRequest(
+            history=req.history,
+            model=FREE_TIER_MODEL,
+            search_web=req.search_web,
+            search_docs=req.search_docs,
+            temperature=req.temperature,
+            therapy_mode=req.therapy_mode
+        )
+        yield f"data: {json.dumps({'free_tier_model': FREE_TIER_MODEL})}\n\n"
+
     # --- Auto-detect web search need (for all models, not just "auto") ---
     if not req.search_web:
         last_user_msg_for_search = None
