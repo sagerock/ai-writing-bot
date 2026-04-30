@@ -6,10 +6,11 @@ Estimates token counts and calculates actual AI costs for transparent billing.
 import tiktoken
 from typing import Optional
 
-# Pricing per 1 MILLION tokens (as of February 2026)
+# Pricing per 1 MILLION tokens (as of April 2026)
 # Format: {"input": price_per_1M_input, "output": price_per_1M_output}
 MODEL_PRICING = {
     # OpenAI GPT-5 family
+    "gpt-5.5": {"input": 5.00, "output": 30.00},
     "gpt-5-nano": {"input": 0.05, "output": 0.40},
     "gpt-5-mini": {"input": 0.25, "output": 2.00},
     "gpt-5.2": {"input": 1.75, "output": 14.00},
@@ -17,6 +18,7 @@ MODEL_PRICING = {
     "gpt-5.2-codex": {"input": 1.75, "output": 14.00},
 
     # Anthropic Claude
+    "claude-opus-4-7": {"input": 5.00, "output": 25.00},
     "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-opus-4-5": {"input": 5.00, "output": 25.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
@@ -24,6 +26,7 @@ MODEL_PRICING = {
 
     # Google Gemini
     "gemini-3.1-pro": {"input": 2.00, "output": 12.00},
+    "gemini-3.1-flash-lite": {"input": 0.25, "output": 1.50},
     "gemini-3-pro": {"input": 2.00, "output": 12.00},
     "gemini-3-flash": {"input": 0.50, "output": 3.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
@@ -38,6 +41,18 @@ MODEL_PRICING = {
 # This is the single source of truth for all available models
 MODELS_CATALOG = [
     # OpenAI GPT-5 Series
+    {
+        "id": "gpt-5.5",
+        "name": "GPT-5.5",
+        "provider": "OpenAI",
+        "category": "GPT-5 Series",
+        "description": "OpenAI's most capable model for coding and professional work",
+        "input_price": 5.00,
+        "output_price": 30.00,
+        "context_window": 1050000,
+        "best_for": ["Complex reasoning", "Professional work", "Coding"],
+        "badge": "Latest",
+    },
     {
         "id": "gpt-5-nano-2025-08-07",
         "name": "GPT-5 Nano",
@@ -70,7 +85,6 @@ MODELS_CATALOG = [
         "output_price": 14.00,
         "context_window": 400000,
         "best_for": ["Coding tasks", "Agentic workflows", "Complex reasoning"],
-        "badge": "Latest",
     },
     {
         "id": "gpt-5.2-pro-2025-12-11",
@@ -97,6 +111,18 @@ MODELS_CATALOG = [
     },
     # Anthropic Claude
     {
+        "id": "claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "provider": "Anthropic",
+        "category": "Claude",
+        "description": "Most capable model for complex reasoning and agentic coding",
+        "input_price": 5.00,
+        "output_price": 25.00,
+        "context_window": 1000000,
+        "best_for": ["Agents", "Complex coding", "Deep reasoning"],
+        "badge": "Latest",
+    },
+    {
         "id": "claude-opus-4-6",
         "name": "Claude Opus 4.6",
         "provider": "Anthropic",
@@ -104,9 +130,8 @@ MODELS_CATALOG = [
         "description": "Most intelligent model for building agents and coding",
         "input_price": 5.00,
         "output_price": 25.00,
-        "context_window": 200000,
+        "context_window": 1000000,
         "best_for": ["Agents", "Complex coding", "Deep reasoning"],
-        "badge": "Latest",
     },
     {
         "id": "claude-sonnet-4-6",
@@ -141,6 +166,18 @@ MODELS_CATALOG = [
         "output_price": 12.00,
         "context_window": 1000000,
         "best_for": ["Complex reasoning", "Agentic workflows", "Coding"],
+        "badge": "Preview",
+    },
+    {
+        "id": "gemini-3.1-flash-lite-preview",
+        "name": "Gemini 3.1 Flash-Lite",
+        "provider": "Google",
+        "category": "Gemini",
+        "description": "Lightweight, fast, and cost-effective with strong multimodal capabilities",
+        "input_price": 0.25,
+        "output_price": 1.50,
+        "context_window": 1000000,
+        "best_for": ["Fast tasks", "High volume", "Cost-effective"],
         "badge": "Preview",
     },
     {
