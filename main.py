@@ -275,6 +275,37 @@ main_app.add_middleware(
 
 # --- Public Endpoints (no auth required) ---
 
+@main_app.get("/health")
+async def health_check():
+    """Verifies Anthropic API and Qdrant are reachable. Used by monitoring cron."""
+    import anthropic as _anthropic
+    results = {"ai_ok": False, "qdrant_ok": False}
+
+    # AI check — minimal Haiku call
+    try:
+        _client = _anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        await _client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1,
+            messages=[{"role": "user", "content": "hi"}],
+        )
+        results["ai_ok"] = True
+    except Exception as e:
+        results["ai_error"] = str(e)
+
+    # Qdrant check — list collections
+    try:
+        rag = get_rag_service()
+        rag.qdrant.get_collections()
+        results["qdrant_ok"] = True
+    except Exception as e:
+        results["qdrant_error"] = str(e)
+
+    ok = results["ai_ok"] and results["qdrant_ok"]
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200 if ok else 500, content={"ok": ok, **results})
+
+
 @main_app.get("/models")
 async def get_models():
     """
