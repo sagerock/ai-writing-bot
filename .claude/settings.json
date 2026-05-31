@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:docs.perplexity.ai)",
+      "WebFetch(domain:nicolalazzari.ai)",
+      "WebFetch(domain:developers.openai.com)",
+      "Read(//home/sage/scripts/ai-engagement-hub/**)"
+    ]
+  }
+}
