@@ -136,3 +136,7 @@ package-lock.json
 firebase_service_account.json
 # Windows download metadata
 *:Zone.Identifier
+
+# Firebase deploy cache
+.firebase/
+.claude/
