@@ -175,6 +175,101 @@ def send_to_email_marketing_background(email: str, tags: List[str] = None):
         print(f"✗ Failed to send to email marketing: {e}")
 
 
+def web_search(query: str, max_results: int = 5) -> list:
+    """Resilient DuckDuckGo/multi-engine search.
+
+    DDG frequently blocks datacenter IPs (e.g. Railway), returning
+    'No results found'. Retry across backends so a single engine being
+    blocked doesn't kill the feature. Returns [] if everything fails.
+    """
+    backends = ["auto", "google, bing, brave, mojeek, yahoo, duckduckgo"]
+    last_err = None
+    for backend in backends:
+        try:
+            results = list(DDGS().text(query, max_results=max_results, backend=backend))
+            if results:
+                return results
+        except Exception as e:
+            last_err = e
+            print(f"web_search backend='{backend}' failed: {type(e).__name__}: {e}")
+    if last_err:
+        print(f"web_search exhausted all backends: {type(last_err).__name__}: {last_err}")
+    return []
+
+
+# Anthropic rejects images over ~5MB or with very large dimensions
+# ("Could not process image"). Normalize uploads to safe bounds.
+IMAGE_MAX_EDGE = 1568          # px on the long edge (Anthropic's recommended cap)
+IMAGE_MAX_BYTES = 5 * 1024 * 1024  # 5MB hard limit on the encoded image
+
+
+def sanitize_image_data_uri(data_uri: str):
+    """Decode, resize, and re-encode an image data URI to limits Anthropic accepts.
+
+    Returns a clean ``data:image/...;base64,...`` string, or ``None`` if the
+    image can't be processed (caller should then drop the image rather than
+    send a request that 400s).
+    """
+    try:
+        from PIL import Image
+    except Exception as e:
+        # Pillow unavailable: fall back to passing the original through.
+        print(f"sanitize_image: Pillow unavailable ({e}); passing image through")
+        return data_uri
+
+    try:
+        header, b64 = data_uri.split(",", 1)
+        raw = base64.b64decode(b64)
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+
+        # Resize if either edge exceeds the cap.
+        if max(img.size) > IMAGE_MAX_EDGE:
+            img.thumbnail((IMAGE_MAX_EDGE, IMAGE_MAX_EDGE), Image.LANCZOS)
+
+        # Choose a format Anthropic supports. Preserve transparency as PNG,
+        # otherwise prefer JPEG for smaller payloads.
+        has_alpha = img.mode in ("RGBA", "LA", "P")
+        if has_alpha:
+            img = img.convert("RGBA")
+            out_fmt, mime = "PNG", "image/png"
+        else:
+            img = img.convert("RGB")
+            out_fmt, mime = "JPEG", "image/jpeg"
+
+        def encode(image, fmt, quality=None):
+            buf = io.BytesIO()
+            if quality is not None:
+                image.save(buf, format=fmt, quality=quality, optimize=True)
+            else:
+                image.save(buf, format=fmt, optimize=True)
+            return buf.getvalue()
+
+        out = encode(img, out_fmt, 85 if out_fmt == "JPEG" else None)
+
+        # If still too large, step the JPEG quality / dimensions down.
+        quality = 85
+        while len(out) > IMAGE_MAX_BYTES and quality > 35:
+            quality -= 15
+            if out_fmt == "PNG":
+                img = img.convert("RGB")
+                out_fmt, mime = "JPEG", "image/jpeg"
+            out = encode(img, "JPEG", quality)
+        while len(out) > IMAGE_MAX_BYTES and max(img.size) > 512:
+            img.thumbnail((int(max(img.size) * 0.8), int(max(img.size) * 0.8)), Image.LANCZOS)
+            out = encode(img, "JPEG", quality)
+            mime, out_fmt = "image/jpeg", "JPEG"
+
+        if len(out) > IMAGE_MAX_BYTES:
+            print("sanitize_image: image still too large after downscaling; dropping")
+            return None
+
+        return f"data:{mime};base64,{base64.b64encode(out).decode()}"
+    except Exception as e:
+        print(f"sanitize_image: failed to process image ({type(e).__name__}: {e}); dropping")
+        return None
+
+
 def log_usage_with_cost(
     user_id: str,
     model: str,
@@ -860,10 +955,9 @@ async def generate_gpt5_response(
             user_query = messages[last_user_msg_index]['content']
             search_snippets = []
             try:
-                print(f"Starting DuckDuckGo search for GPT-5: {user_query[:100]}")
-                ddgs = DDGS()
-                results = list(ddgs.text(user_query, max_results=5))
-                print(f"DuckDuckGo returned {len(results)} results")
+                print(f"Starting web search for GPT-5: {user_query[:100]}")
+                results = web_search(user_query, max_results=5)
+                print(f"Web search returned {len(results)} results")
 
                 for result in results:
                     title = result.get('title', '')
@@ -1312,11 +1406,10 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             user_query = history_messages[last_user_msg_index]['content']
             search_snippets = []
             try:
-                # Use DuckDuckGo for free web search
-                print(f"Starting DuckDuckGo search for: {user_query[:100]}")
-                ddgs = DDGS()
-                results = list(ddgs.text(user_query, max_results=5))
-                print(f"DuckDuckGo returned {len(results)} results")
+                # Resilient multi-engine web search (DDG blocks Railway's IP)
+                print(f"Starting web search for: {user_query[:100]}")
+                results = web_search(user_query, max_results=5)
+                print(f"Web search returned {len(results)} results")
 
                 # Extract relevant information from the results
                 for result in results:
@@ -1359,7 +1452,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
         # Detect image data URIs and convert to multimodal content format
         # Images arrive as: "[Image: filename]\ndata:image/png;base64,..."
-        image_match = re.search(r'(data:image/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+)', content) if isinstance(content, str) else None
+        image_match = re.search(r'(data:image/[a-zA-Z+]+;base64,[A-Za-z0-9+/=]+)', content) if isinstance(content, str) else None
         if image_match and role == 'user':
             image_url = image_match.group(1)
             # Extract any text before/after the data URI (e.g. "[Image: filename]")
@@ -1367,11 +1460,18 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             # Remove the "[Image: ...]" label since the model can see the image
             text_parts = re.sub(r'\[Image:\s*[^\]]*\]', '', text_parts).strip()
 
-            content_blocks = [
-                {"type": "image_url", "image_url": {"url": image_url}},
-            ]
+            # Normalize the image to dimensions/size Anthropic accepts. Oversized
+            # images otherwise return a 400 "Could not process image" that kills
+            # the whole stream. None means the image couldn't be salvaged.
+            safe_image_url = sanitize_image_data_uri(image_url)
+
+            content_blocks = []
             if text_parts:
-                content_blocks.insert(0, {"type": "text", "text": text_parts})
+                content_blocks.append({"type": "text", "text": text_parts})
+            if safe_image_url:
+                content_blocks.append({"type": "image_url", "image_url": {"url": safe_image_url}})
+            else:
+                content_blocks.append({"type": "text", "text": "[An image was attached but could not be processed.]"})
 
             llm_history.append({'role': role, 'content': content_blocks})
         else:
@@ -1379,11 +1479,23 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
 
     response_accum = ""
     try:
-        async for chunk in llm.astream(llm_history):
-            token = chunk.content if hasattr(chunk, 'content') else str(chunk)
-            response_accum += token
-            # Use JSON encoding to safely transport tokens with special characters
-            yield f"data: {json.dumps(token)}\n\n"
+        try:
+            async for chunk in llm.astream(llm_history):
+                token = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                response_accum += token
+                # Use JSON encoding to safely transport tokens with special characters
+                yield f"data: {json.dumps(token)}\n\n"
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            # Surface model/API errors to the client instead of letting the
+            # exception kill the SSE stream (which left users with a hung reply).
+            print(f"Streaming error in generate_chat_response: {type(e).__name__}: {e}")
+            err_msg = "\n\n⚠️ Sorry — there was a problem generating this response. Please try again."
+            if "image" in str(e).lower():
+                err_msg = "\n\n⚠️ Sorry — I couldn't process the attached image. Try a smaller or different image (PNG/JPEG)."
+            response_accum += err_msg
+            yield f"data: {json.dumps(err_msg)}\n\n"
 
         final_history = history_messages + [{"role": "assistant", "content": response_accum}]
         save_conversation(user_id, final_history)
