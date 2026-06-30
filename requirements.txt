@@ -16,6 +16,17 @@ Pillow==11.0.0
 ddgs==9.9.3
 firebase-admin==6.6.0
 google-auth==2.37.0
+# Pin the Google/gRPC/protobuf transitive cluster. Left unpinned, pip
+# pathologically backtracks google-api-python-client (2.198 -> ...) for
+# 40+ min on a cold resolve because the real anchor (google-api-core) is
+# floating. These exact versions are a verified-consistent resolution.
+google-api-core==2.30.3
+google-api-python-client==2.198.0
+google-cloud-firestore==2.27.0
+google-cloud-core==2.6.0
+googleapis-common-protos==1.75.0
+grpcio-status==1.62.3
+protobuf==4.25.9
 requests==2.32.3
 sendgrid==6.12.4
 google-cloud-storage==2.19.0
