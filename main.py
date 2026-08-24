@@ -54,6 +54,7 @@ from cost_tracker import (
     get_models_catalog,
     normalize_model_id,
 )
+from llm_content import stream_chunk_text
 from message_storage import compact_messages_for_storage
 
 # Stripe integration (optional - gracefully handle if not configured)
@@ -1608,7 +1609,9 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     try:
         try:
             async for chunk in llm.astream(llm_history):
-                token = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                token = stream_chunk_text(chunk.content) if hasattr(chunk, 'content') else str(chunk)
+                if not token:
+                    continue
                 response_accum += token
                 # Use JSON encoding to safely transport tokens with special characters
                 yield f"data: {json.dumps(token)}\n\n"

@@ -28,7 +28,7 @@ cd frontend && npm run lint
 cd frontend && npm run build
 
 # Backend verification
-python -m compileall -q main.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
+python -m compileall -q main.py llm_content.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
 python -m unittest discover -s tests -v
 
 # Frontend deployment
