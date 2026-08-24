@@ -71,7 +71,7 @@ Plain chats outside a project keep working as they do today.
 | RAG | Qdrant payload has `project_name`, but `rag.search()` is never called with it (`main.py:1310`). Chunks 4000 chars, top-5, threshold 0.5. | Retrieval is user-wide and lossy. Wrong tool for "read the whole record." |
 | Citations | `[Source n: filename]` blocks; model asked to cite `[n]`; frontend gets a bare `rag_sources` filename list and `console.log`s it (`Chat.jsx:248`). | No structured citations reach the UI. |
 | System prompt | `BASE_SYSTEM_PROMPT` + user profile. Date only injected when web search is on (`main.py:1478`). | Need a project-instructions slot; should always inject the date. |
-| Frontend | Only `RecentChats` is mounted. `ProjectsPanel`, `DocumentsPanel`, `ArchivesPanel` are orphaned. No editor library; markdown via `marked` + DOMPurify. | Replace the orphans; add one editor dependency. |
+| Frontend | Only `RecentChats` is mounted. `ProjectsPanel`, `DocumentsPanel`, `ArchivesPanel` are orphaned. No editor library; markdown via `marked` + DOMPurify. | Replace the orphans; v1 draft editor is a textarea + existing preview (no new dependency). |
 | Firestore rules | Browser is read-only on its own data; all writes via backend. | Every new write is a FastAPI endpoint. Fine. |
 
 ## 3. Data model (Firestore, all writes via backend)
