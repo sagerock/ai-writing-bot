@@ -321,7 +321,7 @@ function App() {
         }
 
         return (
-            <div className={`App ${userSettings.darkMode ? 'dark' : ''}`}>
+            <div className={`App quick-chat-shell ${userSettings.darkMode ? 'dark' : ''}`}>
                 <header className="App-header">
                     <div className="logo-container">
                         <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />

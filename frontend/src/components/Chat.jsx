@@ -67,22 +67,33 @@ const Chat = ({
 
   // Check if user is near bottom of chat
   const isNearBottom = () => {
-    if (!chatWindowRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = chatWindowRef.current;
+    const scrollContainer = chatWindowRef.current?.closest('.quick-chat-shell');
+    if (!scrollContainer) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
     return scrollHeight - scrollTop - clientHeight < 100; // Within 100px of bottom
   };
 
   // Handle user scroll - detect if they scrolled up
   const handleScroll = () => {
-    if (chatWindowRef.current) {
-      userScrolledUp.current = !isNearBottom();
-    }
+    userScrolledUp.current = !isNearBottom();
   };
+
+  useEffect(() => {
+    const scrollContainer = chatWindowRef.current?.closest('.quick-chat-shell');
+    if (!scrollContainer) return undefined;
+    const updateScrollState = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      userScrolledUp.current = scrollHeight - scrollTop - clientHeight >= 100;
+    };
+    scrollContainer.addEventListener('scroll', updateScrollState, { passive: true });
+    return () => scrollContainer.removeEventListener('scroll', updateScrollState);
+  }, []);
 
   // Auto-scroll to bottom when new messages are added (only if user hasn't scrolled up)
   useEffect(() => {
-    if (chatWindowRef.current && !userScrolledUp.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    const scrollContainer = chatWindowRef.current?.closest('.quick-chat-shell');
+    if (scrollContainer && !userScrolledUp.current) {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   }, [history, forceRerender]);
 
@@ -98,7 +109,7 @@ const Chat = ({
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+      textarea.style.height = `${textarea.scrollHeight}px`;
     }
   };
 
@@ -730,6 +741,7 @@ const Chat = ({
         </div>
         <div className="chat-input">
           <textarea
+            ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type your message here..."

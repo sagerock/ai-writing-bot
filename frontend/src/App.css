@@ -5312,3 +5312,108 @@ html.dark .admin-panel p {
   background: #b42318;
   color: #fff;
 }
+
+/* Quick Chat uses one continuous, visually scrollbar-free page. */
+.quick-chat-shell {
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.quick-chat-shell::-webkit-scrollbar,
+.quick-chat-shell .pill-input textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-chat-shell .main-content {
+  flex: none;
+  min-height: calc(100vh - 81px);
+  align-items: stretch;
+  overflow: visible;
+}
+
+.quick-chat-shell .chat-area {
+  flex: 1;
+  min-height: calc(100vh - 81px);
+  overflow: visible;
+}
+
+.quick-chat-shell .chat-simplified {
+  height: auto;
+  min-height: calc(100vh - 81px);
+  overflow: visible;
+}
+
+.quick-chat-shell .chat-messages {
+  flex: none;
+  min-height: 50vh;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.quick-chat-shell .chat-container {
+  flex: none;
+  height: auto;
+  min-height: calc(100vh - 130px);
+  overflow: visible;
+}
+
+.quick-chat-shell .chat-window {
+  flex: none;
+  min-height: 55vh;
+  overflow: visible;
+}
+
+.quick-chat-shell .pill-input textarea,
+.quick-chat-shell .chat-input textarea {
+  max-height: none;
+  overflow: hidden;
+}
+
+@media (min-width: 769px) {
+  .quick-chat-shell .left-panel {
+    min-height: calc(100vh - 81px);
+    overflow: visible;
+    align-self: stretch;
+  }
+
+  .quick-chat-shell .recent-chats {
+    height: auto;
+  }
+
+  .quick-chat-shell .chat-list {
+    flex: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 768px) {
+  .quick-chat-shell .main-content {
+    min-height: calc(100vh - 76px);
+    overflow: visible;
+  }
+
+  .quick-chat-shell .chat-area,
+  .quick-chat-shell .chat-simplified {
+    min-height: calc(100vh - 76px);
+  }
+
+  .quick-chat-shell .left-panel {
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .quick-chat-shell .left-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .quick-chat-shell .recent-chats {
+    height: auto;
+  }
+
+  .quick-chat-shell .chat-list {
+    flex: none;
+    overflow: visible;
+  }
+}
