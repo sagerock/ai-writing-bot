@@ -85,6 +85,11 @@ def _citation_block(sources: list[dict[str, Any]]) -> str:
         "For sources without pages, use paragraph citations such as [2, ¶ 7]. "
         "Combine sources as [1, p. 14; 3, p. 2]. Never invent a page, paragraph, "
         "source number, quotation, or proposition not supported by the supplied text. "
+        "Immediately after every citation, add one invisible evidence comment for each "
+        "cited source using 6–30 consecutive words copied exactly from that location: "
+        "[1, p. 14]<!-- evidence 1: exact words from page 14 -->. For a combined "
+        "citation, add one comment per source. These comments are UI metadata; do not "
+        "refer to them in the answer. "
         "If the sources do not support an answer, say so plainly.\n\n"
         "Stable source table:\n"
         f"{source_table}"
@@ -227,6 +232,38 @@ CITATION_ITEM = re.compile(
     r"(?:\s*[–-]\s*(?P<paragraph_end>\d+))?))?\s*$",
     re.IGNORECASE,
 )
+EVIDENCE_MARKER = re.compile(
+    r"\s*<!--\s*evidence\s+(?P<source>\d+)\s*:\s*(?P<text>.*?)\s*-->",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def strip_evidence_locators(text: str) -> str:
+    """Remove invisible citation-viewer metadata from user-visible prose."""
+    return EVIDENCE_MARKER.sub("", text or "")
+
+
+def _evidence_after_citation(text: str, offset: int) -> dict[int, str]:
+    evidence: dict[int, str] = {}
+    cursor = offset
+    while marker := EVIDENCE_MARKER.match(text, cursor):
+        source_num = int(marker.group("source"))
+        quote = " ".join(marker.group("text").split())[:500]
+        if quote:
+            evidence[source_num] = quote
+        cursor = marker.end()
+    return evidence
+
+
+def _claim_before_citation(text: str, offset: int) -> str:
+    prefix = strip_evidence_locators(text[:offset]).rstrip()
+    if not prefix:
+        return ""
+    paragraph = re.split(r"\n\s*\n", prefix)[-1]
+    sentence = re.split(r"(?<=[.!?])\s+", paragraph)[-1]
+    claim = re.sub(r"^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)", "", sentence)
+    claim = re.sub(r"\[[^\]]+\]", "", claim)
+    return " ".join(claim.split())[-1000:]
 
 
 def parse_citations(
@@ -235,6 +272,8 @@ def parse_citations(
     source_lookup = {int(source["source_num"]): source for source in sources}
     citations: list[dict[str, Any]] = []
     for group in CITATION_GROUP.finditer(text or ""):
+        evidence_by_source = _evidence_after_citation(text, group.end())
+        claim = _claim_before_citation(text, group.start())
         for item_text in group.group(1).split(";"):
             item = CITATION_ITEM.match(item_text)
             if not item:
@@ -261,5 +300,9 @@ def parse_citations(
                 citation["paragraph"] = int(item.group("paragraph_start"))
             if item.group("paragraph_end"):
                 citation["paragraph_end"] = int(item.group("paragraph_end"))
+            if claim:
+                citation["claim"] = claim
+            if evidence_by_source.get(source_num):
+                citation["evidence"] = evidence_by_source[source_num]
             citations.append(citation)
     return citations

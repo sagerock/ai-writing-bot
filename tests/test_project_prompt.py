@@ -6,6 +6,7 @@ from project_prompt import (
     build_project_system_prompt,
     parse_citations,
     segments_from_offsets,
+    strip_evidence_locators,
 )
 
 
@@ -146,8 +147,12 @@ class ProjectPromptTests(unittest.TestCase):
 
     def test_citations_are_parsed_and_unknown_sources_are_ignored(self):
         text = (
-            "The injury was known in 2022 [1, p. 14]. Filing followed later "
-            "[1, pp. 14–15; 3, ¶ 7]. Unknown [2, p. 4]. Whole source [1]."
+            "The injury was known in 2022 [1, p. 14]"
+            "<!-- evidence 1: Smith learned of the injury in 2022 -->. Filing followed later "
+            "[1, pp. 14–15; 3, ¶ 7]"
+            "<!-- evidence 1: Smith learned of the injury in 2022 -->"
+            "<!-- evidence 3: The complaint was filed in 2025 -->. "
+            "Unknown [2, p. 4]. Whole source [1]."
         )
         citations = parse_citations(text, SOURCES)
 
@@ -158,6 +163,17 @@ class ProjectPromptTests(unittest.TestCase):
         self.assertIsNone(citations[3]["page"])
         self.assertEqual(citations[0]["source_id"], "source-one")
         self.assertEqual(citations[1]["span"]["text"], "[1, pp. 14–15; 3, ¶ 7]")
+        self.assertEqual(citations[0]["claim"], "The injury was known in 2022")
+        self.assertEqual(
+            citations[0]["evidence"],
+            "Smith learned of the injury in 2022",
+        )
+        self.assertEqual(
+            citations[2]["evidence"],
+            "The complaint was filed in 2025",
+        )
+        self.assertNotIn("evidence", citations[3])
+        self.assertNotIn("<!-- evidence", strip_evidence_locators(text))
 
 
 if __name__ == "__main__":

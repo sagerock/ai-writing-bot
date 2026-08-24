@@ -6,6 +6,11 @@ import { renderMarkdown } from '../renderMarkdown';
 import { useModelOptions } from '../useModelOptions';
 import { applyDraftEdit, draftSections } from '../draftUtils';
 import {
+  claimBeforeCitation,
+  findSourceHighlight,
+  stripEvidenceLocators,
+} from '../sourceHighlight';
+import {
   createProjectChat,
   deleteProjectChat,
   deleteProjectSource,
@@ -76,9 +81,41 @@ const sourceLocation = (citation) => {
   return 'source';
 };
 
-function SourceText({ data }) {
+function HighlightedSourceText({ text, citation }) {
+  const highlightRef = useRef(null);
+  const highlight = useMemo(
+    () => findSourceHighlight(text, citation),
+    [citation, text],
+  );
+
+  useEffect(() => {
+    if (!highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlight]);
+
+  if (!highlight) return <pre>{text}</pre>;
+  return (
+    <pre>
+      {text.slice(0, highlight.start)}
+      <mark
+        ref={highlightRef}
+        className={highlight.exact ? 'source-exact-highlight' : 'source-near-highlight'}
+        title={highlight.exact ? 'Exact passage cited by Roma' : 'Closest passage matching this citation'}
+      >
+        {text.slice(highlight.start, highlight.end)}
+      </mark>
+      {text.slice(highlight.end)}
+    </pre>
+  );
+}
+
+function SourceText({ data, citation }) {
   if (!data?.pages?.length) {
-    return <pre className="source-viewer-text">{data?.text || ''}</pre>;
+    return (
+      <div className="source-viewer-text">
+        <HighlightedSourceText text={data?.text || ''} citation={citation} />
+      </div>
+    );
   }
   return (
     <div className="source-viewer-segments">
@@ -88,7 +125,10 @@ function SourceText({ data }) {
         return (
           <section key={`${label}-${entry.start}`} id={`source-location-${location}`}>
             <div>{label}</div>
-            <pre>{data.text.slice(entry.start, entry.end)}</pre>
+            <HighlightedSourceText
+              text={data.text.slice(entry.start, entry.end)}
+              citation={citation}
+            />
           </section>
         );
       })}
@@ -401,7 +441,12 @@ export default function ProjectWorkspace({
   };
 
   const handleApplyToDraft = async (assistantContent, messageIndex, target = writeTarget) => {
-    const nextDraft = applyDraftEdit(draft, assistantContent, target, draftSelection);
+    const nextDraft = applyDraftEdit(
+      draft,
+      stripEvidenceLocators(assistantContent),
+      target,
+      draftSelection,
+    );
     const applied = await saveDraft(
       nextDraft,
       `chat ${selectedChatId}, message ${messageIndex + 1}`,
@@ -420,7 +465,7 @@ export default function ProjectWorkspace({
   const finishStream = useCallback((history, assistantContent, citations, responseMode, responseTarget) => {
     setMessages(history.concat([{
       role: 'assistant',
-      content: assistantContent,
+      content: stripEvidenceLocators(assistantContent),
       citations,
       mode: responseMode,
       writeTarget: responseTarget,
@@ -502,7 +547,7 @@ export default function ProjectWorkspace({
             if (parsed.startsWith('ERROR:')) throw new Error(parsed.slice(6).trim());
             responseText += parsed;
             setMessages((current) => current.map((item) => (
-              item.streaming ? { ...item, content: responseText } : item
+              item.streaming ? { ...item, content: stripEvidenceLocators(responseText) } : item
             )));
           } else if (parsed?.citations) {
             citations = parsed.citations;
@@ -692,7 +737,10 @@ export default function ProjectWorkspace({
                     {item.citations.map((citation, citationIndex) => (
                       <button
                         key={`${citation.source_id}-${citationIndex}`}
-                        onClick={() => openSourceViewer(sourcesByNumber[citation.source_num], citation)}
+                        onClick={() => openSourceViewer(sourcesByNumber[citation.source_num], {
+                          ...citation,
+                          claim: citation.claim || claimBeforeCitation(item.content, citation.span?.start),
+                        })}
                         title="Open cited source location"
                       >
                         [{citation.source_num}] {sourcesByNumber[citation.source_num]?.label || 'Source'} · {sourceLocation(citation)}
@@ -840,7 +888,7 @@ export default function ProjectWorkspace({
               ) : sourceViewer.error ? (
                 <div className="project-error">{sourceViewer.error}</div>
               ) : (
-                <SourceText data={sourceViewer.data} />
+                <SourceText data={sourceViewer.data} citation={sourceViewer.citation} />
               )}
             </div>
             <footer>

@@ -214,7 +214,12 @@
 .source-viewer-locationbar button { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 5px; padding: 5px 8px; font: 700 .62rem inherit; cursor: pointer; }
 .source-viewer-locationbar button:disabled { opacity: .4; cursor: default; }
 .source-viewer-content { min-height: 0; overflow-y: auto; padding: 28px clamp(20px, 5vw, 56px); }
-.source-viewer-text, .source-viewer-segments pre { margin: 0; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; font: .86rem/1.7 Georgia, 'Times New Roman', serif; }
+.source-viewer-text pre, .source-viewer-segments pre { margin: 0; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; font: .86rem/1.7 Georgia, 'Times New Roman', serif; }
+.source-viewer mark { margin: -2px -1px; padding: 2px 1px; border-radius: 3px; color: inherit; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.source-viewer mark.source-exact-highlight { background: #f6d980; box-shadow: 0 0 0 1px rgba(157, 98, 53, .2); }
+.source-viewer mark.source-near-highlight { background: #f3e5ad; box-shadow: 0 0 0 1px rgba(157, 98, 53, .14); }
+.project-shell.dark .source-viewer mark.source-exact-highlight { background: #765d22; }
+.project-shell.dark .source-viewer mark.source-near-highlight { background: #55491f; }
 .source-viewer-segments { display: grid; gap: 34px; }
 .source-viewer-segments section > div { position: sticky; top: -28px; display: inline-block; border: 1px solid var(--line); background: var(--paper); color: var(--accent-dark); border-radius: 12px; margin-bottom: 12px; padding: 3px 9px; font-size: .62rem; font-weight: 800; }
 .source-viewer-state { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: .8rem; }

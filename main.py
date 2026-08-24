@@ -56,7 +56,11 @@ from cost_tracker import (
 from llm_content import stream_chunk_text
 from message_storage import compact_messages_for_storage
 from project_context import ProjectContext, ProjectContextError, load_project_context
-from project_prompt import build_project_prompt_sections, parse_citations
+from project_prompt import (
+    build_project_prompt_sections,
+    parse_citations,
+    strip_evidence_locators,
+)
 from project_store import ChatNotFound, ProjectNotFound, ProjectStore
 from projects import create_projects_router
 from source_extract import extract as extract_source
@@ -992,6 +996,7 @@ def persist_generated_response(
 
     context: ProjectContext = project_runtime["context"]
     citations = parse_citations(final_history[-1]["content"], context.sources)
+    final_history[-1]["content"] = strip_evidence_locators(final_history[-1]["content"])
     final_history[-1]["citations"] = citations
     chat = project_runtime["chat"]
     project_runtime["store"].save_chat(

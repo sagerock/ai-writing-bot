@@ -112,6 +112,11 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
         self.assertEqual(assistant["role"], "assistant")
         self.assertEqual(assistant["citations"][0]["source_id"], self.source_id)
         self.assertEqual(assistant["citations"][0]["page"], 1)
+        self.assertEqual(
+            assistant["citations"][0]["evidence"],
+            "Smith learned of the injury in 2022",
+        )
+        self.assertNotIn("<!-- evidence", assistant["content"])
         current_chat = (
             self.main.db.collection("users")
             .document(self.user_id)
@@ -136,7 +141,12 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
 
             async def astream(fake_self, history):
                 fake_self.history = history
-                yield SimpleNamespace(content="Smith learned in 2022 [1, p. 1].")
+                yield SimpleNamespace(
+                    content=(
+                        "Smith learned in 2022 [1, p. 1]"
+                        "<!-- evidence 1: Smith learned of the injury in 2022 -->."
+                    )
+                )
 
         fake_llm = FakeLlm()
         with (
@@ -175,7 +185,10 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
                 async def events():
                     yield SimpleNamespace(
                         type="response.output_text.delta",
-                        delta="Smith learned in 2022 [1, p. 1].",
+                        delta=(
+                            "Smith learned in 2022 [1, p. 1]"
+                            "<!-- evidence 1: Smith learned of the injury in 2022 -->."
+                        ),
                     )
 
                 return events()
