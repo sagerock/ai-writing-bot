@@ -30,15 +30,6 @@
   --accent-soft: #38291d;
 }
 
-.project-app-header { min-height: 58px; padding: 7px 24px; background: var(--panel); border-color: var(--line); }
-.project-brand { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font: 600 1.3rem 'Cormorant Garamond', Georgia, serif; }
-.project-brand .header-logo { height: 42px; }
-.project-primary-nav { display: flex; gap: 4px; margin-right: auto; margin-left: 38px; }
-.project-primary-nav a { color: var(--muted); text-decoration: none; border-radius: 7px; padding: 8px 12px; font-size: .88rem; font-weight: 600; }
-.project-primary-nav a:hover { color: var(--ink); background: var(--paper-deep); }
-.project-app-header .user-controls { gap: 10px; }
-.project-app-header .user-controls > button:last-child { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 7px; padding: 7px 10px; }
-
 .projects-home { width: min(1180px, calc(100% - 48px)); margin: 0 auto; overflow: visible; padding: 64px 0 100px; }
 .projects-hero { display: flex; justify-content: space-between; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 30px; margin-bottom: 42px; }
 .projects-hero h1 { margin: 2px 0 8px; font: 600 clamp(2.5rem, 5vw, 4.2rem)/1 'Cormorant Garamond', Georgia, serif; }
@@ -246,19 +237,10 @@
 
 @media (max-width: 900px) {
   .project-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .project-app-header { padding-inline: 14px; }
-  .project-primary-nav { margin-left: 14px; }
-  .project-brand span { display: none; }
-  .project-app-header .user-controls > span { display: none; }
   .project-type-picker > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
-  .project-app-header { min-height: 50px; }
-  .project-brand .header-logo { height: 34px; }
-  .project-primary-nav { margin-left: 5px; }
-  .project-primary-nav a { padding: 7px; font-size: .74rem; }
-  .project-app-header .account-button, .project-app-header .user-controls > button:last-child { display: none; }
   .workspace-titlebar { padding-inline: 14px; }
   .workspace-mode small { display: none; }
   .projects-home { width: min(100% - 28px, 600px); padding-top: 36px; }

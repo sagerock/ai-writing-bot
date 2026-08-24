@@ -1,9 +1,10 @@
 import { lazy, Suspense, useState, useEffect } from 'react'
-import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import Chat from './components/Chat'
 import RecentChats from './components/RecentChats'
+import WorkspaceHeader from './components/WorkspaceHeader'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import { API_URL } from './apiConfig'
@@ -322,35 +323,15 @@ function App() {
 
         return (
             <div className={`App quick-chat-shell ${userSettings.darkMode ? 'dark' : ''}`}>
-                <header className="App-header">
-                    <div className="logo-container">
-                        <img src="/logo.png" alt="RomaLume Logo" className="header-logo" />
-                        <button
-                            className={`sidebar-toggle ${sidebarOpen ? 'active' : ''}`}
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            title={sidebarOpen ? "Hide sidebar" : "Show documents & archives"}
-                        >
-                            📁
-                        </button>
-                    </div>
-                    <div className="user-controls">
-                        {user.displayName && <span>Welcome, {user.displayName}</span>}
-                        <Link to="/projects" className="account-button" title="Projects">Projects</Link>
-                        <button
-                            className="theme-toggle-btn"
-                            onClick={handleToggleDarkMode}
-                            title={userSettings.darkMode ? "Switch to light mode" : "Switch to dark mode"}
-                        >
-                            {userSettings.darkMode ? '☀️' : '🌙'}
-                        </button>
-                        {!isSubscriber && (
-                            <Link to="/pricing" className="upgrade-button" title="Subscribe to RomaLume">Upgrade</Link>
-                        )}
-                        {user.isAdmin && <Link to="/admin" className="account-button" title="Admin">⚙️</Link>}
-                        <Link to="/account" className="account-button" title="My Account">👤</Link>
-                        <button onClick={handleLogout}>Logout</button>
-                    </div>
-                </header>
+                <WorkspaceHeader
+                    user={user}
+                    isSubscriber={isSubscriber}
+                    darkMode={userSettings.darkMode}
+                    onToggleDarkMode={handleToggleDarkMode}
+                    onLogout={handleLogout}
+                    sidebarOpen={sidebarOpen}
+                    onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+                />
 
                 <div className="main-content">
                     {/* Collapsible sidebar - works on both desktop and mobile */}

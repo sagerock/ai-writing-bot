@@ -1,0 +1,122 @@
+header.project-app-header {
+  min-height: 58px;
+  padding: 7px 24px;
+  background: var(--panel, #fffdf9);
+  border-color: var(--line, #ded6c9);
+}
+
+.project-brand-cluster,
+.project-brand {
+  display: flex;
+  align-items: center;
+}
+
+.project-brand-cluster {
+  gap: 8px;
+}
+
+.project-brand {
+  gap: 8px;
+  color: var(--ink, #26221d);
+  text-decoration: none;
+  font: 600 1.3rem 'Cormorant Garamond', Georgia, serif;
+}
+
+.project-brand .header-logo {
+  height: 42px;
+}
+
+.project-sidebar-toggle {
+  margin-left: 4px;
+}
+
+.project-primary-nav {
+  display: flex;
+  gap: 4px;
+  margin-right: auto;
+  margin-left: 38px;
+}
+
+.project-primary-nav a {
+  color: var(--muted, #766e62);
+  text-decoration: none;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: .88rem;
+  font-weight: 600;
+}
+
+.project-primary-nav a:hover {
+  color: var(--ink, #26221d);
+  background: var(--paper-deep, #eee8dc);
+}
+
+.project-app-header .user-controls {
+  gap: 10px;
+}
+
+.project-app-header .user-controls > button:last-child {
+  border: 1px solid var(--line, #ded6c9);
+  background: transparent;
+  color: var(--ink, #26221d);
+  border-radius: 7px;
+  padding: 7px 10px;
+}
+
+.quick-chat-shell.dark .project-app-header {
+  --panel: #201b16;
+  --paper-deep: #1c1814;
+  --ink: #f2ede4;
+  --muted: #aca296;
+  --line: #3c342b;
+}
+
+.App.dark header.project-app-header {
+  background: var(--panel, #201b16);
+  border-color: var(--line, #3c342b);
+}
+
+@media (max-width: 900px) {
+  .project-app-header {
+    padding-inline: 14px;
+  }
+
+  .project-primary-nav {
+    margin-left: 14px;
+  }
+
+  .project-brand span,
+  .project-app-header .user-controls > span {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .project-app-header {
+    min-height: 50px;
+  }
+
+  .project-brand .header-logo {
+    height: 34px;
+  }
+
+  .project-primary-nav {
+    margin-left: 5px;
+  }
+
+  .project-primary-nav a {
+    padding: 7px;
+    font-size: .74rem;
+  }
+
+  .project-sidebar-toggle {
+    margin-left: 0;
+    padding: 5px 7px;
+    font-size: .95rem;
+  }
+
+  .project-app-header .account-button,
+  .project-app-header .user-controls > button:last-child {
+    display: none;
+  }
+}
