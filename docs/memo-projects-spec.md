@@ -1,6 +1,51 @@
-# Memo Projects — design spec (draft 1, 2026-08-24)
+# Memo Projects — design spec (draft 2, 2026-08-24)
 
-Status: **proposal, not yet built.** Written for Sage to react to before code.
+Status: **approved direction, not yet built.** Draft 2 — revised for handoff to an
+implementer (human or AI) who has not seen the discussion behind it.
+
+## 0. Read this first (orientation for the implementer)
+
+- **RomaLume** is a multi-model AI writing assistant: React (Vite) frontend on Firebase
+  Hosting, FastAPI backend on Railway, Firestore for user data, GCS for files, Qdrant
+  for embeddings. Models are called through LangChain (`get_llm()` in `main.py`) except
+  GPT-5.x, which use the OpenAI Responses API directly (`generate_gpt5_response`,
+  `main.py:956`). Both paths build the system prompt separately — **every prompt change
+  in this spec must be made in both places** (`main.py:993-1001` and `main.py:1434-1441`
+  as of commit `b4b2b18`).
+- Project rules and commands: `CLAUDE.md` in the repo root. Backend tests are
+  `python -m unittest discover -s tests`; tests must import only lightweight modules
+  (system Python has no fastapi) — put new logic in its own module, as `llm_content.py`
+  and `message_storage.py` do. `railway run -- python scripts/smoke_test_models.py`
+  streams a prompt through every model with production keys; extend it for project
+  fixtures.
+- **Pushing `main` deploys the backend to Railway.** Frontend deploys are manual
+  (`firebase deploy`, see `CLAUDE.md`). Commit per build step; don't push half-steps.
+- Firestore rules make the browser read-only on its own data; every write is a
+  backend endpoint using the Admin SDK. Don't add browser-side Firestore writes.
+- `main.py` is ~4,000 lines and growing. New backend code for this feature goes in new
+  modules (`projects.py` for the router + Firestore access, `source_extract.py`,
+  `project_prompt.py`) and is mounted from `main.py`, not appended to it.
+- Line numbers in this doc are from commit `b4b2b18` and will drift; grep for the
+  function names.
+
+### Decisions made (assume these unless Sage says otherwise)
+
+| Question | Decision |
+|---|---|
+| Charge: form or free text? | **Small form** (question presented, jurisdiction, audience, format notes) **+ free-text field**. All optional except question presented. |
+| Default project model | **`claude-sonnet-5`**; user can change per project. Opus/Fable available on demand. |
+| Project kinds in v1 | **`memo` only.** Keep the `kind` field so generalizing later is additive. |
+| Existing "General" archives/documents | **Leave them alone** in the Quick chats list. No migration in v1. |
+| Word export | **Not in v1.** Copy-as-markdown is enough at first; `.docx` export is step 7. |
+| Editor | **Plain `<textarea>` + preview toggle** using the existing `renderMarkdown`. No new dependency in v1. |
+| Autosave | Project chats save to `projects/{id}/chats/{cid}` after every reply and **do not** also autosave to `archives`. Quick chats keep today's behaviour. |
+| Credits | Project turns go through the **same credit gate** as today (`main.py:1104-1165`). Full-context turns are more expensive; the per-turn token estimate in the UI is informational, not a separate billing path. |
+
+### Non-goals for v1
+
+Sharing/collaboration, per-project memory, PDF.js rendering, citation verification,
+diff/accept UI for draft edits, migration of legacy data, mobile-first layout polish
+(it must work on mobile via tabs, not be great).
 
 ## 1. The idea in one paragraph
 
@@ -145,7 +190,9 @@ Draft the whole memo · What's the strongest counter-argument?*
 
 ## 7. Prompt assembly (backend)
 
-`generate_chat_response` gains a `project_id` branch. Order of the system prompt:
+Both `generate_chat_response` and `generate_gpt5_response` gain a `project_id` branch;
+factor the assembly into `project_prompt.build_project_system_prompt(project, sources, draft, mode)`
+so the two paths share it. Order of the system prompt:
 
 1. `BASE_SYSTEM_PROMPT` (existing) + today's date (always, not only with web search).
 2. **Charge block**: "You are helping write a legal memorandum. Question presented: …
@@ -225,7 +272,18 @@ one endpoint renders draft markdown → docx with citations left as plain text.
 Steps 1–3 are roughly a day of backend work. 4–6 are the bulk — the frontend is where
 the time goes.
 
-## 11. Open questions for Sage
+**Definition of done per step**
+
+| Step | Done when |
+|---|---|
+| 1 | `source_extract.extract(bytes, content_type) -> {text, pages, kind}` with unit tests for pdf/txt/md/docx/csv; `/upload_quick` uses it and passes the real project (or `"General"`); no behaviour change visible to users. |
+| 2 | All `/projects…` endpoints in §8 exist, are auth-guarded to the owner, and have tests against the Firestore emulator (`firebase emulators:start --only firestore`, port 8082 per `firebase.json`). |
+| 3 | A fixture project (3 sources, one PDF) run through `scripts/smoke_test_models.py --project <id>` returns answers with `[n, p. x]` citations from every catalog model; citations are parsed and returned in the `citations` SSE event; `context_mode` flips to `retrieval` when the fixture exceeds the cap. |
+| 4 | A user can create a project, upload sources, and hold a Brainstorm chat that cites them, on desktop and mobile; Quick chats unchanged. |
+| 5 | Write mode + Apply to draft + version restore work; the draft survives reload. |
+| 6 | Citation chips open the source viewer at the cited page/paragraph. |
+
+## 11. Open questions (resolved in §0 — kept for the record)
 
 1. **Charge as a form or free text?** I've specified a small form (question / jurisdiction /
    audience / format) plus free text. A single textarea is simpler and might be enough.
