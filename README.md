@@ -2,7 +2,8 @@
 
 RomaLume is a multi-model AI writing application with streaming chat, web search,
 document retrieval, persistent conversation history, user profiles, subscriptions,
-and administrative analytics.
+administrative analytics, and source-grounded writing projects. Project templates
+currently cover memos, research papers, articles, blog posts, and general documents.
 
 ## Live services
 
@@ -39,9 +40,9 @@ The frontend is available at <http://localhost:5173>.
 ## Quality checks
 
 ```bash
-python -m compileall -q main.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
+python -m compileall -q main.py projects.py project_store.py project_context.py project_prompt.py project_templates.py source_extract.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
 python -m unittest discover -s tests -v
-cd frontend && npm run lint && npm run build
+cd frontend && npm test && npm run lint && npm run build
 cd frontend && npm audit --omit=dev --audit-level=high
 ```
 
@@ -73,6 +74,7 @@ User content is stored below `users/{user_id}` in Firestore:
 - `archives`: saved conversations
 - `conversations/current_chat`: bounded recent chat history
 - `documents`: upload metadata
+- `projects`: template-driven briefs, drafts, version history, sources, and chats
 - `settings/profile`: the curated personalization profile
 
 Document chunks are isolated by Firebase user ID in Qdrant. Billing fields on

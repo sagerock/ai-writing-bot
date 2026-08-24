@@ -105,6 +105,31 @@ class ProjectPromptTests(unittest.TestCase):
         )
         self.assertNotIn("cache_control", sections.anthropic_content()[1])
 
+    def test_research_project_uses_research_brief_and_mode_instructions(self):
+        project = {
+            "name": "Institutional change",
+            "kind": "research_paper",
+            "context_mode": "full",
+            "charge": {
+                "research_question": "Why do institutions change?",
+                "thesis": "Change follows legitimacy crises.",
+                "citation_style": "Chicago",
+            },
+        }
+        prompt = build_project_system_prompt(
+            project,
+            SOURCES,
+            "# Draft",
+            "write",
+            base_system_prompt="BASE",
+            write_target="Literature Review",
+        )
+        self.assertIn("=== PROJECT BRIEF ===", prompt)
+        self.assertIn("Research question: Why do institutions change?", prompt)
+        self.assertIn("Citation style: Chicago", prompt)
+        self.assertIn("Act as an academic drafter", prompt)
+        self.assertNotIn("legal memorandum", prompt)
+
     def test_offset_maps_become_prompt_segments(self):
         segments = segments_from_offsets(
             "First page\nSecond paragraph",

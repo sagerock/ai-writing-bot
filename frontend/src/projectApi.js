@@ -26,6 +26,8 @@ export async function projectRequest(auth, path, options = {}) {
 
 export const listProjects = (auth) => projectRequest(auth, '/projects');
 
+export const listProjectTemplates = (auth) => projectRequest(auth, '/projects/templates');
+
 export const getProject = (auth, projectId) => (
   projectRequest(auth, `/projects/${encodeURIComponent(projectId)}`)
 );

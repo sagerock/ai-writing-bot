@@ -1,6 +1,7 @@
 # Memo Projects — design spec (draft 2, 2026-08-24)
 
-Status: **v1 implementation complete.** Steps 1–6 are complete as of
+Status: **v1 implementation complete.** Steps 1–6 and the template-driven project-type
+extension are complete as of
 2026-08-24. Draft 2 — revised for handoff to an implementer (human or AI) who has
 not seen the discussion behind it.
 
@@ -35,7 +36,7 @@ not seen the discussion behind it.
 |---|---|
 | Charge: form or free text? | **Small form** (question presented, jurisdiction, audience, format notes) **+ free-text field**. All optional except question presented. |
 | Default project model | **`claude-sonnet-5`**; user can change per project. Opus/Fable available on demand. |
-| Project kinds in v1 | **`memo` only.** Keep the `kind` field so generalizing later is additive. |
+| Project kinds | **Memo, research paper, article, blog post, and general document.** Each kind supplies its intake schema, draft scaffold, quick actions, and mode instructions from one shared backend catalog. Existing memo projects are unchanged. |
 | Existing "General" archives/documents | **Leave them alone** in the Quick chats list. No migration in v1. |
 | Word export | **Not in v1.** Copy-as-markdown is enough at first; `.docx` export is step 7. |
 | Editor | **Plain `<textarea>` + preview toggle** using the existing `renderMarkdown`. No new dependency in v1. |
@@ -44,16 +45,17 @@ not seen the discussion behind it.
 
 ### Non-goals for v1
 
-Sharing/collaboration, per-project memory, PDF.js rendering, citation verification,
-diff/accept UI for draft edits, migration of legacy data, mobile-first layout polish
+Sharing/collaboration, custom user-authored project templates, per-project memory,
+PDF.js rendering, citation verification, diff/accept UI for draft edits, migration of legacy data, mobile-first layout polish
 (it must work on mobile via tabs, not be great).
 
 ## 1. The idea in one paragraph
 
-A **Project** is a workspace built around producing one document — the reference
-case is a legal memo. It has a **charge** (what the memo must determine), a set of
+A **Project** is a workspace built around producing one document. A project type
+supplies a tailored brief and editable starting scaffold; the reference case remains
+a legal memo. It has a **brief** (what the document must accomplish), a set of
 **sources** (uploaded documents the model has read in full), a living **draft**,
-and any number of **chats** that all see the charge, the sources, and the current
+and any number of **chats** that all see the brief, the sources, and the current
 draft. The user moves freely between *brainstorming* (talk about the sources) and
 *writing* (produce or revise sections of the draft). Everything the model asserts
 from a source carries a **citation** that points to the file and page.
@@ -80,8 +82,8 @@ Plain chats outside a project keep working as they do today.
 ```
 users/{uid}/projects/{project_id}
   name              "Smith v. Jones — statute of limitations"
-  kind              "memo"            # future: "brief", "article", "general"
-  charge            { question, jurisdiction, audience, format_notes, free_text }
+  kind              "memo" | "research_paper" | "article" | "blog_post" | "general_document"
+  charge            type-specific intake fields from project_templates.py
   draft             { markdown, updated_at, version }
   draft_versions/   subcollection: {markdown, saved_at, reason}  (cap ~50)
   context_mode      "full" | "retrieval"   # computed, see §5
@@ -245,8 +247,8 @@ upload paths stop drifting.
    - Left: sources (upload, label, status, token estimate, context-mode banner) and chats list.
    - Center: the active chat with the Brainstorm/Write toggle and quick actions.
    - Right: the draft (markdown editor, word count, version menu, export → .md / .docx).
-3. **New project dialog** — name, memo charge form (question presented, jurisdiction,
-   audience, format notes), initial file drop.
+3. **New project dialog** — project type, name, type-specific brief, initial file drop.
+   Creation seeds an editable Markdown scaffold for the selected type.
 4. **Source viewer** — modal showing extracted text with page markers; deep-linked
    from citation chips.
 

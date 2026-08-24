@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import WorkspaceHeader from '../components/WorkspaceHeader';
 import { API_URL } from '../apiConfig';
@@ -13,6 +13,7 @@ import {
   getProject,
   getProjectChat,
   getProjectSourceText,
+  listProjectTemplates,
   listProjectDraftVersions,
   restoreProjectDraftVersion,
   saveProjectDraft,
@@ -25,19 +26,31 @@ import './Projects.css';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const HAIKU_SOURCE_LIMIT = 150_000;
 
-const QUICK_ACTIONS = [
-  ['Identify issues', 'Identify the key legal and factual issues raised by the question presented and sources.'],
-  ['Summarize sources', 'Summarize each source separately, then explain how the sources relate to one another.'],
-  ['Outline memo', 'Create a well-structured outline for the memo, including the likely rule and application sections.'],
-  ['Test the analysis', 'Give me the strongest counterargument and identify the weakest assumptions in the likely analysis.'],
-];
-
-const WRITE_ACTIONS = [
-  ['Draft Facts', 'Draft the Facts section as polished memorandum prose, using the source record and precise citations.'],
-  ['Draft Analysis', 'Draft the Analysis section as polished memorandum prose, addressing both the best argument and counterargument.'],
-  ['Draft whole memo', 'Draft the complete memorandum in the requested format, with a clear answer and source-grounded citations.'],
-  ['Strengthen target', 'Rewrite the selected target to make it more precise, concise, and persuasive without overstating the sources.'],
-];
+const TEMPLATE_FALLBACK = {
+  id: 'memo',
+  label: 'Memo',
+  brief_label: 'Project charge',
+  primary_field: 'question',
+  fields: [
+    { key: 'question', label: 'Question presented' },
+    { key: 'jurisdiction', label: 'Jurisdiction' },
+    { key: 'audience', label: 'Audience' },
+    { key: 'format_notes', label: 'Format' },
+    { key: 'free_text', label: 'Notes' },
+  ],
+  brainstorm_actions: [
+    { label: 'Identify issues', prompt: 'Identify the key legal and factual issues raised by the question presented and sources.' },
+    { label: 'Summarize sources', prompt: 'Summarize each source separately, then explain how the sources relate to one another.' },
+    { label: 'Outline memo', prompt: 'Create a well-structured outline for the memo, including the likely rule and application sections.' },
+    { label: 'Test the analysis', prompt: 'Give me the strongest counterargument and identify the weakest assumptions in the likely analysis.' },
+  ],
+  write_actions: [
+    { label: 'Draft Facts', prompt: 'Draft the Facts section as polished memorandum prose, using the source record and precise citations.' },
+    { label: 'Draft Analysis', prompt: 'Draft the Analysis section as polished memorandum prose, addressing both the best argument and counterargument.' },
+    { label: 'Draft whole memo', prompt: 'Draft the complete memorandum in the requested format, with a clear answer and source-grounded citations.' },
+    { label: 'Strengthen target', prompt: 'Rewrite the selected target to make it more precise, concise, and persuasive without overstating the sources.' },
+  ],
+};
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -95,6 +108,7 @@ export default function ProjectWorkspace({
   const navigate = useNavigate();
   const modelOptions = useModelOptions().filter((option) => option.id !== 'auto');
   const [project, setProject] = useState(null);
+  const [templates, setTemplates] = useState([TEMPLATE_FALLBACK]);
   const [selectedChatId, setSelectedChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
@@ -132,9 +146,13 @@ export default function ProjectWorkspace({
       setLoading(true);
       setError('');
       try {
-        const data = await getProject(auth, projectId);
+        const [data, templateData] = await Promise.all([
+          getProject(auth, projectId),
+          listProjectTemplates(auth).catch(() => [TEMPLATE_FALLBACK]),
+        ]);
         if (!active) return;
         setProject(data);
+        setTemplates(templateData);
         setModel(data.default_model || 'claude-sonnet-5');
         const initialDraft = data.draft?.markdown || '';
         setDraft(initialDraft);
@@ -209,6 +227,8 @@ export default function ProjectWorkspace({
   ), [project?.sources]);
   const sections = useMemo(() => draftSections(draft), [draft]);
   const draftWords = useMemo(() => draft.trim() ? draft.trim().split(/\s+/).length : 0, [draft]);
+  const projectTemplate = templates.find((template) => template.id === project?.kind) || TEMPLATE_FALLBACK;
+  const primaryBrief = project?.charge?.[projectTemplate.primary_field] || '';
 
   const haikuDisabled = (project?.total_source_tokens || 0) > HAIKU_SOURCE_LIMIT;
 
@@ -523,7 +543,7 @@ export default function ProjectWorkspace({
       />
       <div className="workspace-titlebar">
         <div>
-          <Link to="/projects">Projects</Link><span>/</span><strong>{project.name}</strong>
+          <Link to="/projects">Projects</Link><span>/</span><strong>{project.name}</strong><i>{projectTemplate.label}</i>
         </div>
         <div className="workspace-mode"><span>{mode === 'write' ? 'Write' : 'Brainstorm'}</span><small>{draftWords} draft words</small></div>
       </div>
@@ -539,13 +559,16 @@ export default function ProjectWorkspace({
       <main className="project-workspace">
         <aside className={`workspace-sidebar ${mobilePane === 'sources' ? 'mobile-active' : ''}`}>
           <section className="charge-card">
-            <p className="project-eyebrow">Question presented</p>
-            <h2>{project.charge?.question}</h2>
+            <p className="project-eyebrow">{projectTemplate.brief_label}</p>
+            <h2>{primaryBrief}</h2>
             <dl>
-              {project.charge?.jurisdiction && <><dt>Jurisdiction</dt><dd>{project.charge.jurisdiction}</dd></>}
-              {project.charge?.audience && <><dt>Audience</dt><dd>{project.charge.audience}</dd></>}
-              {project.charge?.format_notes && <><dt>Format</dt><dd>{project.charge.format_notes}</dd></>}
-              {project.charge?.free_text && <><dt>Notes</dt><dd>{project.charge.free_text}</dd></>}
+              {projectTemplate.fields
+                .filter((field) => field.key !== projectTemplate.primary_field && project.charge?.[field.key])
+                .map((field) => (
+                  <Fragment key={field.key}>
+                    <dt>{field.label}</dt><dd>{project.charge[field.key]}</dd>
+                  </Fragment>
+                ))}
             </dl>
           </section>
 
@@ -643,9 +666,9 @@ export default function ProjectWorkspace({
               <div className="brainstorm-welcome">
                 <p className="project-eyebrow">{mode === 'write' ? 'Draft from the record' : 'Start with the record'}</p>
                 <h1>{mode === 'write' ? 'What should Roma draft?' : 'What should we work through?'}</h1>
-                <p>Roma has the question presented, current draft, and {project.sources?.length || 'no'} source{project.sources?.length === 1 ? '' : 's'} in context.</p>
+                <p>Roma has the {projectTemplate.brief_label.toLowerCase()}, current draft, and {project.sources?.length || 'no'} source{project.sources?.length === 1 ? '' : 's'} in context.</p>
                 <div className="quick-action-grid">
-                  {(mode === 'write' ? WRITE_ACTIONS : QUICK_ACTIONS).map(([label, prompt]) => (
+                  {(mode === 'write' ? projectTemplate.write_actions : projectTemplate.brainstorm_actions).map(({ label, prompt }) => (
                     <button key={label} onClick={() => sendMessage(prompt)} disabled={sending}>{label}<span>→</span></button>
                   ))}
                 </div>
@@ -705,7 +728,9 @@ export default function ProjectWorkspace({
                 }
               }}
               rows={3}
-              placeholder="Ask about the sources, test an argument, or build an outline…"
+              placeholder={mode === 'write'
+                ? `Ask Roma to draft or revise this ${projectTemplate.label.toLowerCase()}…`
+                : 'Ask about the sources, test an idea, or build an outline…'}
               disabled={sending || !selectedChatId}
             />
             <div>

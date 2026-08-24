@@ -1,4 +1,4 @@
-"""FastAPI routes for owner-scoped memo projects."""
+"""FastAPI routes for owner-scoped, template-driven writing projects."""
 
 from __future__ import annotations
 
@@ -9,6 +9,11 @@ from typing import Annotated, Callable, Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from project_templates import (
+    initial_project_draft,
+    public_project_templates,
+    validate_project_charge,
+)
 from project_store import (
     ChatNotFound,
     DraftVersionNotFound,
@@ -34,24 +39,21 @@ class RequestModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
-class Charge(RequestModel):
-    question: str = Field(min_length=1, max_length=5000)
-    jurisdiction: str = Field(default="", max_length=500)
-    audience: str = Field(default="", max_length=500)
-    format_notes: str = Field(default="", max_length=2000)
-    free_text: str = Field(default="", max_length=10_000)
-
-
 class ProjectCreate(RequestModel):
     name: str = Field(min_length=1, max_length=160)
-    kind: Literal["memo"] = "memo"
-    charge: Charge
+    kind: Literal["memo", "research_paper", "article", "blog_post", "general_document"] = "memo"
+    charge: dict[str, str]
     default_model: str = Field(default=DEFAULT_PROJECT_MODEL, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_charge_for_kind(self):
+        self.charge = validate_project_charge(self.kind, self.charge)
+        return self
 
 
 class ProjectPatch(RequestModel):
     name: str | None = Field(default=None, min_length=1, max_length=160)
-    charge: Charge | None = None
+    charge: dict[str, str] | None = None
     default_model: str | None = Field(default=None, min_length=1, max_length=100)
     archived: bool | None = None
 
@@ -134,8 +136,9 @@ def create_projects_router(
             user["user_id"],
             name=request.name,
             kind=request.kind,
-            charge=request.charge.model_dump(),
+            charge=request.charge,
             default_model=model,
+            initial_draft=initial_project_draft(request.kind, request.name),
         )
 
     @router.get("")
@@ -144,6 +147,13 @@ def create_projects_router(
         user: dict = Depends(get_current_user),
     ):
         return store.list_projects(user["user_id"], include_archived=include_archived)
+
+    @router.get("/templates")
+    async def list_project_templates(
+        user: dict = Depends(get_current_user),
+    ):
+        del user
+        return public_project_templates()
 
     @router.get("/{project_id}")
     async def get_project(
@@ -163,7 +173,15 @@ def create_projects_router(
     ):
         changes = request.model_dump(exclude_unset=True, exclude_none=True)
         if request.charge is not None:
-            changes["charge"] = request.charge.model_dump()
+            try:
+                project = store.get_project_record(user["user_id"], project_id)
+                changes["charge"] = validate_project_charge(
+                    str(project.get("kind", "memo")), request.charge
+                )
+            except LookupError as error:
+                raise _translate_not_found(error) from error
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error)) from error
         if request.default_model is not None:
             changes["default_model"] = validate_model(request.default_model)
         if not changes:

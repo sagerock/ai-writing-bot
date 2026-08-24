@@ -397,6 +397,41 @@ class ProjectRoutesFirestoreTests(unittest.TestCase):
             [],
         )
 
+    def test_template_catalog_and_research_project_scaffold(self):
+        templates = self.client.get("/projects/templates", headers=self.headers)
+        self.assertEqual(templates.status_code, 200, templates.text)
+        self.assertEqual(
+            [template["id"] for template in templates.json()],
+            ["memo", "research_paper", "article", "blog_post", "general_document"],
+        )
+
+        response = self.client.post(
+            "/projects",
+            headers=self.headers,
+            json={
+                "name": "Institutional change",
+                "kind": "research_paper",
+                "charge": {
+                    "research_question": "Why do institutions change?",
+                    "citation_style": "Chicago",
+                },
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["kind"], "research_paper")
+        self.assertIn("## Background and Literature Review", response.json()["draft"]["markdown"])
+
+        invalid = self.client.post(
+            "/projects",
+            headers=self.headers,
+            json={
+                "name": "Invalid research",
+                "kind": "research_paper",
+                "charge": {"question": "Wrong field"},
+            },
+        )
+        self.assertEqual(invalid.status_code, 422, invalid.text)
+
 
 if __name__ == "__main__":
     unittest.main()

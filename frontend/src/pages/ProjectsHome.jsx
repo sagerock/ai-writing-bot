@@ -5,18 +5,27 @@ import { API_URL } from '../apiConfig';
 import {
   archiveProject,
   createProject,
+  listProjectTemplates,
   listProjects,
   uploadProjectSource,
 } from '../projectApi';
 import './Projects.css';
 
-const EMPTY_CHARGE = {
-  question: '',
-  jurisdiction: '',
-  audience: '',
-  format_notes: '',
-  free_text: '',
+const MEMO_FALLBACK = {
+  id: 'memo',
+  label: 'Memo',
+  description: 'Analyze a legal question against a source record.',
+  primary_field: 'question',
+  fields: [
+    { key: 'question', label: 'Question presented', required: true, multiline: true, max_length: 5000 },
+    { key: 'jurisdiction', label: 'Jurisdiction', max_length: 500 },
+    { key: 'audience', label: 'Audience', max_length: 500 },
+    { key: 'format_notes', label: 'Format notes', max_length: 2000 },
+    { key: 'free_text', label: 'Additional instructions', multiline: true, max_length: 10000 },
+  ],
 };
+
+const emptyCharge = (template) => Object.fromEntries(template.fields.map((field) => [field.key, '']));
 
 const formatDate = (value) => {
   if (!value) return 'No activity yet';
@@ -43,19 +52,25 @@ export default function ProjectsHome({
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [templates, setTemplates] = useState([MEMO_FALLBACK]);
+  const [kind, setKind] = useState('memo');
   const [name, setName] = useState('');
-  const [charge, setCharge] = useState(EMPTY_CHARGE);
+  const [charge, setCharge] = useState(() => emptyCharge(MEMO_FALLBACK));
   const [files, setFiles] = useState([]);
+  const selectedTemplate = templates.find((template) => template.id === kind) || MEMO_FALLBACK;
+  const templatesById = Object.fromEntries(templates.map((template) => [template.id, template]));
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [projectData, token] = await Promise.all([
+      const [projectData, templateData, token] = await Promise.all([
         listProjects(auth),
+        listProjectTemplates(auth).catch(() => [MEMO_FALLBACK]),
         auth.currentUser.getIdToken(),
       ]);
       setProjects(projectData);
+      setTemplates(templateData);
       const response = await fetch(`${API_URL}/archives`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -82,9 +97,16 @@ export default function ProjectsHome({
   };
 
   const resetForm = () => {
+    setKind('memo');
     setName('');
-    setCharge(EMPTY_CHARGE);
+    setCharge(emptyCharge(templates.find((template) => template.id === 'memo') || MEMO_FALLBACK));
     setFiles([]);
+  };
+
+  const handleKindChange = (nextKind) => {
+    const template = templates.find((item) => item.id === nextKind) || MEMO_FALLBACK;
+    setKind(nextKind);
+    setCharge(emptyCharge(template));
   };
 
   const handleCreate = async (event) => {
@@ -94,7 +116,7 @@ export default function ProjectsHome({
     try {
       const project = await createProject(auth, {
         name,
-        kind: 'memo',
+        kind,
         charge,
       });
       for (const file of files) {
@@ -135,10 +157,10 @@ export default function ProjectsHome({
           <div>
             <p className="project-eyebrow">Document workspaces</p>
             <h1>Projects</h1>
-            <p>Bring the charge, source record, and every research conversation together.</p>
+            <p>Bring the brief, source record, conversations, and living draft together.</p>
           </div>
           <button className="project-primary-button" onClick={() => setShowCreate(true)}>
-            New memo project
+            New project
           </button>
         </section>
 
@@ -153,8 +175,8 @@ export default function ProjectsHome({
             <div className="project-empty">Loading projects…</div>
           ) : projects.length === 0 ? (
             <button className="project-empty project-empty-action" onClick={() => setShowCreate(true)}>
-              <strong>Start your first memo</strong>
-              <span>Add a question presented and the source record.</span>
+              <strong>Start your first project</strong>
+              <span>Choose a template, describe the goal, and add the source record.</span>
             </button>
           ) : (
             <div className="project-card-grid">
@@ -165,7 +187,7 @@ export default function ProjectsHome({
                   onClick={() => navigate(`/projects/${project.id}`)}
                 >
                   <div className="project-card-topline">
-                    <span className="project-kind">Memo</span>
+                    <span className="project-kind">{templatesById[project.kind]?.label || project.kind || 'Project'}</span>
                     <button
                       className="project-icon-button"
                       onClick={(event) => handleArchive(event, project.id)}
@@ -175,7 +197,9 @@ export default function ProjectsHome({
                     </button>
                   </div>
                   <h3>{project.name}</h3>
-                  <p className="project-question">{project.charge?.question}</p>
+                  <p className="project-question">
+                    {project.charge?.[templatesById[project.kind]?.primary_field] || project.charge?.question || project.charge?.objective}
+                  </p>
                   <div className="project-card-meta">
                     <span>{project.source_count} source{project.source_count === 1 ? '' : 's'}</span>
                     <span>{project.chat_count} chat{project.chat_count === 1 ? '' : 's'}</span>
@@ -222,51 +246,57 @@ export default function ProjectsHome({
             <div className="project-modal-heading">
               <div>
                 <p className="project-eyebrow">New workspace</p>
-                <h2 id="new-project-title">Create a memo project</h2>
+                <h2 id="new-project-title">Create a {selectedTemplate.label.toLowerCase()} project</h2>
               </div>
               <button className="project-icon-button" onClick={() => setShowCreate(false)}>✕</button>
             </div>
             {error && <div className="project-error" role="alert">{error}</div>}
             <form onSubmit={handleCreate}>
+              <fieldset className="project-type-picker">
+                <legend>Project type</legend>
+                <div>
+                  {templates.map((template) => (
+                    <button
+                      type="button"
+                      key={template.id}
+                      className={template.id === kind ? 'active' : ''}
+                      onClick={() => handleKindChange(template.id)}
+                    >
+                      <strong>{template.label}</strong>
+                      <span>{template.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               <label>
                 Project name
                 <input value={name} onChange={(event) => setName(event.target.value)} required maxLength={160} />
               </label>
-              <label>
-                Question presented <span className="required-label">Required</span>
-                <textarea
-                  value={charge.question}
-                  onChange={(event) => updateCharge('question', event.target.value)}
-                  required
-                  rows={3}
-                />
-              </label>
-              <div className="project-form-grid">
-                <label>
-                  Jurisdiction
-                  <input value={charge.jurisdiction} onChange={(event) => updateCharge('jurisdiction', event.target.value)} />
-                </label>
-                <label>
-                  Audience
-                  <input value={charge.audience} onChange={(event) => updateCharge('audience', event.target.value)} />
-                </label>
+              <div className="project-dynamic-fields">
+                {selectedTemplate.fields.map((field) => (
+                  <label key={field.key} className={field.multiline ? 'wide' : ''}>
+                    <span>{field.label} {field.required && <i>Required</i>}</span>
+                    {field.multiline ? (
+                      <textarea
+                        value={charge[field.key] || ''}
+                        onChange={(event) => updateCharge(field.key, event.target.value)}
+                        required={field.required}
+                        maxLength={field.max_length}
+                        placeholder={field.placeholder || ''}
+                        rows={field.required ? 3 : 2}
+                      />
+                    ) : (
+                      <input
+                        value={charge[field.key] || ''}
+                        onChange={(event) => updateCharge(field.key, event.target.value)}
+                        required={field.required}
+                        maxLength={field.max_length}
+                        placeholder={field.placeholder || ''}
+                      />
+                    )}
+                  </label>
+                ))}
               </div>
-              <label>
-                Format notes
-                <input
-                  value={charge.format_notes}
-                  onChange={(event) => updateCharge('format_notes', event.target.value)}
-                  placeholder="Short answer first, 2,000 words, formal tone…"
-                />
-              </label>
-              <label>
-                Additional instructions
-                <textarea
-                  value={charge.free_text}
-                  onChange={(event) => updateCharge('free_text', event.target.value)}
-                  rows={3}
-                />
-              </label>
               <label>
                 Initial sources <span className="optional-label">Optional</span>
                 <input

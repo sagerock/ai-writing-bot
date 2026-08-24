@@ -7,6 +7,7 @@ from datetime import date
 import re
 from typing import Any, Iterable, Literal
 
+from project_templates import get_project_template
 
 Mode = Literal["brainstorm", "write"]
 
@@ -59,21 +60,16 @@ def _source_display(source: dict[str, Any]) -> str:
 
 
 def _charge_block(project: dict[str, Any]) -> str:
+    template = get_project_template(str(project.get("kind", "memo")))
     charge = project.get("charge") or {}
     lines = [
-        "=== PROJECT CHARGE ===",
-        "You are helping write a legal memorandum.",
-        f"Question presented: {_value(charge.get('question'))}",
+        "=== PROJECT CHARGE ===" if template["id"] == "memo" else "=== PROJECT BRIEF ===",
+        template["project_instruction"],
     ]
-    optional_fields = (
-        ("Jurisdiction", "jurisdiction"),
-        ("Audience", "audience"),
-        ("Format", "format_notes"),
-        ("Additional instructions", "free_text"),
-    )
-    for label, key in optional_fields:
-        if _value(charge.get(key)):
-            lines.append(f"{label}: {_value(charge.get(key))}")
+    for field in template["fields"]:
+        value = _value(charge.get(field["key"]))
+        if value:
+            lines.append(f"{field['label']}: {value}")
     return "\n".join(lines)
 
 
@@ -142,22 +138,14 @@ def segments_from_offsets(
     return segments
 
 
-def _mode_block(mode: Mode, write_target: str | None) -> str:
+def _mode_block(project: dict[str, Any], mode: Mode, write_target: str | None) -> str:
+    template = get_project_template(str(project.get("kind", "memo")))
     if mode == "write":
-        instructions = (
-            "Act as the memorandum drafter. Produce memo prose in the charge's requested "
-            "format, cite every source-grounded factual or legal proposition, and follow "
-            "the current draft's structure and voice. Frame the response as an edit that "
-            "can replace the requested target or be applied to the draft."
-        )
+        instructions = template["write_instruction"]
         if _value(write_target):
             instructions += f" The requested draft target is: {_value(write_target)}."
     else:
-        instructions = (
-            "Act as an analyst. Issue-spot, weigh competing arguments, argue both sides, "
-            "ask useful clarifying questions, and cite every source-grounded factual or "
-            "legal claim. Do not produce polished memo prose unless the user asks for it."
-        )
+        instructions = template["brainstorm_instruction"]
     return f"=== MODE: {mode.upper()} ===\n{instructions}"
 
 
@@ -187,7 +175,7 @@ def build_project_prompt_sections(
     suffix_parts = []
     if _value(draft):
         suffix_parts.append(f"=== CURRENT DRAFT ===\n{draft}")
-    suffix_parts.append(_mode_block(mode, write_target))
+    suffix_parts.append(_mode_block(project, mode, write_target))
     if _value(profile_context):
         suffix_parts.append(
             "=== USER PROFILE ===\n"

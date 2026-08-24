@@ -131,6 +131,7 @@ class ProjectStore:
         kind: str,
         charge: dict[str, str],
         default_model: str,
+        initial_draft: str = "",
     ) -> dict[str, Any]:
         project_id = uuid4().hex
         now = self.now()
@@ -138,7 +139,7 @@ class ProjectStore:
             "name": name,
             "kind": kind,
             "charge": charge,
-            "draft": {"markdown": "", "updated_at": now, "version": 0},
+            "draft": {"markdown": initial_draft, "updated_at": now, "version": 0},
             "context_mode": "full",
             "default_model": default_model,
             "next_source_num": 1,
