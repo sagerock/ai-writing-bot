@@ -31,6 +31,9 @@ cd frontend && npm run build
 python -m compileall -q main.py llm_content.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
 python -m unittest discover -s tests -v
 
+# Live smoke test of every catalog model (needs provider keys; Railway holds them)
+railway run -- python scripts/smoke_test_models.py
+
 # Frontend deployment
 cd frontend && npx firebase-tools@15.28.1 deploy --only hosting,firestore:rules,storage
 ```

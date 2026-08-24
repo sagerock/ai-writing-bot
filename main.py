@@ -674,6 +674,16 @@ XAI_API_KEY = os.getenv("XAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 
+ANTHROPIC_NO_SAMPLING_PREFIXES = (
+    "claude-fable-",
+    "claude-mythos-",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+)
+
+
 def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
     # Clamp temperature to the provider's supported range
@@ -688,12 +698,17 @@ def get_llm(model_name: str, temperature: float = 0.7):
         temperature = max(0.0, min(1.5, float(temperature)))
 
     if model_name.startswith("claude-"):
-        return ChatAnthropic(
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=4096,
-            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
-        )
+        anthropic_options = {
+            "model_name": model_name,
+            "max_tokens": 4096,
+            "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+        }
+        # Claude 5 (Fable/Opus/Sonnet 5) and Opus 4.7+ reject temperature/top_p/
+        # top_k with a 400 ("`temperature` is deprecated for this model").
+        # Only older models (Haiku 4.5, the 4.6 family) still accept it.
+        if not model_name.startswith(ANTHROPIC_NO_SAMPLING_PREFIXES):
+            anthropic_options["temperature"] = temperature
+        return ChatAnthropic(**anthropic_options)
     elif model_name.startswith(("gpt-", "o3-", "chatgpt-")):
         return ChatOpenAI(
             model_name=model_name,
