@@ -123,7 +123,10 @@ class RAGService:
         user_id: str,
         filename: str,
         text: str,
-        project_name: str = "General"
+        project_name: str = "General",
+        project_id: Optional[str] = None,
+        source_id: Optional[str] = None,
+        page_map: Optional[List[dict]] = None,
     ) -> int:
         """
         Index a document in Qdrant.
@@ -133,13 +136,16 @@ class RAGService:
             filename: Name of the document
             text: Full text content of the document
             project_name: Project grouping for the document
+            project_id: Stable project identifier for project-scoped retrieval
+            source_id: Stable source identifier; avoids filename collisions
+            page_map: Source offsets used to attach page/paragraph locations
 
         Returns:
             Number of chunks created
         """
         # Replace any prior version so shortened/re-uploaded files cannot leave
         # stale trailing chunks behind.
-        self.delete_document(user_id, filename)
+        self.delete_document(user_id, filename, document_key=source_id)
 
         # Split into chunks
         chunks = self.splitter.split_text(text)
@@ -150,23 +156,44 @@ class RAGService:
         embeddings = self._get_embeddings(chunks)
 
         # Create points for Qdrant
-        document_id = f"{user_id}:{filename}"
+        document_id = f"{user_id}:{source_id or filename}"
         points = []
+        previous_chunk_start = 0
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             # Python's built-in hash is randomized between processes. Use a stable
             # digest so re-indexing always addresses the same Qdrant points.
             point_id = stable_point_id(document_id, i)
+            chunk_start = text.find(chunk, max(0, previous_chunk_start))
+            if chunk_start < 0:
+                chunk_start = text.find(chunk)
+            if chunk_start < 0:
+                chunk_start = previous_chunk_start
+            previous_chunk_start = chunk_start + 1
+            location = {}
+            for entry in page_map or []:
+                if entry.get("start", 0) <= chunk_start < entry.get("end", 0):
+                    if "page" in entry:
+                        location["page"] = entry["page"]
+                    if "paragraph" in entry:
+                        location["paragraph"] = entry["paragraph"]
+                    break
+            payload = {
+                "user_id": user_id,
+                "filename": filename,
+                "project_name": project_name,
+                "chunk_index": i,
+                "chunk_text": chunk,
+                "document_id": document_id,
+                **location,
+            }
+            if project_id:
+                payload["project_id"] = project_id
+            if source_id:
+                payload["source_id"] = source_id
             points.append(PointStruct(
                 id=point_id,
                 vector=embedding,
-                payload={
-                    "user_id": user_id,
-                    "filename": filename,
-                    "project_name": project_name,
-                    "chunk_index": i,
-                    "chunk_text": chunk,
-                    "document_id": document_id
-                }
+                payload=payload,
             ))
 
         # Upsert to Qdrant with retry
@@ -178,9 +205,14 @@ class RAGService:
         print(f"Indexed document '{filename}' for user {user_id}: {len(chunks)} chunks")
         return len(chunks)
 
-    def delete_document(self, user_id: str, filename: str):
+    def delete_document(
+        self,
+        user_id: str,
+        filename: str,
+        document_key: Optional[str] = None,
+    ):
         """Delete all chunks for a document from Qdrant."""
-        document_id = f"{user_id}:{filename}"
+        document_id = f"{user_id}:{document_key or filename}"
         try:
             self.qdrant.delete(
                 collection_name=COLLECTION_NAME,
@@ -204,7 +236,8 @@ class RAGService:
         query: str,
         top_k: int = 5,
         score_threshold: float = 0.7,
-        project_name: Optional[str] = None
+        project_name: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> List[dict]:
         """
         Search for relevant document chunks.
@@ -215,6 +248,7 @@ class RAGService:
             top_k: Maximum number of results to return
             score_threshold: Minimum similarity score (0-1)
             project_name: Optional filter by project
+            project_id: Optional stable project filter
 
         Returns:
             List of matching chunks with metadata
@@ -236,6 +270,13 @@ class RAGService:
                     match=MatchValue(value=project_name)
                 )
             )
+        if project_id:
+            filter_conditions.append(
+                FieldCondition(
+                    key="project_id",
+                    match=MatchValue(value=project_id)
+                )
+            )
 
         # Search Qdrant and discard weak semantic matches.
         response = self.qdrant.query_points(
@@ -254,7 +295,11 @@ class RAGService:
                 "chunk_text": r.payload["chunk_text"],
                 "chunk_index": r.payload["chunk_index"],
                 "score": r.score,
-                "project_name": r.payload["project_name"]
+                "project_name": r.payload["project_name"],
+                "project_id": r.payload.get("project_id"),
+                "source_id": r.payload.get("source_id"),
+                "page": r.payload.get("page"),
+                "paragraph": r.payload.get("paragraph"),
             }
             for r in results
         ]
@@ -282,20 +327,22 @@ class RAGService:
                     ]
                 ),
                 limit=1000,
-                with_payload=["filename", "project_name", "chunk_index"]
+                with_payload=["filename", "project_name", "source_id", "chunk_index"]
             )
 
             # Aggregate by document
             docs = {}
             for r in results:
                 filename = r.payload["filename"]
-                if filename not in docs:
-                    docs[filename] = {
+                document_key = r.payload.get("source_id") or filename
+                if document_key not in docs:
+                    docs[document_key] = {
                         "filename": filename,
                         "project_name": r.payload["project_name"],
+                        "source_id": r.payload.get("source_id"),
                         "chunk_count": 0
                     }
-                docs[filename]["chunk_count"] += 1
+                docs[document_key]["chunk_count"] += 1
 
             return list(docs.values())
         except Exception as e:

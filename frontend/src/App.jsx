@@ -133,7 +133,7 @@ function App() {
         setProjectsError('');
         try {
             const token = await auth.currentUser.getIdToken();
-            const response = await fetch(`${API_URL}/projects`, {
+            const response = await fetch(`${API_URL}/legacy-projects`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

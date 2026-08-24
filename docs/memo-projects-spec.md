@@ -1,7 +1,8 @@
 # Memo Projects — design spec (draft 2, 2026-08-24)
 
-Status: **approved direction, not yet built.** Draft 2 — revised for handoff to an
-implementer (human or AI) who has not seen the discussion behind it.
+Status: **implementation in progress.** Steps 1–2 are complete locally as of
+2026-08-24. Draft 2 — revised for handoff to an implementer (human or AI) who has
+not seen the discussion behind it.
 
 ## 0. Read this first (orientation for the implementer)
 

@@ -38,6 +38,16 @@ service cloud.firestore {
       match /conversations/{conversationId} {
         allow read: if isOwner(userId) || isAdmin();
       }
+
+      // Project workspaces and their sources, drafts, versions, and chats.
+      // Writes remain backend-only because no write rule is granted here.
+      match /projects/{projectId} {
+        allow read: if isOwner(userId) || isAdmin();
+
+        match /{projectDocument=**} {
+          allow read: if isOwner(userId) || isAdmin();
+        }
+      }
     }
     
     // Deny all other access by default

@@ -55,6 +55,7 @@ from cost_tracker import (
 )
 from llm_content import stream_chunk_text
 from message_storage import compact_messages_for_storage
+from projects import create_projects_router
 from source_extract import extract as extract_source
 
 # Stripe integration (optional - gracefully handle if not configured)
@@ -462,6 +463,24 @@ main_app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+main_app.include_router(
+    create_projects_router(
+        db=db,
+        get_current_user=get_current_user,
+        get_storage_bucket=get_storage_bucket,
+        get_rag_service=get_rag_service,
+        safe_filename=safe_filename,
+        estimate_tokens=estimate_tokens,
+        allowed_model_ids=ALLOWED_MODEL_IDS - {"auto"},
+        max_upload_bytes=MAX_UPLOAD_BYTES,
+        max_pdf_pages=MAX_PDF_PAGES,
+        full_context_tokens=max(
+            1,
+            int(os.getenv("PROJECT_FULL_CONTEXT_TOKENS", "400000")),
+        ),
+    )
 )
 
 # --- Public Endpoints (no auth required) ---
@@ -1978,8 +1997,8 @@ async def get_archives(user: dict = Depends(get_current_user)):
 
     return JSONResponse(content=project_archives)
 
-@main_app.get("/projects")
-async def get_projects(user: dict = Depends(get_current_user)):
+@main_app.get("/legacy-projects")
+async def get_legacy_projects(user: dict = Depends(get_current_user)):
     """Get all projects with their chats and documents organized together."""
     user_id = user['user_id']
     try:
@@ -3084,6 +3103,9 @@ def delete_user_data(user_id: str):
         for document in user_ref.collection(subcollection_name).stream():
             document.reference.delete()
 
+    for project in user_ref.collection("projects").stream():
+        db.recursive_delete(project.reference)
+
     for collection_name in ["usage_logs", "feedback", "user_monthly_usage"]:
         for document in db.collection(collection_name).where("user_id", "==", user_id).stream():
             document.reference.delete()
@@ -3096,7 +3118,11 @@ def delete_user_data(user_id: str):
         rag = get_rag_service()
         if rag:
             for document in rag.get_user_indexed_documents(user_id):
-                rag.delete_document(user_id, document["filename"])
+                rag.delete_document(
+                    user_id,
+                    document["filename"],
+                    document_key=document.get("source_id"),
+                )
     except Exception as rag_error:
         print(f"Non-fatal Qdrant account cleanup error: {rag_error}")
 
