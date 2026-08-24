@@ -86,8 +86,7 @@ function App() {
         defaultModel: 'auto',
         defaultTemperature: 0.7,
         alwaysAskMode: false,
-        darkMode: true,
-        therapyMode: false
+        darkMode: true
     });
     const navigate = useNavigate();
     const location = useLocation();
@@ -165,8 +164,7 @@ function App() {
                     defaultModel: data.default_model ?? 'auto',
                     defaultTemperature: data.default_temperature ?? 0.7,
                     alwaysAskMode: data.always_ask_mode ?? false,
-                    darkMode,
-                    therapyMode: data.therapy_mode ?? false
+                    darkMode
                 });
                 localStorage.setItem('romalume-dark-mode', String(darkMode));
             }
@@ -297,8 +295,7 @@ function App() {
                         default_model: userSettings.defaultModel,
                         default_temperature: userSettings.defaultTemperature,
                         always_ask_mode: userSettings.alwaysAskMode,
-                        dark_mode: newValue,
-                        therapy_mode: userSettings.therapyMode
+                        dark_mode: newValue
                     })
                 }).catch(() => {});
             });
@@ -364,10 +361,6 @@ function App() {
                             simplifiedMode={userSettings.simplifiedMode}
                             defaultModel={userSettings.defaultModel}
                             defaultTemperature={userSettings.defaultTemperature}
-                            therapyMode={userSettings.therapyMode}
-                            onTherapyModeChange={(value) => {
-                                setUserSettings(prev => ({ ...prev, therapyMode: value }));
-                            }}
                         />
                     </div>
                 </div>

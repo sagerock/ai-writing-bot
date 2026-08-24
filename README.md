@@ -74,7 +74,6 @@ User content is stored below `users/{user_id}` in Firestore:
 - `conversations/current_chat`: bounded recent chat history
 - `documents`: upload metadata
 - `settings/profile`: the curated personalization profile
-- `therapy_notes`: therapy-mode continuity notes
 
 Document chunks are isolated by Firebase user ID in Qdrant. Billing fields on
 the root user document are backend-owned; client-side Firestore writes to that

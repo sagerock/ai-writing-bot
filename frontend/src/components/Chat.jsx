@@ -30,9 +30,7 @@ const Chat = ({
   onSaveSuccess,
   simplifiedMode = true,
   defaultModel = 'auto',
-  defaultTemperature = 0.7,
-  therapyMode = false,
-  onTherapyModeChange
+  defaultTemperature = 0.7
 }) => {
   const modelOptions = useModelOptions();
   const getModelDisplayName = (modelId) => (
@@ -181,7 +179,6 @@ const Chat = ({
           search_web: searchWeb,
           search_docs: searchDocs,
           temperature: temperature,
-          therapy_mode: therapyMode,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -329,11 +326,6 @@ const Chat = ({
         }),
       });
 
-      // Generate therapy notes if in therapy mode before clearing
-      if (therapyMode && history.length >= 2) {
-        generateTherapyNotes(history);
-      }
-
       // Clear the conversation
       setHistory([]);
 
@@ -371,35 +363,6 @@ const Chat = ({
     } catch (error) {
       console.error('Failed to auto-save conversation:', error);
     }
-  };
-
-  // Generate therapy session notes in the background
-  const generateTherapyNotes = async (conversationHistory) => {
-    if (!conversationHistory || conversationHistory.length < 2) return;
-    try {
-      const token = await auth.currentUser.getIdToken();
-      await fetch(`${API_URL}/therapy/generate-notes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ history: conversationHistory }),
-      });
-      console.log('Therapy session notes generated');
-    } catch (error) {
-      console.error('Failed to generate therapy notes:', error);
-    }
-  };
-
-  // Handle therapy mode toggle
-  const handleTherapyToggle = () => {
-    const newValue = !therapyMode;
-    // If turning OFF therapy mode and there's conversation history, generate notes
-    if (!newValue && history.length >= 2) {
-      generateTherapyNotes(history);
-    }
-    onTherapyModeChange?.(newValue);
   };
 
   const handleSave = async (archiveName, projectName) => {
@@ -597,15 +560,8 @@ const Chat = ({
         {/* Centered pill input */}
         <div className={`input-container ${hasMessages ? 'bottom' : 'centered'}`}>
           {/* Welcome message - only when no messages */}
-          {!hasMessages && !therapyMode && (
+          {!hasMessages && (
             <h1 className="welcome-message">Ready when you are.</h1>
-          )}
-          {/* Therapy mode banner */}
-          {therapyMode && (
-            <div className="therapy-banner">
-              This is a safe space. I'm here to listen, not to judge.
-              <small>Not a replacement for professional therapy.</small>
-            </div>
           )}
           <div className="pill-input">
             <button
@@ -648,13 +604,6 @@ const Chat = ({
 
           {/* Minimal action links */}
           <div className="action-links">
-            <button
-              className={`link-btn therapy-toggle-btn ${therapyMode ? 'active' : ''}`}
-              onClick={handleTherapyToggle}
-              title={therapyMode ? "Therapy mode is active — empathy-first responses" : "Enable therapy mode for emotional support"}
-            >
-              {therapyMode ? 'Therapy mode: ON' : 'Therapy mode'}
-            </button>
             <button
               className={`link-btn search-files-btn ${searchDocs ? 'active' : ''}`}
               onClick={() => setSearchDocs(!searchDocs)}
