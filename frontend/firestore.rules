@@ -18,27 +18,25 @@ service cloud.firestore {
              request.auth.token.admin == true;
     }
     
-    // Users collection - users can access their own document, admins can access all
+    // Users may read their own account document, but only trusted backend code may
+    // write billing, credit, Stripe, and role fields. The Admin SDK bypasses rules.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
       allow read, write: if isAdmin();
       
       // User's archives subcollection
       match /archives/{archiveId} {
-        allow read, write, delete: if isOwner(userId);
-        allow read: if isAdmin();
+        allow read: if isOwner(userId) || isAdmin();
       }
       
       // User's documents subcollection  
       match /documents/{documentId} {
-        allow read, write, delete: if isOwner(userId);
-        allow read: if isAdmin();
+        allow read: if isOwner(userId) || isAdmin();
       }
       
       // User's conversations subcollection
       match /conversations/{conversationId} {
-        allow read, write, delete: if isOwner(userId);
-        allow read: if isAdmin();
+        allow read: if isOwner(userId) || isAdmin();
       }
     }
     

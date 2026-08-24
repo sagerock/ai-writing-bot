@@ -10,24 +10,34 @@ const ModelDocsPage = () => {
                 { label: 'Models Overview', url: 'https://ai.google.dev/gemini-api/docs/models' },
                 { label: 'Pricing', url: 'https://ai.google.dev/gemini-api/docs/pricing' }
             ],
-            models: ['Gemini 3.1 Pro', 'Gemini 3 Pro', 'Gemini 3 Flash', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash', 'Gemini 2.5 Flash-Lite']
+            models: ['Gemini 3.7 Flash', 'Gemini 3.5 Flash-Lite', 'Gemini 3.1 Pro Preview']
         },
         {
             name: 'Anthropic Claude',
             description: 'Thoughtful AI assistants known for nuanced writing and careful reasoning.',
             links: [
-                { label: 'Models Overview', url: 'https://docs.anthropic.com/en/docs/about-claude/models/all-models' }
+                { label: 'Models Overview', url: 'https://platform.claude.com/docs/en/about-claude/models/overview' },
+                { label: 'Pricing', url: 'https://platform.claude.com/docs/en/about-claude/pricing' }
             ],
-            models: ['Claude Opus 4.6', 'Claude Sonnet 4.6', 'Claude Haiku 4.5'],
+            models: ['Claude Fable 5', 'Claude Opus 5', 'Claude Sonnet 5', 'Claude Haiku 4.5'],
         },
         {
             name: 'OpenAI GPT',
             description: 'Versatile language models with strong general-purpose capabilities.',
             links: [
-                { label: 'Models Overview', url: 'https://platform.openai.com/docs/models' },
-                { label: 'Latest Model Guide', url: 'https://platform.openai.com/docs/guides/latest-model' }
+                { label: 'Models Overview', url: 'https://developers.openai.com/api/docs/models' },
+                { label: 'Latest Model Guide', url: 'https://developers.openai.com/api/docs/guides/latest-model' }
             ],
-            models: ['GPT-5.1', 'GPT-5', 'GPT-5 Mini', 'GPT-5 Nano', 'GPT-5 Pro']
+            models: ['GPT-5.6 Sol', 'GPT-5.6 Terra', 'GPT-5.6 Luna']
+        },
+        {
+            name: 'Perplexity Sonar',
+            description: 'Search-grounded AI for current information and source-backed research.',
+            links: [
+                { label: 'Models Overview', url: 'https://docs.perplexity.ai/docs/sonar/models' },
+                { label: 'Pricing', url: 'https://docs.perplexity.ai/docs/getting-started/pricing' }
+            ],
+            models: ['Sonar Pro']
         }
     ];
 

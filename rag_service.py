@@ -17,7 +17,8 @@ from qdrant_client.models import (
     Filter, FieldCondition, MatchValue
 )
 from openai import OpenAI
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from rag_identity import stable_point_id
 
 def retry_on_timeout(func, max_retries=3, delay=2):
     """Retry a function on timeout with exponential backoff."""
@@ -136,8 +137,9 @@ class RAGService:
         Returns:
             Number of chunks created
         """
-        # Skip delete for now - upsert will overwrite with same IDs
-        # self.delete_document(user_id, filename)
+        # Replace any prior version so shortened/re-uploaded files cannot leave
+        # stale trailing chunks behind.
+        self.delete_document(user_id, filename)
 
         # Split into chunks
         chunks = self.splitter.split_text(text)
@@ -151,8 +153,9 @@ class RAGService:
         document_id = f"{user_id}:{filename}"
         points = []
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            # Create a unique point ID using hash
-            point_id = hash(f"{document_id}:{i}") & 0x7FFFFFFFFFFFFFFF
+            # Python's built-in hash is randomized between processes. Use a stable
+            # digest so re-indexing always addresses the same Qdrant points.
+            point_id = stable_point_id(document_id, i)
             points.append(PointStruct(
                 id=point_id,
                 vector=embedding,
@@ -188,7 +191,8 @@ class RAGService:
                             match=MatchValue(value=document_id)
                         )
                     ]
-                )
+                ),
+                wait=True,
             )
             print(f"Deleted document '{filename}' from Qdrant for user {user_id}")
         except Exception as e:
@@ -233,13 +237,15 @@ class RAGService:
                 )
             )
 
-        # Search Qdrant (no score_threshold - let all results through)
-        results = self.qdrant.search(
+        # Search Qdrant and discard weak semantic matches.
+        response = self.qdrant.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_embedding,
+            query=query_embedding,
             query_filter=Filter(must=filter_conditions),
-            limit=top_k
+            limit=top_k,
+            score_threshold=score_threshold,
         )
+        results = response.points
         print(f"Qdrant search returned {len(results)} results")
 
         return [

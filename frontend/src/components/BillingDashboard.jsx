@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../apiConfig';
 
 const BillingDashboard = ({ auth }) => {
@@ -7,11 +7,7 @@ const BillingDashboard = ({ auth }) => {
     const [error, setError] = useState(null);
     const [portalLoading, setPortalLoading] = useState(false);
 
-    useEffect(() => {
-        fetchBillingData();
-    }, [auth]);
-
-    const fetchBillingData = async () => {
+    const fetchBillingData = useCallback(async () => {
         try {
             const token = await auth.currentUser?.getIdToken();
             if (!token) return;
@@ -32,7 +28,11 @@ const BillingDashboard = ({ auth }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth]);
+
+    useEffect(() => {
+        fetchBillingData();
+    }, [fetchBillingData]);
 
     const handleManageSubscription = async () => {
         setPortalLoading(true);
@@ -56,7 +56,7 @@ const BillingDashboard = ({ auth }) => {
                 const err = await response.json();
                 setError(err.error || 'Failed to open portal');
             }
-        } catch (err) {
+        } catch {
             setError('Failed to open subscription portal');
         } finally {
             setPortalLoading(false);
@@ -86,7 +86,7 @@ const BillingDashboard = ({ auth }) => {
         return null;
     }
 
-    const { subscription, free_tier, current_month, all_time, usage_warning } = billingData;
+    const { subscription } = billingData;
 
     return (
         <div className="billing-dashboard">
@@ -96,7 +96,7 @@ const BillingDashboard = ({ auth }) => {
             {subscription.status === 'none' ? (
                 <div className="subscription-cta">
                     <p>Subscribe for unlimited access to 17+ AI models.</p>
-                    <a href="/pricing" className="btn-primary">Subscribe for $10/month</a>
+                    <a href="/pricing" className="btn-primary">Subscribe for $20/month</a>
                 </div>
             ) : (
                 <div className="billing-actions">

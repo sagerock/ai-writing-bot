@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../apiConfig';
 
 const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
@@ -8,7 +8,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('chats');
 
-    const fetchChats = async () => {
+    const fetchChats = useCallback(async () => {
         if (!auth.currentUser) return;
 
         setLoading(true);
@@ -45,7 +45,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth]);
 
     const handleDelete = async (chatId, e) => {
         e.stopPropagation();
@@ -67,12 +67,12 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
 
             // Remove from local state
             setChats(prev => prev.filter(chat => chat.id !== chatId));
-        } catch (err) {
+        } catch {
             alert('Failed to delete conversation');
         }
     };
 
-    const fetchDocuments = async () => {
+    const fetchDocuments = useCallback(async () => {
         if (!auth.currentUser) return;
 
         try {
@@ -104,7 +104,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
         } catch (err) {
             console.error('Error fetching documents:', err);
         }
-    };
+    }, [auth]);
 
     const handleDeleteDocument = async (filename, e) => {
         e.stopPropagation();
@@ -126,7 +126,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
 
             // Remove from local state
             setDocuments(prev => prev.filter(doc => doc.filename !== filename));
-        } catch (err) {
+        } catch {
             alert('Failed to delete document');
         }
     };
@@ -151,7 +151,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
                     display_text: `Loaded document: ${doc.filename}`
                 });
             }
-        } catch (err) {
+        } catch {
             alert('Failed to load document');
         }
     };
@@ -173,7 +173,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
 
             // Open the download URL in a new tab
             window.open(data.download_url, '_blank');
-        } catch (err) {
+        } catch {
             alert('Failed to download document');
         }
     };
@@ -212,7 +212,7 @@ const RecentChats = ({ auth, onLoadChat, onLoadDocument }) => {
     useEffect(() => {
         fetchChats();
         fetchDocuments();
-    }, [auth.currentUser]);
+    }, [fetchChats, fetchDocuments]);
 
     return (
         <div className="recent-chats">

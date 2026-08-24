@@ -1,42 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { marked } from 'marked';
+import { renderMarkdown } from '../renderMarkdown';
 import ChatControls from './ChatControls';
 import ArchiveControls from './ArchiveControls';
 import SimplifiedActions from './SimplifiedActions';
 import NeuralLogPanel from './NeuralLogPanel';
 import { API_URL } from '../apiConfig';
-
-// Configure marked to treat single line breaks as <br> tags (GitHub-style)
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-});
-
-// Model options for the selector
-const MODEL_OPTIONS = [
-  { id: 'auto', name: 'Auto (Smart Routing)', category: 'auto' },
-  { id: 'gpt-5-nano-2025-08-07', name: 'GPT-5 Nano', category: 'OpenAI' },
-  { id: 'gpt-5-mini-2025-08-07', name: 'GPT-5 Mini', category: 'OpenAI' },
-  { id: 'gpt-5.2-2025-12-11', name: 'GPT-5.2', category: 'OpenAI' },
-  { id: 'gpt-5.2-pro-2025-12-11', name: 'GPT-5.2 Pro', category: 'OpenAI' },
-  { id: 'gpt-5.2-codex-2025-12-11', name: 'GPT-5.2 Codex', category: 'OpenAI' },
-  { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', category: 'Anthropic' },
-  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', category: 'Anthropic' },
-  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', category: 'Anthropic' },
-  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', category: 'Google' },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', category: 'Google' },
-  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', category: 'Google' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', category: 'Google' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', category: 'Google' },
-  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', category: 'Google' },
-  { id: 'sonar-pro', name: 'Sonar Pro', category: 'Perplexity' },
-];
-
-const getModelDisplayName = (modelId) => {
-  const model = MODEL_OPTIONS.find(m => m.id === modelId);
-  return model ? model.name : modelId;
-};
+import { useModelOptions } from '../useModelOptions';
 
 const Chat = ({
   auth,
@@ -50,6 +20,10 @@ const Chat = ({
   therapyMode = false,
   onTherapyModeChange
 }) => {
+  const modelOptions = useModelOptions();
+  const getModelDisplayName = (modelId) => (
+    modelOptions.find(option => option.id === modelId)?.name || modelId
+  );
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState(defaultModel);
@@ -59,7 +33,7 @@ const Chat = ({
   const [copied, setCopied] = useState({});
   const [forceRerender, setForceRerender] = useState(0);
   const chatWindowRef = useRef(null);
-  const [showNeuralLog, setShowNeuralLog] = useState(false);
+  const [showNeuralLog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchDocs, setSearchDocs] = useState(false);
   const fileInputRef = useRef(null);
@@ -245,13 +219,19 @@ const Chat = ({
               if (dataString.startsWith('ERROR:')) {
                 setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: dataString, streaming: false } : msg));
                 setLoading(false);
-                setError(dataString);
                 setForceRerender(f => f + 1);
                 return;
               }
 
               try {
                 const parsed = JSON.parse(dataString);
+
+                if (typeof parsed === 'string' && parsed.startsWith('ERROR:')) {
+                  setHistory(prev => prev.map(msg => msg.streaming ? { ...msg, content: parsed, streaming: false } : msg));
+                  setLoading(false);
+                  setForceRerender(f => f + 1);
+                  return;
+                }
 
                 // Check if this is routing info from auto mode
                 if (parsed && typeof parsed === 'object' && parsed.routed_model) {
@@ -557,7 +537,7 @@ const Chat = ({
                   <p><em>{msg.display_text}</em></p>
                 ) : msg.role === 'assistant' ? (
                   <>
-                    <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || '') }} />
+                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
                     {msg.content && !msg.streaming && (
                       <div className="message-actions">
                         <button
@@ -695,7 +675,7 @@ const Chat = ({
 
             {showModelSelector && (
               <div className="model-selector-dropdown">
-                {MODEL_OPTIONS.map((opt) => (
+                {modelOptions.map((opt) => (
                   <button
                     key={opt.id}
                     className={`model-option ${model === opt.id ? 'selected' : ''}`}
@@ -706,7 +686,7 @@ const Chat = ({
                     }}
                   >
                     <span className="model-name">{opt.name}</span>
-                    {opt.category !== 'auto' && <span className="model-category">{opt.category}</span>}
+                    {opt.id !== 'auto' && <span className="model-category">{opt.provider}</span>}
                   </button>
                 ))}
                 <Link
@@ -730,6 +710,7 @@ const Chat = ({
         <ChatControls
           model={model}
           setModel={setModel}
+          modelOptions={modelOptions}
           searchWeb={searchWeb}
           setSearchWeb={setSearchWeb}
           temperature={temperature}
@@ -737,7 +718,7 @@ const Chat = ({
         />
         <ArchiveControls
           onSave={handleSave}
-          onClear={handleClear}
+          onClear={() => setHistory([])}
           projectNames={projectNames}
         />
       </div>
@@ -749,7 +730,7 @@ const Chat = ({
                 <p><em>{msg.display_text}</em></p>
               ) : msg.role === 'assistant' ? (
                 <>
-                  <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || '') }} />
+                  <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
                   {msg.content && !msg.streaming && (
                     <div className="message-actions">
                       <button
@@ -807,4 +788,4 @@ const Chat = ({
   );
 };
 
-export default Chat; 
+export default Chat;

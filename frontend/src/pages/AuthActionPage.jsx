@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode } from 'firebase/auth';
 import './HomePage.css';
 
 function AuthActionPage() {
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
     const auth = getAuth();
 
     const mode = searchParams.get('mode');
@@ -32,7 +31,7 @@ function AuthActionPage() {
                     setEmail(email);
                     setStatus('input');
                 })
-                .catch((err) => {
+                .catch(() => {
                     setStatus('error');
                     setError('This password reset link has expired or already been used. Please request a new one.');
                 });
@@ -42,7 +41,7 @@ function AuthActionPage() {
                 .then(() => {
                     setStatus('success');
                 })
-                .catch((err) => {
+                .catch(() => {
                     setStatus('error');
                     setError('This verification link has expired or already been used.');
                 });
@@ -70,7 +69,7 @@ function AuthActionPage() {
         try {
             await confirmPasswordReset(auth, oobCode, newPassword);
             setStatus('success');
-        } catch (err) {
+        } catch {
             setError('Failed to reset password. The link may have expired. Please request a new one.');
         } finally {
             setIsLoading(false);

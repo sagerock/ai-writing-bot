@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
 
@@ -27,19 +27,7 @@ const AdminPage = ({ auth }) => {
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [timeRange, setTimeRange] = useState(30);
 
-    useEffect(() => {
-        if (auth.currentUser) {
-            fetchAnalytics();
-        }
-    }, [auth.currentUser]);
-
-    useEffect(() => {
-        if (auth.currentUser) {
-            fetchAnalytics();
-        }
-    }, [timeRange]);
-
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = useCallback(async () => {
         setAnalyticsLoading(true);
         try {
             const token = await auth.currentUser.getIdToken();
@@ -64,7 +52,13 @@ const AdminPage = ({ auth }) => {
         } finally {
             setAnalyticsLoading(false);
         }
-    };
+    }, [auth, timeRange]);
+
+    useEffect(() => {
+        if (auth.currentUser) {
+            fetchAnalytics();
+        }
+    }, [auth, fetchAnalytics]);
 
     const handleEmailPreview = async () => {
         if (!emailForm.subject || !emailForm.content) {
@@ -171,7 +165,7 @@ const AdminPage = ({ auth }) => {
         }
     };
 
-    const handleFixUserCredits = async (userId, credits) => {
+    const handleFixUserCredits = async (userId) => {
         const creditAmount = parseInt(prompt(`Enter the number of credits to set for user ${userId}:`, '100'));
         if (isNaN(creditAmount) || creditAmount < 0) {
             alert('Invalid credit amount');
@@ -193,7 +187,7 @@ const AdminPage = ({ auth }) => {
             }
             const result = await response.json();
             alert(`Credits fixed successfully! User now has ${result.new_credits} credits.`);
-            fetchUsers(); // Refresh users list
+            await handleCreditsSummary();
         } catch (err) {
             alert('Failed to fix credits: ' + err.message);
         }
@@ -553,4 +547,4 @@ const AdminPage = ({ auth }) => {
     );
 };
 
-export default AdminPage; 
+export default AdminPage;

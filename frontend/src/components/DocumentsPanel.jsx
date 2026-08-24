@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_URL } from '../apiConfig';
 
 const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
@@ -7,7 +7,7 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
     const [error, setError] = useState('');
     const fileInputRef = useRef(null);
 
-    const fetchDocuments = async () => {
+    const fetchDocuments = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
@@ -26,7 +26,7 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth]);
 
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
@@ -94,14 +94,14 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
         if (auth.currentUser) {
             fetchDocuments();
         }
-    }, [auth.currentUser]);
+    }, [auth, fetchDocuments]);
 
     // This allows the panel to be refreshed from the parent
     useEffect(() => {
         const handleRefresh = () => fetchDocuments();
         window.addEventListener('refresh-documents', handleRefresh);
         return () => window.removeEventListener('refresh-documents', handleRefresh);
-    }, []);
+    }, [fetchDocuments]);
 
     return (
         <div className="documents-panel">
@@ -133,4 +133,4 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
     );
 };
 
-export default DocumentsPanel; 
+export default DocumentsPanel;

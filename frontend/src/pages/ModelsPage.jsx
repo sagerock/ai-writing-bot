@@ -10,6 +10,7 @@ const ModelsPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [autoRoutingInfo, setAutoRoutingInfo] = useState('');
+    const [pricingNote, setPricingNote] = useState('');
     const [selectedProvider, setSelectedProvider] = useState('all');
 
     useEffect(() => {
@@ -23,6 +24,7 @@ const ModelsPage = () => {
             const data = await response.json();
             setModels(data.models);
             setAutoRoutingInfo(data.auto_routing_info);
+            setPricingNote(data.pricing_note || '');
         } catch (err) {
             setError(err.message);
         } finally {
@@ -125,6 +127,11 @@ const ModelsPage = () => {
                                         <div className="models-card-context">
                                             <span>{formatContext(model.context_window)} context window</span>
                                         </div>
+                                        <div className="models-card-pricing">
+                                            <span>${model.input_price.toFixed(2)} input</span>
+                                            <span>${model.output_price.toFixed(2)} output</span>
+                                            <small>per 1M text tokens</small>
+                                        </div>
                                         <div className="models-card-best-for">
                                             <span className="models-best-for-label">Best for</span>
                                             <div className="models-best-for-tags">
@@ -138,6 +145,8 @@ const ModelsPage = () => {
                             </div>
                         </div>
                     ))}
+
+                    {pricingNote && <p className="models-pricing-note">{pricingNote}</p>}
 
                     <div className="models-cta">
                         <h2>All models. One price.</h2>

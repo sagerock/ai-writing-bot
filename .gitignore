@@ -133,6 +133,7 @@ yarn-error.log
 .DS_Store 
 
 firebase_service_account.json
+frontend/users.json
 # Windows download metadata
 *:Zone.Identifier
 

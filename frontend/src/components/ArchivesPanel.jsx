@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { API_URL } from '../apiConfig';
 
 const ArchivesPanel = ({ auth, archives, loading, error, onLoadArchive, onRefresh }) => {
@@ -62,4 +62,4 @@ const ArchivesPanel = ({ auth, archives, loading, error, onLoadArchive, onRefres
     );
 };
 
-export default ArchivesPanel; 
+export default ArchivesPanel;

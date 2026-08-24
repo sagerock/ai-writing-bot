@@ -45,11 +45,15 @@ const AuthPage = () => {
         setTimeout(() => reject(new Error('timeout')), 10000)
       );
       const userCredential = await Promise.race([signupPromise, signupTimeout]);
+      const token = await userCredential.user.getIdToken();
 
       // Record successful signup for rate limiting and send to email marketing
       await fetch(`${API_URL}/signup/record`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email: email })
       });
 
@@ -108,7 +112,7 @@ const AuthPage = () => {
     try {
       await sendPasswordResetEmail(auth, email);
       navigate('/login', { state: { info: 'Password reset email sent. Please check your inbox.' } });
-    } catch (err) {
+    } catch {
       setError('Failed to send password reset email. Please check the email address.');
     } finally {
       setIsLoading(false);

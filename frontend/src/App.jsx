@@ -1,23 +1,23 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { initializeApp } from 'firebase/app'
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth'
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
 import Chat from './components/Chat'
 import RecentChats from './components/RecentChats'
-import AccountPage from './components/AccountPage'
-import MemoriesPage from './components/MemoriesPage'
-import AdminPage from './components/AdminPage'
-import AdminUsersPage from './components/AdminUsersPage'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
-import ModelDocsPage from './pages/ModelDocsPage'
-import ModelsPage from './pages/ModelsPage'
-import PricingPage from './pages/PricingPage'
-import AboutPage from './pages/AboutPage'
-import AuthActionPage from './pages/AuthActionPage'
-import SubscriptionSuccess from './pages/SubscriptionSuccess'
 import { API_URL } from './apiConfig'
 import './App.css'
+
+const AccountPage = lazy(() => import('./components/AccountPage'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
+const AdminUsersPage = lazy(() => import('./components/AdminUsersPage'));
+const ModelDocsPage = lazy(() => import('./pages/ModelDocsPage'));
+const ModelsPage = lazy(() => import('./pages/ModelsPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const AuthActionPage = lazy(() => import('./pages/AuthActionPage'));
+const SubscriptionSuccess = lazy(() => import('./pages/SubscriptionSuccess'));
 
 // IMPORTANT: Replace with your app's Firebase project configuration
 const firebaseConfig = {
@@ -46,6 +46,16 @@ function ProtectedRoute({ user, children }) {
     return children;
 }
 
+function AdminRoute({ user, children }) {
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
+    if (!user.isAdmin) {
+        return <Navigate to="/chat" replace />;
+    }
+    return children;
+}
+
 // Redirect logged-in users, but check for subscribe param first
 function AuthRedirect() {
     const [searchParams] = useSearchParams();
@@ -65,12 +75,10 @@ function useSearchParams() {
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [info, setInfo] = useState('');
-    const [error, setError] = useState('');
     const [history, setHistory] = useState([]);
     const [projects, setProjects] = useState({});
-    const [projectsLoading, setProjectsLoading] = useState(false);
-    const [projectsError, setProjectsError] = useState('');
+    const [, setProjectsLoading] = useState(false);
+    const [, setProjectsError] = useState('');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [userSettings, setUserSettings] = useState({
@@ -94,8 +102,6 @@ function App() {
             title = "RomaLume - Chat";
         } else if (path === '/account') {
             title = "RomaLume - My Account";
-        } else if (path === '/account/memories') {
-            title = "RomaLume - Memories";
         } else if (path === '/admin') {
             title = "RomaLume - Admin Panel";
         } else if (path === '/admin/users') {
@@ -237,25 +243,12 @@ function App() {
         };
     }, []);
 
-    const handleResendVerification = async () => {
-        setError('');
-        setInfo('');
-        if (user) {
-            try {
-                await sendEmailVerification(user);
-                setInfo('A new verification email has been sent.');
-            } catch (error) {
-                setError('Failed to resend verification email. Please try again later.');
-            }
-        }
-    };
-
     const handleLogout = async () => {
         try {
             await signOut(auth);
             navigate('/'); // Navigate to home after logout
-        } catch (error) {
-            setError('Failed to log out.');
+        } catch (err) {
+            console.error('Failed to log out:', err);
         }
     };
 
@@ -263,7 +256,6 @@ function App() {
         if (!window.confirm("Are you sure you want to load this archive? It will replace your current chat.")) {
             return;
         }
-        setError('');
         try {
             const token = await auth.currentUser.getIdToken();
             const response = await fetch(`${API_URL}/archive/${archiveId}`, {
@@ -277,13 +269,9 @@ function App() {
                 setHistory(data.messages);
             }
         } catch (err) {
-            setError(err.message);
+            console.error(err);
             alert('Failed to load archive.');
         }
-    };
-
-    const handleUploadSuccess = (contextMessage) => {
-        setHistory(prev => [...prev, contextMessage]);
     };
 
     const handleSelectDocument = (contextMessage) => {
@@ -399,6 +387,7 @@ function App() {
     }
 
     return (
+        <Suspense fallback={<div className="loading-screen">Loading…</div>}>
         <Routes>
             {/* Public-only routes */}
             <Route path="/" element={!user ? <HomePage /> : <Navigate to="/chat" />} />
@@ -427,22 +416,18 @@ function App() {
                     <AccountPage auth={auth} />
                 </ProtectedRoute>
             } />
-            <Route path="/account/memories" element={
-                <ProtectedRoute user={user}>
-                    <MemoriesPage auth={auth} />
-                </ProtectedRoute>
-            } />
             <Route path="/admin" element={
-                <ProtectedRoute user={user}>
+                <AdminRoute user={user}>
                     <AdminPage auth={auth} />
-                </ProtectedRoute>
+                </AdminRoute>
             } />
             <Route path="/admin/users" element={
-                <ProtectedRoute user={user}>
+                <AdminRoute user={user}>
                     <AdminUsersPage auth={auth} />
-                </ProtectedRoute>
+                </AdminRoute>
             } />
         </Routes>
+        </Suspense>
     );
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_URL } from '../apiConfig';
 
 const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess }) => {
@@ -11,7 +11,7 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
     const fileInputRefs = useRef({});
     const newProjectFileInputRef = useRef();
 
-    const fetchProjects = async () => {
+    const fetchProjects = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
@@ -30,7 +30,7 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth]);
 
     const handleNewProjectUpload = async (event) => {
         const file = event.target.files[0];
@@ -188,14 +188,14 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
         if (auth.currentUser) {
             fetchProjects();
         }
-    }, [auth.currentUser]);
+    }, [auth, fetchProjects]);
 
     // This allows the panel to be refreshed from the parent
     useEffect(() => {
         const handleRefresh = () => fetchProjects();
         window.addEventListener('refresh-projects', handleRefresh);
         return () => window.removeEventListener('refresh-projects', handleRefresh);
-    }, []);
+    }, [fetchProjects]);
 
     const getFileInputRef = (projectName) => {
         if (!fileInputRefs.current[projectName]) {
@@ -334,4 +334,4 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
     );
 };
 
-export default ProjectsPanel; 
+export default ProjectsPanel;

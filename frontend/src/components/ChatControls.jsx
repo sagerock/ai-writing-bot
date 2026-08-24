@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 // Model documentation links
 const MODEL_DOCS = {
-  openai: { name: 'OpenAI', url: 'https://platform.openai.com/docs/models' },
-  anthropic: { name: 'Anthropic', url: 'https://docs.anthropic.com/en/docs/about-claude/models/overview' },
+  openai: { name: 'OpenAI', url: 'https://developers.openai.com/api/docs/models' },
+  anthropic: { name: 'Anthropic', url: 'https://platform.claude.com/docs/en/about-claude/models/overview' },
   google: { name: 'Google', url: 'https://ai.google.dev/gemini-api/docs/models' },
-  perplexity: { name: 'Perplexity', url: 'https://docs.perplexity.ai/guides/model-cards' },
+  perplexity: { name: 'Perplexity', url: 'https://docs.perplexity.ai/docs/sonar/models' },
 };
 
-const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, setTemperature }) => {
+const ChatControls = ({ model, setModel, modelOptions, searchWeb, setSearchWeb, temperature, setTemperature }) => {
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
   const [showModelDocs, setShowModelDocs] = useState(false);
 
@@ -20,7 +20,7 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
     return "Wild";
   };
 
-  const getMaxTemperature = () => {
+  const getMaxTemperature = useCallback(() => {
     // Auto mode - default to 1.0 (will be adjusted by actual model)
     if (model === 'auto') {
       return 1.0;
@@ -35,7 +35,18 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
     }
     // Other models (GPT-4, etc.) can go up to 1.5
     return 1.5;
-  };
+  }, [model]);
+
+  const temperatureManagedByModel = model.startsWith('gpt-5.6') || model.startsWith('gemini-3.');
+
+  const groupedModels = (modelOptions || [])
+    .filter((option) => option.id !== 'auto')
+    .reduce((groups, option) => {
+      const provider = option.provider || 'Other';
+      if (!groups[provider]) groups[provider] = [];
+      groups[provider].push(option);
+      return groups;
+    }, {});
 
   const handleTemperatureChange = (e) => {
     const newTemp = parseFloat(e.target.value);
@@ -49,7 +60,7 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
     if (temperature > maxTemp) {
       setTemperature(maxTemp);
     }
-  }, [model, temperature, setTemperature]);
+  }, [getMaxTemperature, temperature, setTemperature]);
 
   return (
     <div className="chat-controls-wrapper mobile-accordion">
@@ -94,35 +105,23 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
           </div>
           <select id="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
             <option value="auto">Auto (Smart Routing)</option>
-            <optgroup label="OpenAI - GPT-5 Series">
-              <option value="gpt-5-nano-2025-08-07">GPT-5 Nano (Ultra-fast)</option>
-              <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (Balanced)</option>
-              <option value="gpt-5.2-2025-12-11">GPT-5.2 (Flagship)</option>
-              <option value="gpt-5.2-pro-2025-12-11">GPT-5.2 Pro (Premium)</option>
-              <option value="gpt-5.2-codex-2025-12-11">GPT-5.2 Codex (Coding)</option>
-            </optgroup>
-            <optgroup label="Anthropic">
-              <option value="claude-opus-4-6">Claude Opus 4.6 (Flagship)</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast)</option>
-            </optgroup>
-            <optgroup label="Google">
-              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Preview)</option>
-              <option value="gemini-3-pro-preview">Gemini 3 Pro (Preview)</option>
-              <option value="gemini-3-flash-preview">Gemini 3 Flash (Preview)</option>
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-              <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Fast)</option>
-            </optgroup>
-            <optgroup label="Perplexity">
-              <option value="sonar-pro">Sonar Pro (Real-time Search)</option>
-            </optgroup>
+            {Object.entries(groupedModels).map(([provider, options]) => (
+              <optgroup key={provider} label={provider}>
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>{option.name}</option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </div>
         <div className="control-group">
           <div className="w-full">
             <label htmlFor="creativity-slider" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Creativity: <span className="font-bold">{getCreativityLabel(temperature)}</span> ({temperature.toFixed(1)})
+              Creativity:{' '}
+              <span className="font-bold">
+                {temperatureManagedByModel ? 'Model-managed' : getCreativityLabel(temperature)}
+              </span>
+              {!temperatureManagedByModel && ` (${temperature.toFixed(1)})`}
             </label>
             <input
               id="creativity-slider"
@@ -132,6 +131,7 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
               step="0.1"
               value={temperature}
               onChange={handleTemperatureChange}
+              disabled={temperatureManagedByModel}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
             />
           </div>
@@ -151,4 +151,4 @@ const ChatControls = ({ model, setModel, searchWeb, setSearchWeb, temperature, s
   );
 };
 
-export default ChatControls; 
+export default ChatControls;

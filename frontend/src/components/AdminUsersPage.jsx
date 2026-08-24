@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
 
@@ -19,9 +19,7 @@ const AdminUsersPage = ({ auth }) => {
 
     // Dropdown menu state
     const [openDropdown, setOpenDropdown] = useState(null); // uid of user with open dropdown
-    const dropdownRef = useRef(null);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
@@ -40,13 +38,13 @@ const AdminUsersPage = ({ auth }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth]);
 
     useEffect(() => {
         if (auth.currentUser) {
             fetchUsers();
         }
-    }, [auth.currentUser]);
+    }, [auth, fetchUsers]);
 
     // Focus input when editing starts
     useEffect(() => {

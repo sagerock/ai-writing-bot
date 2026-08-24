@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
 import PublicNav from '../components/PublicNav';
 import './HomePage.css';
 
-const PRICE = 10;
+const PRICE = 20;
 
 const PricingPage = ({ auth }) => {
     const [searchParams] = useSearchParams();
@@ -13,23 +13,9 @@ const PricingPage = ({ auth }) => {
     const [subscription, setSubscription] = useState(null);
     const navigate = useNavigate();
     const autoCheckoutTriggered = useRef(false);
+    const subscribeParam = searchParams.get('subscribe');
 
-    useEffect(() => {
-        checkSubscription();
-    }, [auth]);
-
-    // Auto-trigger checkout when returning from signup with subscribe param
-    useEffect(() => {
-        const subscribe = searchParams.get('subscribe');
-        if (subscribe && auth.currentUser && !autoCheckoutTriggered.current && !loading) {
-            autoCheckoutTriggered.current = true;
-            setTimeout(() => {
-                handleSubscribe();
-            }, 500);
-        }
-    }, [searchParams, auth.currentUser]);
-
-    const checkSubscription = async () => {
+    const checkSubscription = useCallback(async () => {
         try {
             const token = await auth.currentUser?.getIdToken();
             if (!token) return;
@@ -45,9 +31,9 @@ const PricingPage = ({ auth }) => {
         } catch (err) {
             console.error('Error checking subscription:', err);
         }
-    };
+    }, [auth]);
 
-    const handleSubscribe = async () => {
+    const handleSubscribe = useCallback(async () => {
         if (!auth.currentUser) {
             navigate('/register?subscribe=true');
             return;
@@ -78,12 +64,25 @@ const PricingPage = ({ auth }) => {
                 const err = await response.json();
                 setError(err.error || 'Failed to start checkout');
             }
-        } catch (err) {
+        } catch {
             setError('Failed to start checkout. Please try again.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth, navigate]);
+
+    useEffect(() => {
+        checkSubscription();
+    }, [checkSubscription]);
+
+    // Auto-trigger checkout when returning from signup with subscribe param
+    useEffect(() => {
+        if (subscribeParam && auth.currentUser && !autoCheckoutTriggered.current && !loading) {
+            autoCheckoutTriggered.current = true;
+            const timeout = setTimeout(handleSubscribe, 500);
+            return () => clearTimeout(timeout);
+        }
+    }, [auth, handleSubscribe, loading, subscribeParam]);
 
     const handleOpenPortal = async () => {
         setLoading(true);
@@ -108,7 +107,7 @@ const PricingPage = ({ auth }) => {
                 const err = await response.json();
                 setError(err.error || 'Failed to open billing portal');
             }
-        } catch (err) {
+        } catch {
             setError('Failed to open billing portal. Please try again.');
         } finally {
             setLoading(false);

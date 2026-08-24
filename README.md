@@ -1,221 +1,100 @@
-# RomaLume - AI Chat Application
+# RomaLume
 
-This is an AI chat application that allows users to interact with various large language models (LLMs) from different providers like OpenAI, Anthropic, Cohere, and Google. It features a persistent chat history, document uploads for context, and a credit-based usage system.
+RomaLume is a multi-model AI writing application with streaming chat, web search,
+document retrieval, persistent conversation history, user profiles, subscriptions,
+and administrative analytics.
 
-## Live URLs
+## Live services
 
-- **Frontend (Firebase)**: [https://romalume.com](https://romalume.com)
-- **Backend (Render)**: [https://ai-writing-bot-backend.onrender.com](https://ai-writing-bot-backend.onrender.com)
+- Frontend: <https://romalume.com>
+- Backend: <https://ai-writing-bot-production.up.railway.app>
+- Backend health: <https://ai-writing-bot-production.up.railway.app/health>
 
-## Key Features
+## Stack
 
-- **Multi-Bot Support**: Switch between different LLMs from various providers on the fly.
-- **Real-time Web Search**: Augment the LLM's knowledge with real-time web search results from SerpApi.
-- **Persistent Chat History**: Conversations are automatically saved and loaded.
-- **Document Upload**: Upload `.md`, `.txt`, and `.pdf` files to provide context to the LLM.
-- **Chat Archives**: Save important conversations as archives, organized by project.
-- **Credit System**: Users have a credit balance that decrements with each interaction.
-- **Admin Panel**: A management interface for administrators to manage users and system resources.
-- **Secure Authentication**: Built on Firebase for secure user authentication and management.
+- React 19, Vite, and React Router
+- FastAPI and Python 3.11
+- Firebase Authentication, Firestore, Cloud Storage, and Hosting
+- Qdrant with OpenAI embeddings for document retrieval
+- Stripe subscriptions and SendGrid email
 
-## Admin Panel
+## Local setup
 
-The application includes an admin panel for user management, accessible only to users with administrative privileges.
+1. Create and activate a Python virtual environment.
+2. Install backend dependencies with `pip install -r requirements.txt`.
+3. Copy `.env.example` to `.env` and configure the required provider secrets.
+4. Put a local Firebase Admin credential at `firebase_service_account.json`.
+5. Copy `frontend/.env.example` to `frontend/.env` and fill in the public Firebase web configuration.
+6. Install frontend dependencies with `cd frontend && npm ci`.
 
-### Admin Features
+Run the services in separate terminals:
 
-- **List Users**: View a list of all registered users, their credit balance, and their current role.
-- **Update Credits**: Manually add or remove credits from any user's account.
-- **Manage Admin Roles**: Grant or revoke admin privileges for any user.
+```bash
+python -m uvicorn main:main_app --reload --host 127.0.0.1 --port 8000
+cd frontend && npm run dev
+```
 
-### How to Grant Admin Privileges
+The frontend is available at <http://localhost:5173>.
 
-Admin access is controlled via Firebase custom claims. To make a user an admin, you must set an `admin: true` custom claim on their Firebase user account.
+## Quality checks
 
-A utility script, `set_admin.py`, is provided to simplify this process:
+```bash
+python -m compileall -q main.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
+python -m unittest discover -s tests -v
+cd frontend && npm run lint && npm run build
+cd frontend && npm audit --omit=dev --audit-level=high
+```
 
-1.  **Find the User UID**: Get the UID of the target user from the Firebase Console.
-2.  **Edit the Script**: Open `set_admin.py` and replace the placeholder UID with the target user's UID.
-3.  **Run the Script**: Execute the script from your terminal:
-    ```bash
-    python3 set_admin.py
-    ```
+GitHub Actions runs these checks for pushes and pull requests.
 
-Once the claim is set, a user with admin privileges will see the "Admin" link in the application header upon their next login and will have access to the admin panel.
+## Deployment
 
-## Utility Scripts
+The frontend is deployed through Firebase Hosting:
 
-This project includes several utility scripts to help with development and maintenance.
+```bash
+cd frontend
+npm run build
+npx firebase-tools@15.28.1 deploy --only hosting,firestore:rules,storage
+```
 
-### Checking Available LLM Models
+The backend auto-deploys to Railway from `main`. Configure backend secrets in
+Railway, including `FIREBASE_SERVICE_ACCOUNT_JSON`, provider API keys,
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and a strong
+`UNSUBSCRIBE_SECRET`. Set `TRUST_PROXY_HEADERS=true` only when the service is
+behind a trusted proxy that overwrites forwarding headers.
 
-To ensure the model lists in the application are up-to-date, you can run the following scripts to fetch the currently available models from each provider:
+Operational limits can be adjusted with `MAX_REQUEST_BYTES`,
+`MAX_UPLOAD_BYTES`, `MAX_PDF_PAGES`, and `PAID_DAILY_MESSAGE_LIMIT`.
 
--   **OpenAI**:
-    ```bash
-    python3 list_openai_models.py
-    ```
+## Data model
 
--   **Anthropic**:
-    ```bash
-    python3 list_anthropic_models.py
-    ```
+User content is stored below `users/{user_id}` in Firestore:
 
-Before running these, make sure your API keys are set correctly in your `.env` file.
+- `archives`: saved conversations
+- `conversations/current_chat`: bounded recent chat history
+- `documents`: upload metadata
+- `settings/profile`: the curated personalization profile
+- `therapy_notes`: therapy-mode continuity notes
 
-## Technology Stack
+Document chunks are isolated by Firebase user ID in Qdrant. Billing fields on
+the root user document are backend-owned; client-side Firestore writes to that
+document are intentionally denied.
 
-- **Backend**: FastAPI (Python)
-- **Frontend**: React (with Vite)
-- **Database**: Firestore (for chat history, archives, and user data)
-- **Authentication**: Firebase Authentication
-- **Storage**: Firebase Cloud Storage (for document uploads)
-- **Web Search**: SerpApi
+## Security notes
 
-## Setup and Installation
+Never commit Firebase Admin credentials, `.env` files, Firebase Auth exports,
+password hashes, or user exports. The ignored `firebase_service_account.json`
+is for local development only. Use secret managers in deployed environments.
 
-1.  **Clone the repository**:
-    ```bash
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
+Firestore rules are not a development switch: use the Firebase emulator for
+local rule testing instead of placing a real project in test mode.
+Cloud Storage is also backend-only; deploy `frontend/storage.rules` with the
+hosting and Firestore rules.
 
-2.  **Backend Setup**:
-    - Navigate to the project root.
-    - Create a Python virtual environment: `python3 -m venv venv`
-    - Activate it: `source venv/bin/activate`
-    - Install dependencies: `pip install -r requirements.txt`
-    - Create a `.env` file and populate it with your API keys. You will need:
-        *   `OPENAI_API_KEY`
-        *   `ANTHROPIC_API_KEY`
-        *   `COHERE_API_KEY`
-        *   `GOOGLE_API_KEY`
-        *   `XAI_API_KEY`
-        *   `SERPAPI_API_KEY`
-    - Place your `firebase_service_account.json` in the root directory.
+## Administration
 
-3.  **Frontend Setup**:
-    - Navigate to the `frontend` directory: `cd frontend`
-    - Install dependencies: `npm install`
-    - Create a `.env` file and add your Firebase client configuration (see `frontend/.env.example`).
+Admin authorization uses the Firebase `admin: true` custom claim. The included
+`set_admin.py` utility can assign the claim to an explicitly selected UID.
 
-4.  **Running the Application**:
-    - **Start the backend server** (from the root directory):
-      ```bash
-      python3 -m uvicorn main:main_app --reload
-      ```
-    - **Start the frontend development server** (from the `frontend` directory):
-      ```bash
-      npm run dev
-      ```
-
-The application will be available at `http://localhost:5173`.
-
-## Local Development
-
-When working on the application locally, you need to run both the backend and frontend servers. Here's the step-by-step process:
-
-### Prerequisites
-- Ensure you have all API keys configured in your `.env` file
-- Make sure `firebase_service_account.json` is in the root directory
-- Firebase project should be in test mode for development
-
-### Running Locally
-
-1. **Activate the Python virtual environment and start the backend**:
-   ```bash
-   # From the project root directory
-   source venv/bin/activate
-   python main.py
-   ```
-   
-   The backend will start on `http://127.0.0.1:8000`
-
-   **Alternative method**: You can also use uvicorn directly:
-   ```bash
-   python -m uvicorn main:main_app --reload --host 127.0.0.1 --port 8000
-   ```
-
-2. **In a new terminal, start the frontend development server**:
-   ```bash
-   # Navigate to the frontend directory
-   cd frontend
-   
-   # Start the development server
-   npm run dev
-   ```
-   
-   The frontend will be available at `http://localhost:5173`
-
-### Troubleshooting Local Development
-
-- **Firebase calls not working**: Ensure your Firebase project is in test mode and that the `firebase_service_account.json` file is correctly placed in the root directory.
-- **Backend not responding**: Make sure the virtual environment is activated before running `python main.py`.
-- **CORS errors**: The backend is configured to allow requests from `http://localhost:5173`. If you're using a different port, update the CORS settings in `main.py`.
-
-## Troubleshooting
-
-For common issues and their solutions, please refer to the [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) file. This guide contains detailed explanations for problems like Firebase connection timeouts.
-
-## Deployment & Hosting
-
-This application is deployed using a hybrid approach, with the frontend and backend hosted on separate, specialized platforms.
-
-### Frontend (Firebase Hosting)
-
-The React frontend is hosted on **Firebase Hosting**, which provides a global CDN for fast delivery of static content.
-
-- **URL**: `https://romalume.com`
-- **Deployment Process**: To deploy changes to the frontend, follow these steps from your local machine:
-
-  1.  **Navigate to the frontend directory**:
-      ```bash
-      cd frontend
-      ```
-  2.  **Build the application for production**: This compiles and optimizes the React code into a `dist` folder.
-      ```bash
-      npm run build
-      ```
-  3.  **Deploy to Firebase**: This command uploads the contents of the `dist` folder to Firebase Hosting.
-      ```bash
-      firebase deploy
-      ```
-
-### Backend (Render)
-
-The Python FastAPI backend is hosted as a **Web Service on Render**.
-
-- **URL**: `https://ai-writing-bot-backend.onrender.com`
-- **Deployment Process**: Render is connected directly to the GitHub repository. **Any `git push` to the `main` branch will automatically trigger a new deployment.**
-- **Managing Environment Variables**: All secret keys (e.g., `OPENAI_API_KEY`) and the `firebase_service_account.json` are stored securely in the Render dashboard under the service's **Environment** tab. They are **not** checked into the Git repository. If you need to add or update a key, you must do so in the Render UI, which will trigger a new deployment.
-
-## Pushing Changes to GitHub & Deploying to Render
-
-This project is set up so that any push to the `main` branch on GitHub will automatically trigger a deployment on Render.
-
-### How to Push Changes
-
-1. **Stage and Commit Your Changes**
-   ```bash
-   git add .
-   git commit -m "Describe your changes"
-   ```
-
-2. **Set Up GitHub Authentication (First Time Only)**
-   - Go to [GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
-   - Click **Generate new token (classic)**
-   - Give it a name, set an expiration, and check the `repo` scope
-   - Click **Generate token** and copy it
-
-3. **Push to GitHub**
-   ```bash
-   git push origin main
-   ```
-   - When prompted for a username, enter your GitHub username
-   - When prompted for a password, paste your Personal Access Token (PAT)
-
-4. **Automatic Deployment**
-   - Render will detect the push to `main` and automatically deploy the backend.
-
-**Tip:**  
-To avoid entering your PAT every time, you can use a credential manager or switch your remote to SSH. See [GitHub Docs: Caching your GitHub credentials in Git](https://docs.github.com/en/get-started/getting-started-with-git/caching-your-github-credentials-in-git).
+See `TROUBLESHOOTING.md`, `EMAIL_SETUP.md`, and `CREDIT_DEBUGGING_GUIDE.md` for
+operational details.

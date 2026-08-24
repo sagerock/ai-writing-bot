@@ -4,18 +4,21 @@ import {
     updateEmail,
     updatePassword,
     reauthenticateWithCredential,
-    EmailAuthProvider
+    EmailAuthProvider,
+    signOut
 } from 'firebase/auth';
 import { API_URL } from '../apiConfig';
+import { useModelOptions } from '../useModelOptions';
 import BillingDashboard from './BillingDashboard';
 
 const AccountPanel = ({ auth }) => {
+    const modelOptions = useModelOptions();
     const [displayName, setDisplayName] = useState(auth.currentUser?.displayName || '');
     const [newEmail, setNewEmail] = useState(auth.currentUser?.email || '');
     const [newPassword, setNewPassword] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     
-    const [credits, setCredits] = useState(null);
+    const [, setCredits] = useState(null);
     const [documents, setDocuments] = useState([]);
     const [documentsLoading, setDocumentsLoading] = useState(true);
     const [deletingDoc, setDeletingDoc] = useState(null);
@@ -50,25 +53,35 @@ const AccountPanel = ({ auth }) => {
     const [showTherapyNotes, setShowTherapyNotes] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
 
-    const MODEL_OPTIONS = [
-        { value: 'auto', label: 'Auto (Smart Routing)' },
-        { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 Nano (Fastest)' },
-        { value: 'gpt-5-mini-2025-08-07', label: 'GPT-5 Mini (Balanced)' },
-        { value: 'gpt-5.2-2025-12-11', label: 'GPT-5.2 (Flagship)' },
-        { value: 'gpt-5.2-pro-2025-12-11', label: 'GPT-5.2 Pro (Premium)' },
-        { value: 'gpt-5.2-codex-2025-12-11', label: 'GPT-5.2 Codex (Coding)' },
-        { value: 'claude-opus-4-6', label: 'Claude Opus 4.6 (Flagship)' },
-        { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-        { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (Fast)' },
-        { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview)' },
-        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview)' },
-        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
-        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-        { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
-    ];
+    const handleDeleteAccount = async () => {
+        const confirmation = window.prompt(
+            'This permanently deletes your chats, files, profile, therapy notes, and account. Type DELETE to continue.'
+        );
+        if (confirmation !== 'DELETE') return;
+        if (!window.confirm('Permanently delete this RomaLume account?')) return;
+
+        setError('');
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const response = await fetch(`${API_URL}/user/account`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ confirmation: 'DELETE' })
+            });
+            if (!response.ok) {
+                throw new Error('Account deletion failed. Please contact support.');
+            }
+            await signOut(auth);
+            window.location.assign('/');
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+    const [needsReauth, setNeedsReauth] = useState(null); // 'email' or 'password'
 
     useEffect(() => {
         const fetchCredits = async () => {
@@ -1040,8 +1053,8 @@ const AccountPanel = ({ auth }) => {
                                 default_model: e.target.value
                             }))}
                         >
-                            {MODEL_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            {modelOptions.map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.name}</option>
                             ))}
                         </select>
                     </label>
@@ -1138,8 +1151,16 @@ const AccountPanel = ({ auth }) => {
                     </div>
                 )}
             </div>
+
+            <hr />
+
+            <div className="danger-zone">
+                <h3>Delete Account</h3>
+                <p>Permanently remove your account, conversations, files, profile, and therapy notes.</p>
+                <button type="button" onClick={handleDeleteAccount}>Delete my account</button>
+            </div>
         </div>
     );
 };
 
-export default AccountPanel; 
+export default AccountPanel;

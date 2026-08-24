@@ -2,20 +2,16 @@ import React from 'react';
 
 // Model display names mapping
 const MODEL_DISPLAY_NAMES = {
-  'gpt-5-nano-2025-08-07': 'GPT-5 Nano',
-  'gpt-5-mini-2025-08-07': 'GPT-5 Mini',
-  'gpt-5.2-2025-12-11': 'GPT-5.2',
-  'gpt-5.2-pro-2025-12-11': 'GPT-5.2 Pro',
-  'gpt-5.2-codex-2025-12-11': 'GPT-5.2 Codex',
-  'claude-opus-4-6': 'Claude Opus 4.6',
-  'claude-sonnet-4-6': 'Claude Sonnet 4.6',
+  'gpt-5.6-sol': 'GPT-5.6 Sol',
+  'gpt-5.6-terra': 'GPT-5.6 Terra',
+  'gpt-5.6-luna': 'GPT-5.6 Luna',
+  'claude-fable-5': 'Claude Fable 5',
+  'claude-opus-5': 'Claude Opus 5',
+  'claude-sonnet-5': 'Claude Sonnet 5',
   'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
   'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
-  'gemini-3-pro-preview': 'Gemini 3 Pro',
-  'gemini-3-flash-preview': 'Gemini 3 Flash',
-  'gemini-2.5-pro': 'Gemini 2.5 Pro',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash',
-  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
+  'gemini-3.7-flash': 'Gemini 3.7 Flash',
+  'gemini-3.5-flash-lite': 'Gemini 3.5 Flash-Lite',
   'sonar-pro': 'Perplexity Sonar Pro'
 };
 

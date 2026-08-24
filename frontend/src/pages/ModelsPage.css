@@ -191,6 +191,29 @@
     margin-bottom: 14px;
 }
 
+.models-card-pricing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    color: #d4a853;
+    font-size: 0.8rem;
+    margin-bottom: 14px;
+}
+
+.models-card-pricing small {
+    flex-basis: 100%;
+    color: rgba(245, 240, 232, 0.45);
+    font-size: 0.7rem;
+}
+
+.models-pricing-note {
+    color: rgba(245, 240, 232, 0.55);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin: 8px 0 0;
+    text-align: center;
+}
+
 .models-card-best-for {
     border-top: 1px solid rgba(212, 168, 83, 0.1);
     padding-top: 14px;

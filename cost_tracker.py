@@ -1,15 +1,24 @@
 """
 Cost tracking module for RomaLume.
-Estimates token counts and calculates actual AI costs for transparent billing.
+Estimates token counts and provider costs for operational reporting.
 """
 
-import tiktoken
-from typing import Optional
+try:
+    import tiktoken
+except ImportError:  # Keep pricing helpers usable in lightweight maintenance jobs.
+    tiktoken = None
 
-# Pricing per 1 MILLION tokens (as of April 2026)
-# Format: {"input": price_per_1M_input, "output": price_per_1M_output}
+# Pricing per 1 MILLION tokens (verified August 24, 2026).
+# Optional ``request`` is a flat provider fee per request.
 MODEL_PRICING = {
-    # OpenAI GPT-5 family
+    # Current OpenAI GPT-5.6 family
+    "gpt-5.6-sol": {"input": 4.00, "output": 20.00},
+    "gpt-5.6-terra": {"input": 2.00, "output": 12.00},
+    "gpt-5.6-luna": {"input": 0.20, "output": 1.20},
+    "gpt-5.6": {"input": 4.00, "output": 20.00},
+
+    # Supported OpenAI models retained for background jobs and historical logs
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "gpt-5.5": {"input": 5.00, "output": 30.00},
     "gpt-5-nano": {"input": 0.05, "output": 0.40},
     "gpt-5-mini": {"input": 0.25, "output": 2.00},
@@ -17,15 +26,24 @@ MODEL_PRICING = {
     "gpt-5.2-pro": {"input": 21.00, "output": 168.00},
     "gpt-5.2-codex": {"input": 1.75, "output": 14.00},
 
-    # Anthropic Claude
+    # Current Anthropic Claude family
+    "claude-fable-5": {"input": 10.00, "output": 50.00},
+    "claude-opus-5": {"input": 5.00, "output": 25.00},
+    "claude-sonnet-5": {"input": 2.00, "output": 10.00},
+    "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
+
+    # Historical Claude models
     "claude-opus-4-7": {"input": 5.00, "output": 25.00},
     "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-opus-4-5": {"input": 5.00, "output": 25.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
 
-    # Google Gemini
+    # Current Google Gemini family
+    "gemini-3.7-flash": {"input": 0.75, "output": 3.75},
+    "gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50},
     "gemini-3.1-pro": {"input": 2.00, "output": 12.00},
+
+    # Historical Gemini models
     "gemini-3.1-flash-lite": {"input": 0.25, "output": 1.50},
     "gemini-3-pro": {"input": 2.00, "output": 12.00},
     "gemini-3-flash": {"input": 0.50, "output": 3.00},
@@ -33,115 +51,81 @@ MODEL_PRICING = {
     "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
     "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40},
 
-    # Perplexity
-    "sonar-pro": {"input": 3.00, "output": 15.00},
+    # Perplexity. Sonar Pro's default low-context search fee is $6/1K requests.
+    "sonar-pro": {"input": 3.00, "output": 15.00, "request": 0.006},
 }
 
 # Full model catalog with metadata for the Models page
 # This is the single source of truth for all available models
 MODELS_CATALOG = [
-    # OpenAI GPT-5 Series
+    # OpenAI GPT-5.6
     {
-        "id": "gpt-5.5",
-        "name": "GPT-5.5",
+        "id": "gpt-5.6-sol",
+        "name": "GPT-5.6 Sol",
         "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "OpenAI's most capable model for coding and professional work",
-        "input_price": 5.00,
-        "output_price": 30.00,
+        "category": "GPT-5.6",
+        "description": "Frontier model for complex professional work and demanding coding",
+        "input_price": 4.00,
+        "output_price": 20.00,
         "context_window": 1050000,
         "best_for": ["Complex reasoning", "Professional work", "Coding"],
         "badge": "Latest",
     },
     {
-        "id": "gpt-5-nano-2025-08-07",
-        "name": "GPT-5 Nano",
+        "id": "gpt-5.6-terra",
+        "name": "GPT-5.6 Terra",
         "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "Ultra-fast, cost-effective model for simple tasks",
-        "input_price": 0.05,
-        "output_price": 0.40,
-        "context_window": 128000,
-        "best_for": ["Quick answers", "Simple tasks", "High volume"],
+        "category": "GPT-5.6",
+        "description": "Balanced intelligence, latency, and cost for everyday professional work",
+        "input_price": 2.00,
+        "output_price": 12.00,
+        "context_window": 1050000,
+        "best_for": ["General chat", "Analysis", "Coding"],
     },
     {
-        "id": "gpt-5-mini-2025-08-07",
-        "name": "GPT-5 Mini",
+        "id": "gpt-5.6-luna",
+        "name": "GPT-5.6 Luna",
         "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "Balanced performance and cost for everyday tasks",
-        "input_price": 0.25,
-        "output_price": 2.00,
-        "context_window": 128000,
-        "best_for": ["General chat", "Writing assistance", "Summarization"],
-    },
-    {
-        "id": "gpt-5.2-2025-12-11",
-        "name": "GPT-5.2",
-        "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "Flagship model for coding and agentic tasks with 400K context window",
-        "input_price": 1.75,
-        "output_price": 14.00,
-        "context_window": 400000,
-        "best_for": ["Coding tasks", "Agentic workflows", "Complex reasoning"],
-    },
-    {
-        "id": "gpt-5.2-pro-2025-12-11",
-        "name": "GPT-5.2 Pro",
-        "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "Uses more compute for harder thinking on tough problems",
-        "input_price": 21.00,
-        "output_price": 168.00,
-        "context_window": 400000,
-        "best_for": ["Tough problems", "Deep reasoning", "High-stakes tasks"],
-        "badge": "Premium",
-    },
-    {
-        "id": "gpt-5.2-codex-2025-12-11",
-        "name": "GPT-5.2 Codex",
-        "provider": "OpenAI",
-        "category": "GPT-5 Series",
-        "description": "Coding-optimized variant for agentic coding workflows",
-        "input_price": 1.75,
-        "output_price": 14.00,
-        "context_window": 400000,
-        "best_for": ["Agentic coding", "Code generation", "Interactive coding"],
+        "category": "GPT-5.6",
+        "description": "Fast, cost-sensitive GPT-5.6 model for high-volume workloads",
+        "input_price": 0.20,
+        "output_price": 1.20,
+        "context_window": 1050000,
+        "best_for": ["Quick answers", "Summarization", "High volume"],
     },
     # Anthropic Claude
     {
-        "id": "claude-opus-4-7",
-        "name": "Claude Opus 4.7",
+        "id": "claude-fable-5",
+        "name": "Claude Fable 5",
         "provider": "Anthropic",
         "category": "Claude",
-        "description": "Most capable model for complex reasoning and agentic coding",
-        "input_price": 5.00,
-        "output_price": 25.00,
+        "description": "Anthropic's most capable widely released model",
+        "input_price": 10.00,
+        "output_price": 50.00,
         "context_window": 1000000,
-        "best_for": ["Agents", "Complex coding", "Deep reasoning"],
+        "best_for": ["Deep reasoning", "Complex agents", "Critical work"],
         "badge": "Latest",
     },
     {
-        "id": "claude-opus-4-6",
-        "name": "Claude Opus 4.6",
+        "id": "claude-opus-5",
+        "name": "Claude Opus 5",
         "provider": "Anthropic",
         "category": "Claude",
-        "description": "Most intelligent model for building agents and coding",
+        "description": "High-capability model for complex agentic and enterprise work",
         "input_price": 5.00,
         "output_price": 25.00,
         "context_window": 1000000,
         "best_for": ["Agents", "Complex coding", "Deep reasoning"],
     },
     {
-        "id": "claude-sonnet-4-6",
-        "name": "Claude Sonnet 4.6",
+        "id": "claude-sonnet-5",
+        "name": "Claude Sonnet 5",
         "provider": "Anthropic",
         "category": "Claude",
-        "description": "Best combination of speed and intelligence",
-        "input_price": 3.00,
-        "output_price": 15.00,
-        "context_window": 200000,
+        "description": "Anthropic's best balance of speed and intelligence",
+        "input_price": 2.00,
+        "output_price": 10.00,
+        "context_window": 1000000,
         "best_for": ["Writing", "Analysis", "Coding"],
     },
     {
@@ -157,85 +141,39 @@ MODELS_CATALOG = [
     },
     # Google Gemini
     {
+        "id": "gemini-3.7-flash",
+        "name": "Gemini 3.7 Flash",
+        "provider": "Google",
+        "category": "Gemini",
+        "description": "Google's latest GA workhorse for coding, agents, and multimodal reasoning",
+        "input_price": 0.75,
+        "output_price": 3.75,
+        "context_window": 1000000,
+        "best_for": ["Coding", "Agentic workflows", "Multimodal reasoning"],
+        "badge": "Latest",
+    },
+    {
+        "id": "gemini-3.5-flash-lite",
+        "name": "Gemini 3.5 Flash-Lite",
+        "provider": "Google",
+        "category": "Gemini",
+        "description": "Google's most cost-efficient GA model for high-volume tasks",
+        "input_price": 0.30,
+        "output_price": 2.50,
+        "context_window": 1000000,
+        "best_for": ["Fast tasks", "High volume", "Cost-effective"],
+    },
+    {
         "id": "gemini-3.1-pro-preview",
         "name": "Gemini 3.1 Pro",
         "provider": "Google",
         "category": "Gemini",
-        "description": "Advanced intelligence with powerful agentic and coding capabilities",
+        "description": "Premium preview for advanced multimodal, coding, and agentic work",
         "input_price": 2.00,
         "output_price": 12.00,
         "context_window": 1000000,
         "best_for": ["Complex reasoning", "Agentic workflows", "Coding"],
         "badge": "Preview",
-    },
-    {
-        "id": "gemini-3.1-flash-lite-preview",
-        "name": "Gemini 3.1 Flash-Lite",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Lightweight, fast, and cost-effective with strong multimodal capabilities",
-        "input_price": 0.25,
-        "output_price": 1.50,
-        "context_window": 1000000,
-        "best_for": ["Fast tasks", "High volume", "Cost-effective"],
-        "badge": "Preview",
-    },
-    {
-        "id": "gemini-3-pro-preview",
-        "name": "Gemini 3 Pro",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "State-of-the-art reasoning with advanced multimodal understanding",
-        "input_price": 2.00,
-        "output_price": 12.00,
-        "context_window": 1000000,
-        "best_for": ["Complex reasoning", "Multimodal tasks", "Agentic workflows"],
-        "badge": "Preview",
-    },
-    {
-        "id": "gemini-3-flash-preview",
-        "name": "Gemini 3 Flash",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Frontier-class performance rivaling larger models at a fraction of the cost",
-        "input_price": 0.50,
-        "output_price": 3.00,
-        "context_window": 1000000,
-        "best_for": ["Fast reasoning", "Multimodal tasks", "Cost-effective"],
-        "badge": "Preview",
-    },
-    {
-        "id": "gemini-2.5-pro",
-        "name": "Gemini 2.5 Pro",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Advanced model for complex tasks with deep reasoning and coding",
-        "input_price": 1.25,
-        "output_price": 10.00,
-        "context_window": 1000000,
-        "best_for": ["Analysis", "Science", "Education"],
-    },
-    {
-        "id": "gemini-2.5-flash",
-        "name": "Gemini 2.5 Flash",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Best price-performance for low-latency reasoning tasks",
-        "input_price": 0.30,
-        "output_price": 2.50,
-        "context_window": 1000000,
-        "best_for": ["Quick tasks", "Summaries", "General queries"],
-    },
-    {
-        "id": "gemini-2.5-flash-lite",
-        "name": "Gemini 2.5 Flash-Lite",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Fastest and most budget-friendly multimodal model",
-        "input_price": 0.10,
-        "output_price": 0.40,
-        "context_window": 1000000,
-        "best_for": ["Simple questions", "High volume", "Quick lookups"],
     },
     # Perplexity
     {
@@ -246,7 +184,7 @@ MODELS_CATALOG = [
         "description": "Real-time web search with AI synthesis",
         "input_price": 3.00,
         "output_price": 15.00,
-        "context_window": 128000,
+        "context_window": 200000,
         "best_for": ["Current events", "Research", "Fact-checking"],
         "badge": "Web Search",
     },
@@ -260,8 +198,10 @@ def get_models_catalog():
 DEFAULT_ENCODING = "cl100k_base"  # Works for most modern models
 
 
-def get_encoding_for_model(model: str) -> tiktoken.Encoding:
+def get_encoding_for_model(model: str):
     """Get the appropriate tiktoken encoding for a model."""
+    if tiktoken is None:
+        return None
     try:
         # Try to get model-specific encoding
         if model.startswith("gpt-"):
@@ -294,6 +234,8 @@ def estimate_tokens(text: str, model: str = "gpt-4o") -> int:
 
     try:
         encoding = get_encoding_for_model(model)
+        if encoding is None:
+            return max(1, len(text) // 4)
         return len(encoding.encode(text))
     except Exception:
         # Fallback: rough estimate of ~4 chars per token
@@ -346,7 +288,7 @@ def get_model_pricing(model: str) -> dict:
 
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """
-    Calculate the actual cost in USD for a request.
+    Calculate the estimated cost in USD for a request.
 
     Args:
         model: Model identifier
@@ -358,16 +300,16 @@ def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """
     pricing = get_model_pricing(model)
 
-    # Convert from per-million to actual cost
+    # Convert from per-million pricing to an estimated request cost.
     input_cost = (input_tokens / 1_000_000) * pricing["input"]
     output_cost = (output_tokens / 1_000_000) * pricing["output"]
 
-    return input_cost + output_cost
+    return input_cost + output_cost + pricing.get("request", 0.0)
 
 
 def calculate_cost_cents(model: str, input_tokens: int, output_tokens: int) -> int:
     """
-    Calculate the actual cost in cents (for database storage).
+    Calculate the estimated cost in cents (for database storage).
 
     Args:
         model: Model identifier
