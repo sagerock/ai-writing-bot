@@ -4,6 +4,7 @@ import WorkspaceHeader from '../components/WorkspaceHeader';
 import { API_URL } from '../apiConfig';
 import { renderMarkdown } from '../renderMarkdown';
 import { useModelOptions } from '../useModelOptions';
+import { applyDraftEdit, draftSections } from '../draftUtils';
 import {
   createProjectChat,
   deleteProjectChat,
@@ -11,6 +12,9 @@ import {
   formatApiError,
   getProject,
   getProjectChat,
+  listProjectDraftVersions,
+  restoreProjectDraftVersion,
+  saveProjectDraft,
   updateProject,
   uploadProjectSource,
 } from '../projectApi';
@@ -24,6 +28,13 @@ const QUICK_ACTIONS = [
   ['Summarize sources', 'Summarize each source separately, then explain how the sources relate to one another.'],
   ['Outline memo', 'Create a well-structured outline for the memo, including the likely rule and application sections.'],
   ['Test the analysis', 'Give me the strongest counterargument and identify the weakest assumptions in the likely analysis.'],
+];
+
+const WRITE_ACTIONS = [
+  ['Draft Facts', 'Draft the Facts section as polished memorandum prose, using the source record and precise citations.'],
+  ['Draft Analysis', 'Draft the Analysis section as polished memorandum prose, addressing both the best argument and counterargument.'],
+  ['Draft whole memo', 'Draft the complete memorandum in the requested format, with a clear answer and source-grounded citations.'],
+  ['Strengthen target', 'Rewrite the selected target to make it more precise, concise, and persuasive without overstating the sources.'],
 ];
 
 const formatDate = (value) => {
@@ -66,6 +77,14 @@ export default function ProjectWorkspace({
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const [model, setModel] = useState('claude-sonnet-5');
+  const [mode, setMode] = useState('brainstorm');
+  const [draft, setDraft] = useState('');
+  const [savedDraft, setSavedDraft] = useState('');
+  const [draftVersions, setDraftVersions] = useState([]);
+  const [draftView, setDraftView] = useState('edit');
+  const [writeTarget, setWriteTarget] = useState('append');
+  const [draftSelection, setDraftSelection] = useState(null);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -92,6 +111,12 @@ export default function ProjectWorkspace({
         if (!active) return;
         setProject(data);
         setModel(data.default_model || 'claude-sonnet-5');
+        const initialDraft = data.draft?.markdown || '';
+        setDraft(initialDraft);
+        setSavedDraft(initialDraft);
+        listProjectDraftVersions(auth, projectId).then((versions) => {
+          if (active) setDraftVersions(versions);
+        }).catch(() => {});
         if (data.chats?.length) {
           setSelectedChatId(data.chats[0].id);
         } else {
@@ -125,6 +150,7 @@ export default function ProjectWorkspace({
         if (!active) return;
         setMessages(chat.messages || []);
         if (chat.model) setModel(chat.model);
+        if (chat.mode) setMode(chat.mode);
       })
       .catch((chatError) => active && setError(chatError.message));
     return () => { active = false; };
@@ -134,9 +160,21 @@ export default function ProjectWorkspace({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    const warnAboutUnsavedDraft = (event) => {
+      if (draft === savedDraft) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnAboutUnsavedDraft);
+    return () => window.removeEventListener('beforeunload', warnAboutUnsavedDraft);
+  }, [draft, savedDraft]);
+
   const sourcesByNumber = useMemo(() => Object.fromEntries(
     (project?.sources || []).map((source) => [source.source_num, source]),
   ), [project?.sources]);
+  const sections = useMemo(() => draftSections(draft), [draft]);
+  const draftWords = useMemo(() => draft.trim() ? draft.trim().split(/\s+/).length : 0, [draft]);
 
   const haikuDisabled = (project?.total_source_tokens || 0) > HAIKU_SOURCE_LIMIT;
 
@@ -180,8 +218,8 @@ export default function ProjectWorkspace({
   const handleNewChat = async () => {
     try {
       const chat = await createProjectChat(auth, projectId, {
-        title: 'New brainstorm',
-        mode: 'brainstorm',
+        title: `New ${mode === 'write' ? 'drafting' : 'brainstorm'} chat`,
+        mode,
         model,
       });
       setProject((current) => ({ ...current, chats: [chat, ...(current.chats || [])] }));
@@ -209,8 +247,77 @@ export default function ProjectWorkspace({
     }
   };
 
-  const finishStream = useCallback((history, assistantContent, citations) => {
-    setMessages(history.concat([{ role: 'assistant', content: assistantContent, citations }]));
+  const refreshDraftVersions = useCallback(async () => {
+    const versions = await listProjectDraftVersions(auth, projectId);
+    setDraftVersions(versions);
+  }, [auth, projectId]);
+
+  const saveDraft = async (nextDraft, reason) => {
+    setSavingDraft(true);
+    setError('');
+    try {
+      const saved = await saveProjectDraft(auth, projectId, nextDraft, reason);
+      setDraft(saved.markdown);
+      setSavedDraft(saved.markdown);
+      setProject((current) => ({ ...current, draft: saved }));
+      await refreshDraftVersions();
+      return true;
+    } catch (saveError) {
+      setError(saveError.message);
+      return false;
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleManualDraftSave = () => saveDraft(draft, 'manual save');
+
+  const handleRestoreDraft = async (event) => {
+    const version = Number(event.target.value);
+    event.target.value = '';
+    if (!version || !window.confirm(`Restore draft version ${version}? Your current draft will remain in version history.`)) return;
+    setSavingDraft(true);
+    try {
+      if (draft !== savedDraft) {
+        await saveProjectDraft(auth, projectId, draft, 'saved before version restore');
+      }
+      const restored = await restoreProjectDraftVersion(auth, projectId, version);
+      setDraft(restored.markdown);
+      setSavedDraft(restored.markdown);
+      setProject((current) => ({ ...current, draft: restored }));
+      await refreshDraftVersions();
+    } catch (restoreError) {
+      setError(restoreError.message);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleApplyToDraft = async (assistantContent, messageIndex, target = writeTarget) => {
+    const nextDraft = applyDraftEdit(draft, assistantContent, target, draftSelection);
+    const applied = await saveDraft(
+      nextDraft,
+      `chat ${selectedChatId}, message ${messageIndex + 1}`,
+    );
+    if (applied) setMobilePane('draft');
+  };
+
+  const handleCopyDraft = async () => {
+    try {
+      await navigator.clipboard.writeText(draft);
+    } catch {
+      setError('The draft could not be copied to the clipboard.');
+    }
+  };
+
+  const finishStream = useCallback((history, assistantContent, citations, responseMode, responseTarget) => {
+    setMessages(history.concat([{
+      role: 'assistant',
+      content: assistantContent,
+      citations,
+      mode: responseMode,
+      writeTarget: responseTarget,
+    }]));
     setSending(false);
     loadProject().catch(() => {});
   }, [loadProject]);
@@ -229,10 +336,12 @@ export default function ProjectWorkspace({
     let responseText = '';
     let citations = [];
     let finished = false;
+    const responseMode = mode;
+    const responseTarget = writeTarget;
     const finish = () => {
       if (finished) return;
       finished = true;
-      finishStream(requestHistory, responseText, citations);
+      finishStream(requestHistory, responseText, citations, responseMode, responseTarget);
     };
 
     try {
@@ -251,7 +360,13 @@ export default function ProjectWorkspace({
           temperature: 0.7,
           project_id: projectId,
           chat_id: selectedChatId,
-          mode: 'brainstorm',
+          mode: responseMode,
+          write_target: responseMode === 'write' ? (
+            responseTarget === 'selection' && draftSelection?.text
+              ? `Selected text: ${draftSelection.text.slice(0, 450)}`
+              : sections.find((section) => section.id === responseTarget)?.heading
+                || (responseTarget === 'whole' ? 'the whole draft' : 'the end of the draft')
+          ) : null,
         }),
         signal: abortRef.current.signal,
       });
@@ -331,14 +446,15 @@ export default function ProjectWorkspace({
         <div>
           <Link to="/projects">Projects</Link><span>/</span><strong>{project.name}</strong>
         </div>
-        <div className="workspace-mode"><span>Brainstorm</span><small>Draft workspace comes next</small></div>
+        <div className="workspace-mode"><span>{mode === 'write' ? 'Write' : 'Brainstorm'}</span><small>{draftWords} draft words</small></div>
       </div>
 
       {error && <div className="project-error workspace-error" role="alert">{error}</div>}
 
       <div className="workspace-mobile-tabs" role="tablist">
         <button className={mobilePane === 'sources' ? 'active' : ''} onClick={() => setMobilePane('sources')}>Project</button>
-        <button className={mobilePane === 'chat' ? 'active' : ''} onClick={() => setMobilePane('chat')}>Brainstorm</button>
+        <button className={mobilePane === 'chat' ? 'active' : ''} onClick={() => setMobilePane('chat')}>{mode === 'write' ? 'Write' : 'Brainstorm'}</button>
+        <button className={mobilePane === 'draft' ? 'active' : ''} onClick={() => setMobilePane('draft')}>Draft</button>
       </div>
 
       <main className="project-workspace">
@@ -404,27 +520,33 @@ export default function ProjectWorkspace({
 
         <section className={`brainstorm-pane ${mobilePane === 'chat' ? 'mobile-active' : ''}`}>
           <div className="brainstorm-toolbar">
-            <div><span className="status-dot" />Project sources included</div>
-            <label>
-              Model
-              <select value={model} onChange={handleModelChange}>
-                {modelOptions.map((option) => (
-                  <option key={option.id} value={option.id} disabled={option.id === HAIKU_MODEL && haikuDisabled}>
-                    {option.name}{option.id === HAIKU_MODEL && haikuDisabled ? ' — source limit exceeded' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="mode-toggle" aria-label="Conversation mode">
+              <button className={mode === 'brainstorm' ? 'active' : ''} onClick={() => setMode('brainstorm')}>Brainstorm</button>
+              <button className={mode === 'write' ? 'active' : ''} onClick={() => setMode('write')}>Write</button>
+            </div>
+            <div className="brainstorm-toolbar-controls">
+              <span className="source-context-status"><i className="status-dot" />Sources included</span>
+              <label>
+                Model
+                <select value={model} onChange={handleModelChange}>
+                  {modelOptions.map((option) => (
+                    <option key={option.id} value={option.id} disabled={option.id === HAIKU_MODEL && haikuDisabled}>
+                      {option.name}{option.id === HAIKU_MODEL && haikuDisabled ? ' — source limit exceeded' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
 
           <div className="brainstorm-messages">
             {messages.length === 0 && (
               <div className="brainstorm-welcome">
-                <p className="project-eyebrow">Start with the record</p>
-                <h1>What should we work through?</h1>
-                <p>Roma has the question presented and {project.sources?.length || 'no'} source{project.sources?.length === 1 ? '' : 's'} in context.</p>
+                <p className="project-eyebrow">{mode === 'write' ? 'Draft from the record' : 'Start with the record'}</p>
+                <h1>{mode === 'write' ? 'What should Roma draft?' : 'What should we work through?'}</h1>
+                <p>Roma has the question presented, current draft, and {project.sources?.length || 'no'} source{project.sources?.length === 1 ? '' : 's'} in context.</p>
                 <div className="quick-action-grid">
-                  {QUICK_ACTIONS.map(([label, prompt]) => (
+                  {(mode === 'write' ? WRITE_ACTIONS : QUICK_ACTIONS).map(([label, prompt]) => (
                     <button key={label} onClick={() => sendMessage(prompt)} disabled={sending}>{label}<span>→</span></button>
                   ))}
                 </div>
@@ -444,12 +566,32 @@ export default function ProjectWorkspace({
                     ))}
                   </div>
                 )}
+                {item.role === 'assistant' && item.content && !item.streaming && (item.mode === 'write' || (!item.mode && mode === 'write')) && (
+                  <button
+                    className="apply-draft-button"
+                    onClick={() => handleApplyToDraft(item.content, index, item.writeTarget || writeTarget)}
+                    disabled={savingDraft}
+                  >
+                    {savingDraft ? 'Applying…' : 'Apply to draft'}
+                  </button>
+                )}
               </article>
             ))}
             <div ref={chatEndRef} />
           </div>
 
           <form className="brainstorm-composer" onSubmit={handleSubmit}>
+            {mode === 'write' && (
+              <label className="write-target-control">
+                Target
+                <select value={writeTarget} onChange={(event) => setWriteTarget(event.target.value)}>
+                  <option value="append">Append to draft</option>
+                  <option value="whole">Replace whole draft</option>
+                  {draftSelection?.text && <option value="selection">Replace selected text</option>}
+                  {sections.map((section) => <option key={section.id} value={section.id}>Replace “{section.heading}”</option>)}
+                </select>
+              </label>
+            )}
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
@@ -473,6 +615,52 @@ export default function ProjectWorkspace({
             </div>
           </form>
         </section>
+
+        <aside className={`draft-pane ${mobilePane === 'draft' ? 'mobile-active' : ''}`}>
+          <div className="draft-toolbar">
+            <div>
+              <strong>Draft</strong>
+              <span>{draftWords} words · v{project.draft?.version || 0}</span>
+            </div>
+            <div className="draft-toolbar-actions">
+              <div className="draft-view-toggle">
+                <button className={draftView === 'edit' ? 'active' : ''} onClick={() => setDraftView('edit')}>Edit</button>
+                <button className={draftView === 'preview' ? 'active' : ''} onClick={() => setDraftView('preview')}>Preview</button>
+              </div>
+              <button className="project-text-button" onClick={handleCopyDraft} disabled={!draft}>Copy</button>
+            </div>
+          </div>
+          <div className="draft-document">
+            {draftView === 'edit' ? (
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onSelect={(event) => {
+                  const { selectionStart: start, selectionEnd: end, value } = event.currentTarget;
+                  setDraftSelection(end > start ? { start, end, text: value.slice(start, end) } : null);
+                }}
+                placeholder={'# Legal Memorandum\n\nStart writing here, or ask Roma to draft a section.'}
+                aria-label="Memo draft in Markdown"
+              />
+            ) : (
+              <div className="draft-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(draft || '*The draft is empty.*') }} />
+            )}
+          </div>
+          <div className="draft-footer">
+            <select defaultValue="" onChange={handleRestoreDraft} disabled={savingDraft || draftVersions.length === 0} aria-label="Restore a draft version">
+              <option value="" disabled>Version history</option>
+              {draftVersions.map((version) => (
+                <option key={version.version} value={version.version}>
+                  v{version.version} · {version.reason} · {formatDate(version.saved_at)}
+                </option>
+              ))}
+            </select>
+            <span className={draft !== savedDraft ? 'draft-dirty' : ''}>{draft !== savedDraft ? 'Unsaved changes' : 'Saved'}</span>
+            <button className="project-primary-button" onClick={handleManualDraftSave} disabled={savingDraft || draft === savedDraft}>
+              {savingDraft ? 'Saving…' : 'Save draft'}
+            </button>
+          </div>
+        </aside>
       </main>
     </div>
   );

@@ -24,6 +24,7 @@ profile at `users/{user_id}/settings/profile`.
 # Frontend
 cd frontend && npm ci
 cd frontend && npm run dev
+cd frontend && npm test
 cd frontend && npm run lint
 cd frontend && npm run build
 

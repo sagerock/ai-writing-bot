@@ -66,6 +66,28 @@ export const deleteProjectSource = (auth, projectId, sourceId) => (
   )
 );
 
+export const getProjectDraft = (auth, projectId) => (
+  projectRequest(auth, `/projects/${encodeURIComponent(projectId)}/draft`)
+);
+
+export const saveProjectDraft = (auth, projectId, markdown, reason = 'manual save') => (
+  projectRequest(auth, `/projects/${encodeURIComponent(projectId)}/draft`, {
+    method: 'PUT',
+    body: JSON.stringify({ markdown, reason }),
+  })
+);
+
+export const listProjectDraftVersions = (auth, projectId) => (
+  projectRequest(auth, `/projects/${encodeURIComponent(projectId)}/draft/versions`)
+);
+
+export const restoreProjectDraftVersion = (auth, projectId, version) => (
+  projectRequest(auth, `/projects/${encodeURIComponent(projectId)}/draft/restore`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  })
+);
+
 export const createProjectChat = (auth, projectId, chat = {}) => (
   projectRequest(auth, `/projects/${encodeURIComponent(projectId)}/chats`, {
     method: 'POST',
