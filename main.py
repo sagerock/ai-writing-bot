@@ -22,7 +22,6 @@ from pydantic import BaseModel, Field, model_validator
 from starlette.responses import StreamingResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pypdf import PdfReader
-import csv
 import base64
 import re
 from ddgs import DDGS
@@ -56,6 +55,7 @@ from cost_tracker import (
 )
 from llm_content import stream_chunk_text
 from message_storage import compact_messages_for_storage
+from source_extract import extract as extract_source
 
 # Stripe integration (optional - gracefully handle if not configured)
 try:
@@ -2642,7 +2642,14 @@ async def stripe_webhook(request: Request):
 
 
 # Background task to index document after quick upload
-def index_document_background(user_id: str, filename: str, text: str, file_content: bytes, content_type: str):
+def index_document_background(
+    user_id: str,
+    filename: str,
+    text: str,
+    file_content: bytes,
+    content_type: str,
+    project_name: str = "General",
+):
     """Index document in Qdrant and save to Cloud Storage in the background."""
     try:
         # Upload to Cloud Storage
@@ -2657,7 +2664,7 @@ def index_document_background(user_id: str, filename: str, text: str, file_conte
         try:
             rag = get_rag_service()
             if rag and text:
-                indexed_chunks = rag.index_document(user_id, filename, text, "General")
+                indexed_chunks = rag.index_document(user_id, filename, text, project_name)
                 print(f"Background: Indexed {filename} in Qdrant: {indexed_chunks} chunks")
         except Exception as e:
             print(f"Background: Failed to index in Qdrant: {e}")
@@ -2670,7 +2677,7 @@ def index_document_background(user_id: str, filename: str, text: str, file_conte
             "filename": filename,
             "contentType": content_type,
             "size": len(file_content),
-            "projectName": "General",
+            "projectName": project_name,
             "uploadedAt": firestore.SERVER_TIMESTAMP,
             "indexed": indexed_chunks > 0,
             "chunkCount": indexed_chunks,
@@ -2684,8 +2691,14 @@ def index_document_background(user_id: str, filename: str, text: str, file_conte
 
 # Quick file upload - extract text immediately, index in background
 @main_app.post("/upload_quick")
-async def upload_quick(background_tasks: BackgroundTasks, user: dict = Depends(get_current_user), file: UploadFile = File(...)):
+async def upload_quick(
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+    file: UploadFile = File(...),
+    project_name: str = Form("General"),
+):
     get_storage_bucket()
+    project_name = re.sub(r"[^A-Za-z0-9 _-]", "_", project_name).strip()[:120] or "General"
     # Text-based files
     text_extensions = ('.md', '.txt', '.pdf', '.csv', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.json', '.xml', '.yaml', '.yml', '.sh', '.bash', '.sql', '.java', '.c', '.cpp', '.h', '.go', '.rs', '.rb', '.php')
     # Image files (will be base64 encoded for vision models)
@@ -2713,27 +2726,17 @@ async def upload_quick(background_tasks: BackgroundTasks, user: dict = Depends(g
         is_image = False
 
         if filename_lower.endswith(text_extensions):
-            if filename_lower.endswith('.pdf'):
-                reader = PdfReader(io.BytesIO(file_content))
-                if len(reader.pages) > MAX_PDF_PAGES:
-                    raise HTTPException(status_code=413, detail="PDF has too many pages.")
-                text_pages = [page.extract_text() or "" for page in reader.pages]
-                text = "\n".join(text_pages)
-            elif filename_lower.endswith('.csv'):
-                # Parse CSV and format as readable text
-                csv_text = file_content.decode('utf-8')
-                reader = csv.reader(io.StringIO(csv_text))
-                rows = list(reader)
-                if rows:
-                    # Format as markdown table for better readability
-                    header = rows[0]
-                    text = "| " + " | ".join(header) + " |\n"
-                    text += "| " + " | ".join(["---"] * len(header)) + " |\n"
-                    for row in rows[1:]:
-                        text += "| " + " | ".join(row) + " |\n"
-            else:
-                # Plain text or code files
-                text = file_content.decode('utf-8')
+            extraction_types = {
+                ".pdf": "application/pdf",
+                ".csv": "text/csv",
+                ".md": "text/markdown",
+            }
+            extension = "." + filename_lower.rsplit(".", 1)[-1]
+            extraction_type = extraction_types.get(extension, "text/plain")
+            extraction = extract_source(file_content, extraction_type)
+            if extraction["kind"] == "page" and len(extraction["pages"]) > MAX_PDF_PAGES:
+                raise HTTPException(status_code=413, detail="PDF has too many pages.")
+            text = extraction["text"]
         elif filename_lower.endswith(image_extensions):
             # For images, encode as base64 for vision model
             is_image = True
@@ -2745,15 +2748,11 @@ async def upload_quick(background_tasks: BackgroundTasks, user: dict = Depends(g
                 raise HTTPException(status_code=400, detail="Image could not be processed safely.")
             text = f"[Image: {filename}]\n{image_data}"
         elif filename_lower.endswith('.docx'):
-            # Try to extract text from docx
-            try:
-                from docx import Document
-                doc = Document(io.BytesIO(file_content))
-                text = "\n".join([para.text for para in doc.paragraphs])
-            except ImportError:
-                text = "[Word document uploaded - python-docx not installed for text extraction]"
-            except Exception as e:
-                text = f"[Could not extract text from Word document: {e}]"
+            extraction = extract_source(
+                file_content,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            text = extraction["text"]
 
         # Truncate for chat context if too long (keep first 50k chars)
         display_text = text
@@ -2769,7 +2768,8 @@ async def upload_quick(background_tasks: BackgroundTasks, user: dict = Depends(g
             filename,
             "" if is_image else text,
             file_content,
-            content_type
+            content_type,
+            project_name,
         )
 
         return JSONResponse(content={
