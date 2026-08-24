@@ -66,6 +66,22 @@ export const deleteProjectSource = (auth, projectId, sourceId) => (
   )
 );
 
+export const updateProjectSourceLabel = (auth, projectId, sourceId, label) => (
+  projectRequest(
+    auth,
+    `/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}`,
+    { method: 'PATCH', body: JSON.stringify({ label }) },
+  )
+);
+
+export const getProjectSourceText = (auth, projectId, sourceId, location = null) => {
+  const query = location ? `?page=${encodeURIComponent(location)}` : '';
+  return projectRequest(
+    auth,
+    `/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/text${query}`,
+  );
+};
+
 export const getProjectDraft = (auth, projectId) => (
   projectRequest(auth, `/projects/${encodeURIComponent(projectId)}/draft`)
 );

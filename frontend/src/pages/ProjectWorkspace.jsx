@@ -12,10 +12,12 @@ import {
   formatApiError,
   getProject,
   getProjectChat,
+  getProjectSourceText,
   listProjectDraftVersions,
   restoreProjectDraftVersion,
   saveProjectDraft,
   updateProject,
+  updateProjectSourceLabel,
   uploadProjectSource,
 } from '../projectApi';
 import './Projects.css';
@@ -61,6 +63,26 @@ const sourceLocation = (citation) => {
   return 'source';
 };
 
+function SourceText({ data }) {
+  if (!data?.pages?.length) {
+    return <pre className="source-viewer-text">{data?.text || ''}</pre>;
+  }
+  return (
+    <div className="source-viewer-segments">
+      {data.pages.map((entry, index) => {
+        const location = entry.page || entry.paragraph || index + 1;
+        const label = data.kind === 'page' ? `Page ${location}` : `Paragraph ${location}`;
+        return (
+          <section key={`${label}-${entry.start}`} id={`source-location-${location}`}>
+            <div>{label}</div>
+            <pre>{data.text.slice(entry.start, entry.end)}</pre>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ProjectWorkspace({
   auth,
   user,
@@ -85,6 +107,9 @@ export default function ProjectWorkspace({
   const [writeTarget, setWriteTarget] = useState('append');
   const [draftSelection, setDraftSelection] = useState(null);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [sourceViewer, setSourceViewer] = useState(null);
+  const [editingSourceId, setEditingSourceId] = useState(null);
+  const [sourceLabel, setSourceLabel] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -170,6 +195,15 @@ export default function ProjectWorkspace({
     return () => window.removeEventListener('beforeunload', warnAboutUnsavedDraft);
   }, [draft, savedDraft]);
 
+  useEffect(() => {
+    if (!sourceViewer) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setSourceViewer(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [sourceViewer]);
+
   const sourcesByNumber = useMemo(() => Object.fromEntries(
     (project?.sources || []).map((source) => [source.source_num, source]),
   ), [project?.sources]);
@@ -212,6 +246,51 @@ export default function ProjectWorkspace({
       await loadProject();
     } catch (deleteError) {
       setError(deleteError.message);
+    }
+  };
+
+  const openSourceViewer = async (source, citation = null) => {
+    if (!source) return;
+    const location = citation?.page || citation?.paragraph || null;
+    setSourceViewer({ source, citation, location, loading: true, data: null, error: '' });
+    try {
+      const data = await getProjectSourceText(auth, projectId, source.id, location);
+      setSourceViewer((current) => current?.source.id === source.id && current.location === location
+        ? { ...current, loading: false, data }
+        : current);
+    } catch (viewerError) {
+      setSourceViewer((current) => current?.source.id === source.id && current.location === location
+        ? { ...current, loading: false, error: viewerError.message }
+        : current);
+    }
+  };
+
+  const moveSourceViewer = (delta) => {
+    if (!sourceViewer?.location) return;
+    const maximum = sourceViewer.source.map_kind === 'page'
+      ? sourceViewer.source.pages
+      : sourceViewer.source.paragraphs;
+    const nextLocation = sourceViewer.location + delta;
+    if (nextLocation < 1 || (maximum && nextLocation > maximum)) return;
+    openSourceViewer(sourceViewer.source, sourceViewer.source.map_kind === 'page'
+      ? { page: nextLocation }
+      : { paragraph: nextLocation });
+  };
+
+  const handleSourceLabelSave = async (event, source) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const nextLabel = sourceLabel.trim();
+    if (!nextLabel) return;
+    try {
+      const updated = await updateProjectSourceLabel(auth, projectId, source.id, nextLabel);
+      setProject((current) => ({
+        ...current,
+        sources: current.sources.map((item) => item.id === source.id ? updated : item),
+      }));
+      setEditingSourceId(null);
+    } catch (labelError) {
+      setError(labelError.message);
     }
   };
 
@@ -482,11 +561,31 @@ export default function ProjectWorkspace({
               {(project.sources || []).map((source) => (
                 <div className="source-row" key={source.id}>
                   <span className="source-number">{source.source_num}</span>
-                  <span className="source-copy">
-                    <strong>{source.label}</strong>
-                    <small>{source.pages ? `${source.pages} pages` : `${source.paragraphs || 0} paragraphs`} · {formatTokens(source.estimated_tokens)} tokens</small>
-                  </span>
-                  <button onClick={() => handleDeleteSource(source)} title="Remove source">×</button>
+                  {editingSourceId === source.id ? (
+                    <form className="source-label-form" onSubmit={(event) => handleSourceLabelSave(event, source)}>
+                      <input
+                        value={sourceLabel}
+                        onChange={(event) => setSourceLabel(event.target.value)}
+                        onClick={(event) => event.stopPropagation()}
+                        autoFocus
+                        maxLength={160}
+                        aria-label="Source label"
+                      />
+                      <button title="Save label">✓</button>
+                    </form>
+                  ) : (
+                    <button className="source-copy" onClick={() => openSourceViewer(source)} title="View extracted source text">
+                      <strong>{source.label}</strong>
+                      <small>{source.pages ? `${source.pages} pages` : `${source.paragraphs || 0} paragraphs`} · {formatTokens(source.estimated_tokens)} tokens</small>
+                    </button>
+                  )}
+                  <div className="source-row-actions">
+                    <button
+                      onClick={() => { setEditingSourceId(source.id); setSourceLabel(source.label); }}
+                      title="Rename source"
+                    >✎</button>
+                    <button onClick={() => handleDeleteSource(source)} title="Remove source">×</button>
+                  </div>
                 </div>
               ))}
               {!project.sources?.length && <p className="sidebar-empty">Add source files to ground every answer.</p>}
@@ -560,9 +659,13 @@ export default function ProjectWorkspace({
                 {item.citations?.length > 0 && (
                   <div className="message-citations" aria-label="Sources cited">
                     {item.citations.map((citation, citationIndex) => (
-                      <span key={`${citation.source_id}-${citationIndex}`}>
+                      <button
+                        key={`${citation.source_id}-${citationIndex}`}
+                        onClick={() => openSourceViewer(sourcesByNumber[citation.source_num], citation)}
+                        title="Open cited source location"
+                      >
                         [{citation.source_num}] {sourcesByNumber[citation.source_num]?.label || 'Source'} · {sourceLocation(citation)}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -662,6 +765,57 @@ export default function ProjectWorkspace({
           </div>
         </aside>
       </main>
+
+      {sourceViewer && (
+        <div
+          className="source-viewer-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSourceViewer(null);
+          }}
+        >
+          <section className="source-viewer" role="dialog" aria-modal="true" aria-labelledby="source-viewer-title">
+            <header>
+              <div>
+                <p className="project-eyebrow">Source [{sourceViewer.source.source_num}]</p>
+                <h2 id="source-viewer-title">{sourceViewer.source.label}</h2>
+                <span>{sourceViewer.source.filename}</span>
+              </div>
+              <button onClick={() => setSourceViewer(null)} title="Close source viewer">×</button>
+            </header>
+            <div className="source-viewer-locationbar">
+              <span>
+                {sourceViewer.location
+                  ? `${sourceViewer.source.map_kind === 'page' ? 'Page' : 'Paragraph'} ${sourceViewer.location}`
+                  : 'Complete extracted text'}
+              </span>
+              {sourceViewer.location && (
+                <div>
+                  <button onClick={() => moveSourceViewer(-1)} disabled={sourceViewer.location <= 1}>← Previous</button>
+                  <button
+                    onClick={() => moveSourceViewer(1)}
+                    disabled={sourceViewer.location >= (sourceViewer.source.pages || sourceViewer.source.paragraphs || Infinity)}
+                  >Next →</button>
+                  <button onClick={() => openSourceViewer(sourceViewer.source)}>View all</button>
+                </div>
+              )}
+            </div>
+            <div className="source-viewer-content">
+              {sourceViewer.loading ? (
+                <div className="source-viewer-state">Loading source text…</div>
+              ) : sourceViewer.error ? (
+                <div className="project-error">{sourceViewer.error}</div>
+              ) : (
+                <SourceText data={sourceViewer.data} />
+              )}
+            </div>
+            <footer>
+              Extracted text may differ from the original file’s visual formatting.
+              {sourceViewer.citation?.span?.text && <strong>Citation: {sourceViewer.citation.span.text}</strong>}
+            </footer>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
