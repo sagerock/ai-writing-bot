@@ -14,7 +14,6 @@ export default function WorkspaceHeader({
     <header className="App-header project-app-header">
       <div className="project-brand-cluster">
         <Link to="/chat" className="project-brand" aria-label="RomaLume quick chat">
-          <img src="/logo.png" alt="" className="header-logo" />
           <span>RomaLume</span>
         </Link>
         {onToggleSidebar && (

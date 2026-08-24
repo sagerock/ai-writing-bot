@@ -22,10 +22,6 @@ header.project-app-header {
   font: 600 1.3rem 'Cormorant Garamond', Georgia, serif;
 }
 
-.project-brand .header-logo {
-  height: 42px;
-}
-
 .project-sidebar-toggle {
   margin-left: 4px;
 }
@@ -85,7 +81,6 @@ header.project-app-header {
     margin-left: 14px;
   }
 
-  .project-brand span,
   .project-app-header .user-controls > span {
     display: none;
   }
@@ -94,10 +89,6 @@ header.project-app-header {
 @media (max-width: 700px) {
   .project-app-header {
     min-height: 50px;
-  }
-
-  .project-brand .header-logo {
-    height: 34px;
   }
 
   .project-primary-nav {
