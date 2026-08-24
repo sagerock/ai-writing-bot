@@ -131,6 +131,7 @@ export default function ProjectWorkspace({
   const [mobilePane, setMobilePane] = useState('chat');
   const abortRef = useRef(null);
   const chatEndRef = useRef(null);
+  const draftEditorRef = useRef(null);
 
   const loadProject = useCallback(async ({ selectNewest = false } = {}) => {
     const data = await getProject(auth, projectId);
@@ -202,6 +203,13 @@ export default function ProjectWorkspace({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (draftView !== 'edit' || !draftEditorRef.current) return;
+    const editor = draftEditorRef.current;
+    editor.style.height = 'auto';
+    editor.style.height = `${Math.max(editor.scrollHeight, window.innerHeight * 0.7)}px`;
+  }, [draft, draftView]);
 
   useEffect(() => {
     const warnAboutUnsavedDraft = (event) => {
@@ -761,6 +769,7 @@ export default function ProjectWorkspace({
           <div className="draft-document">
             {draftView === 'edit' ? (
               <textarea
+                ref={draftEditorRef}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 onSelect={(event) => {
