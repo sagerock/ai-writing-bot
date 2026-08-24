@@ -19,6 +19,7 @@ from qdrant_client.models import (
 from openai import OpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rag_identity import stable_point_id
+from rag_chunks import split_source_chunks
 
 def retry_on_timeout(func, max_retries=3, delay=2):
     """Retry a function on timeout with exponential backoff."""
@@ -102,6 +103,11 @@ class RAGService:
             chunk_overlap=800,    # ~200 tokens overlap
             separators=["\n\n", "\n", ". ", " ", ""]
         )
+        self.project_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=2000,
+            chunk_overlap=400,
+            separators=["\n\n", "\n", ". ", " ", ""],
+        )
         self._ensure_collection()
 
     def _ensure_collection(self):
@@ -148,35 +154,28 @@ class RAGService:
         self.delete_document(user_id, filename, document_key=source_id)
 
         # Split into chunks
-        chunks = self.splitter.split_text(text)
-        if not chunks:
+        splitter = self.project_splitter if project_id else self.splitter
+        chunk_records = split_source_chunks(
+            text,
+            splitter.split_text,
+            page_map if project_id else None,
+        )
+        if not chunk_records:
             return 0
 
         # Get embeddings for all chunks
+        chunks = [chunk for chunk, _ in chunk_records]
         embeddings = self._get_embeddings(chunks)
 
         # Create points for Qdrant
         document_id = f"{user_id}:{source_id or filename}"
         points = []
-        previous_chunk_start = 0
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        for i, ((chunk, location), embedding) in enumerate(
+            zip(chunk_records, embeddings)
+        ):
             # Python's built-in hash is randomized between processes. Use a stable
             # digest so re-indexing always addresses the same Qdrant points.
             point_id = stable_point_id(document_id, i)
-            chunk_start = text.find(chunk, max(0, previous_chunk_start))
-            if chunk_start < 0:
-                chunk_start = text.find(chunk)
-            if chunk_start < 0:
-                chunk_start = previous_chunk_start
-            previous_chunk_start = chunk_start + 1
-            location = {}
-            for entry in page_map or []:
-                if entry.get("start", 0) <= chunk_start < entry.get("end", 0):
-                    if "page" in entry:
-                        location["page"] = entry["page"]
-                    if "paragraph" in entry:
-                        location["paragraph"] = entry["paragraph"]
-                    break
             payload = {
                 "user_id": user_id,
                 "filename": filename,
@@ -315,20 +314,32 @@ class RAGService:
             List of documents with filename, project_name, and chunk_count
         """
         try:
-            # Use scroll to get all points for this user
-            results, _ = self.qdrant.scroll(
-                collection_name=COLLECTION_NAME,
-                scroll_filter=Filter(
-                    must=[
-                        FieldCondition(
-                            key="user_id",
-                            match=MatchValue(value=user_id)
-                        )
-                    ]
-                ),
-                limit=1000,
-                with_payload=["filename", "project_name", "source_id", "chunk_index"]
-            )
+            # Use paginated scroll so large projects are not truncated at 1,000 chunks.
+            results = []
+            offset = None
+            while True:
+                page, offset = self.qdrant.scroll(
+                    collection_name=COLLECTION_NAME,
+                    scroll_filter=Filter(
+                        must=[
+                            FieldCondition(
+                                key="user_id",
+                                match=MatchValue(value=user_id)
+                            )
+                        ]
+                    ),
+                    limit=1000,
+                    offset=offset,
+                    with_payload=[
+                        "filename",
+                        "project_name",
+                        "source_id",
+                        "chunk_index",
+                    ],
+                )
+                results.extend(page)
+                if offset is None:
+                    break
 
             # Aggregate by document
             docs = {}

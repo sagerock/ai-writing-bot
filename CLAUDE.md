@@ -28,14 +28,15 @@ cd frontend && npm run lint
 cd frontend && npm run build
 
 # Backend verification
-python -m compileall -q main.py projects.py project_store.py source_extract.py llm_content.py rag_service.py rag_identity.py message_storage.py cost_tracker.py
+python -m compileall -q main.py projects.py project_store.py project_context.py project_prompt.py source_extract.py llm_content.py rag_service.py rag_identity.py rag_chunks.py message_storage.py cost_tracker.py
 python -m unittest discover -s tests -v
 
-# Firestore integration tests (emulator port 8082)
-cd frontend && npx firebase-tools@15.28.1 emulators:exec --only firestore --project demo-romalume "PYTHONPATH=.. ../.venv/bin/python -m unittest discover -s ../tests -p 'test_projects_firestore.py' -v"
+# Firestore integration tests (emulator port 8082; run from the repo root)
+npx firebase-tools@15.28.1 --config frontend/firebase.json emulators:exec --only firestore --project demo-romalume ".venv/bin/python -m unittest discover -s tests -p 'test_project*_firestore.py' -v"
 
 # Live smoke test of every catalog model (needs provider keys; Railway holds them)
-railway run -- python scripts/smoke_test_models.py
+railway run -- .venv/bin/python scripts/smoke_test_models.py
+railway run -- .venv/bin/python scripts/smoke_test_models.py --project fixture
 
 # Frontend deployment
 cd frontend && npx firebase-tools@15.28.1 deploy --only hosting,firestore:rules,storage

@@ -201,6 +201,14 @@ class ProjectStore:
     def get_project_record(self, user_id: str, project_id: str) -> dict[str, Any]:
         return _with_id(self._require_project(user_id, project_id))
 
+    def list_sources(self, user_id: str, project_id: str) -> list[dict[str, Any]]:
+        project_ref = self._project_ref(user_id, project_id)
+        self._require_project(user_id, project_id)
+        return _stream_sorted(
+            project_ref.collection("sources"),
+            key=lambda source: source.get("source_num", 0),
+        )
+
     def update_project(
         self, user_id: str, project_id: str, changes: dict[str, Any]
     ) -> dict[str, Any]:
