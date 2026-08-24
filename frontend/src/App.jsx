@@ -18,6 +18,8 @@ const PricingPage = lazy(() => import('./pages/PricingPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const AuthActionPage = lazy(() => import('./pages/AuthActionPage'));
 const SubscriptionSuccess = lazy(() => import('./pages/SubscriptionSuccess'));
+const ProjectsHome = lazy(() => import('./pages/ProjectsHome'));
+const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace'));
 
 // IMPORTANT: Replace with your app's Firebase project configuration
 const firebaseConfig = {
@@ -99,6 +101,10 @@ function App() {
         let title = base;
         if (path === '/chat') {
             title = "RomaLume - Chat";
+        } else if (path === '/projects') {
+            title = "RomaLume - Projects";
+        } else if (path.startsWith('/projects/')) {
+            title = "RomaLume - Project Workspace";
         } else if (path === '/account') {
             title = "RomaLume - My Account";
         } else if (path === '/admin') {
@@ -252,7 +258,7 @@ function App() {
 
     const handleLoadArchive = async (archiveId) => {
         if (!window.confirm("Are you sure you want to load this archive? It will replace your current chat.")) {
-            return;
+            return false;
         }
         try {
             const token = await auth.currentUser.getIdToken();
@@ -266,10 +272,17 @@ function App() {
             if (data.messages) {
                 setHistory(data.messages);
             }
+            return true;
         } catch (err) {
             console.error(err);
             alert('Failed to load archive.');
+            return false;
         }
+    };
+
+    const handleOpenQuickChat = async (archiveId) => {
+        const loaded = await handleLoadArchive(archiveId);
+        if (loaded) navigate('/chat');
     };
 
     const handleSelectDocument = (contextMessage) => {
@@ -322,6 +335,7 @@ function App() {
                     </div>
                     <div className="user-controls">
                         {user.displayName && <span>Welcome, {user.displayName}</span>}
+                        <Link to="/projects" className="account-button" title="Projects">Projects</Link>
                         <button
                             className="theme-toggle-btn"
                             onClick={handleToggleDarkMode}
@@ -402,6 +416,31 @@ function App() {
             <Route path="/chat" element={
                 <ProtectedRoute user={user}>
                     {renderChatInterface()}
+                </ProtectedRoute>
+            } />
+            <Route path="/projects" element={
+                <ProtectedRoute user={user}>
+                    <ProjectsHome
+                        auth={auth}
+                        user={user}
+                        isSubscriber={isSubscriber}
+                        darkMode={userSettings.darkMode}
+                        onToggleDarkMode={handleToggleDarkMode}
+                        onLogout={handleLogout}
+                        onOpenQuickChat={handleOpenQuickChat}
+                    />
+                </ProtectedRoute>
+            } />
+            <Route path="/projects/:projectId" element={
+                <ProtectedRoute user={user}>
+                    <ProjectWorkspace
+                        auth={auth}
+                        user={user}
+                        isSubscriber={isSubscriber}
+                        darkMode={userSettings.darkMode}
+                        onToggleDarkMode={handleToggleDarkMode}
+                        onLogout={handleLogout}
+                    />
                 </ProtectedRoute>
             } />
             <Route path="/account" element={

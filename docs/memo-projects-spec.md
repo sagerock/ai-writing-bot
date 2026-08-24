@@ -1,6 +1,6 @@
 # Memo Projects — design spec (draft 2, 2026-08-24)
 
-Status: **implementation in progress.** Steps 1–3 are complete locally as of
+Status: **implementation in progress.** Steps 1–4 are complete as of
 2026-08-24. Draft 2 — revised for handoff to an implementer (human or AI) who has
 not seen the discussion behind it.
 
