@@ -190,6 +190,33 @@ MODELS_CATALOG = [
     },
 ]
 
+# Compatibility aliases for clients that still have the pre-August-2026 model
+# catalog cached. Keep these at the API boundary; retired IDs never reach a
+# provider and are never shown in the current catalog.
+MODEL_ID_ALIASES = {
+    "gpt-5.5": "gpt-5.6-sol",
+    "gpt-5-nano-2025-08-07": "gpt-5.6-luna",
+    "gpt-5-mini-2025-08-07": "gpt-5.6-terra",
+    "gpt-5.2-2025-12-11": "gpt-5.6-terra",
+    "gpt-5.2-pro-2025-12-11": "gpt-5.6-sol",
+    "gpt-5.2-codex-2025-12-11": "gpt-5.6-sol",
+    "claude-opus-4-7": "claude-opus-5",
+    "claude-opus-4-6": "claude-opus-5",
+    "claude-sonnet-4-6": "claude-sonnet-5",
+    "claude-haiku-4-5": "claude-haiku-4-5-20251001",
+    "gemini-3.1-flash-lite-preview": "gemini-3.5-flash-lite",
+    "gemini-3-pro-preview": "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview": "gemini-3.7-flash",
+    "gemini-2.5-pro": "gemini-3.7-flash",
+    "gemini-2.5-flash": "gemini-3.7-flash",
+    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+}
+
+
+def normalize_model_id(model_id: str) -> str:
+    """Translate a retired client-facing model ID to its current replacement."""
+    return MODEL_ID_ALIASES.get(model_id, model_id)
+
 def get_models_catalog():
     """Return the full models catalog for the frontend."""
     return MODELS_CATALOG

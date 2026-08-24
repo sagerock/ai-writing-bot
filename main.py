@@ -47,7 +47,13 @@ from google.cloud.firestore_v1.query import Query
 from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.document import DocumentReference
 from google.api_core.exceptions import AlreadyExists
-from cost_tracker import estimate_tokens, estimate_request_cost, calculate_cost_cents, get_models_catalog
+from cost_tracker import (
+    calculate_cost_cents,
+    estimate_request_cost,
+    estimate_tokens,
+    get_models_catalog,
+    normalize_model_id,
+)
 from message_storage import compact_messages_for_storage
 
 # Stripe integration (optional - gracefully handle if not configured)
@@ -492,6 +498,7 @@ class ChatRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_request(self):
+        self.model = normalize_model_id(self.model)
         if self.model not in ALLOWED_MODEL_IDS:
             raise ValueError("Unsupported model.")
         if sum(len(message.content) for message in self.history) > MAX_CHAT_CONTENT_CHARS:
@@ -506,6 +513,7 @@ class ArchiveRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_archive(self):
+        self.model = normalize_model_id(self.model)
         if self.model not in ALLOWED_MODEL_IDS:
             raise ValueError("Unsupported model.")
         if sum(len(message.content) for message in self.history) > MAX_CHAT_CONTENT_CHARS:
@@ -538,6 +546,7 @@ class UserChatSettings(BaseModel):
 
     @model_validator(mode="after")
     def validate_default_model(self):
+        self.default_model = normalize_model_id(self.default_model)
         if self.default_model not in ALLOWED_MODEL_IDS:
             raise ValueError("Unsupported default model.")
         return self
@@ -4070,6 +4079,7 @@ async def get_user_chat_settings(user: dict = Depends(get_current_user)):
         user_data = user_doc.to_dict()
         settings = {**default_settings, **user_data.get("chat_settings", {})}
         # Retired catalog choices may still be stored on older accounts.
+        settings["default_model"] = normalize_model_id(settings["default_model"])
         if settings["default_model"] not in ALLOWED_MODEL_IDS:
             settings["default_model"] = "auto"
         return settings

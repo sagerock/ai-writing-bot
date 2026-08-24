@@ -5,6 +5,7 @@ from cost_tracker import (
     calculate_cost_cents,
     get_model_pricing,
     get_models_catalog,
+    normalize_model_id,
 )
 
 
@@ -50,6 +51,14 @@ class CostTrackerTests(unittest.TestCase):
 
     def test_sonar_cost_includes_default_request_fee(self):
         self.assertAlmostEqual(calculate_cost("sonar-pro", 0, 0), 0.006)
+
+    def test_retired_model_ids_map_to_current_replacements(self):
+        self.assertEqual(
+            normalize_model_id("gemini-3-pro-preview"),
+            "gemini-3.1-pro-preview",
+        )
+        self.assertEqual(normalize_model_id("gpt-5.5"), "gpt-5.6-sol")
+        self.assertEqual(normalize_model_id("sonar-pro"), "sonar-pro")
 
 
 if __name__ == "__main__":

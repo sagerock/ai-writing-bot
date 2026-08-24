@@ -8,6 +8,20 @@ import NeuralLogPanel from './NeuralLogPanel';
 import { API_URL } from '../apiConfig';
 import { useModelOptions } from '../useModelOptions';
 
+const formatApiError = (payload) => {
+  const detail = payload?.detail ?? payload?.error ?? payload;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item?.msg || item?.message || JSON.stringify(item))
+      .join('; ');
+  }
+  if (detail && typeof detail === 'object') {
+    return detail.message || JSON.stringify(detail);
+  }
+  return 'An error occurred';
+};
+
 const Chat = ({
   auth,
   history,
@@ -173,8 +187,8 @@ const Chat = ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'An error occurred');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(formatApiError(errorData));
       }
 
       const reader = response.body.getReader();
