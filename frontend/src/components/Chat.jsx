@@ -89,12 +89,18 @@ const Chat = ({
     return () => scrollContainer.removeEventListener('scroll', updateScrollState);
   }, []);
 
-  // Auto-scroll to bottom when new messages are added (only if user hasn't scrolled up)
+  // Auto-scroll to the bottom of the conversation column when new messages
+  // are added (only if user hasn't scrolled up). Scroll to the chat column's
+  // own bottom edge rather than the shell's scrollHeight so a taller sibling
+  // can never push the conversation off the top of the viewport.
   useEffect(() => {
     const scrollContainer = chatWindowRef.current?.closest('.quick-chat-shell');
-    if (scrollContainer && !userScrolledUp.current) {
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-    }
+    if (!scrollContainer || userScrolledUp.current) return;
+    const column = chatWindowRef.current.closest('.chat-area') || chatWindowRef.current;
+    const columnBottom = column.getBoundingClientRect().bottom
+      - scrollContainer.getBoundingClientRect().top
+      + scrollContainer.scrollTop;
+    scrollContainer.scrollTop = Math.max(0, columnBottom - scrollContainer.clientHeight);
   }, [history, forceRerender]);
 
   // Reset scroll lock when loading starts (new message being sent)

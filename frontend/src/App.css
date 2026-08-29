@@ -5355,13 +5355,11 @@ html.dark .admin-panel p {
 .quick-chat-shell .chat-container {
   flex: none;
   height: auto;
-  min-height: calc(100vh - 130px);
   overflow: visible;
 }
 
 .quick-chat-shell .chat-window {
   flex: none;
-  min-height: 55vh;
   overflow: visible;
 }
 
@@ -5372,19 +5370,15 @@ html.dark .admin-panel p {
 }
 
 @media (min-width: 769px) {
+  /* The sidebar pins to the viewport and scrolls its own list, so its
+     content never dictates the page height (an off-screen "closed" panel
+     was stretching the page and sending the auto-scroll into empty space). */
   .quick-chat-shell .left-panel {
-    min-height: calc(100vh - 81px);
-    overflow: visible;
-    align-self: stretch;
-  }
-
-  .quick-chat-shell .recent-chats {
-    height: auto;
-  }
-
-  .quick-chat-shell .chat-list {
-    flex: none;
-    overflow: visible;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    align-self: flex-start;
+    overflow: hidden;
   }
 }
 
@@ -5408,12 +5402,4 @@ html.dark .admin-panel p {
     display: none;
   }
 
-  .quick-chat-shell .recent-chats {
-    height: auto;
-  }
-
-  .quick-chat-shell .chat-list {
-    flex: none;
-    overflow: visible;
-  }
 }
