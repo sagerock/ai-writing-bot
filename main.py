@@ -24,7 +24,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pypdf import PdfReader
 import base64
 import re
-from ddgs import DDGS
+from web_search import web_search
 
 # RAG Service (lazy import to avoid startup failure if Qdrant unavailable)
 def get_rag_service():
@@ -284,28 +284,6 @@ def send_to_email_marketing_background(email: str, tags: List[str] = None):
             print(f"✗ Email marketing API error: HTTP {response.status_code}")
     except Exception as e:
         print(f"✗ Failed to send to email marketing: {e}")
-
-
-def web_search(query: str, max_results: int = 5) -> list:
-    """Resilient DuckDuckGo/multi-engine search.
-
-    DDG frequently blocks datacenter IPs (e.g. Railway), returning
-    'No results found'. Retry across backends so a single engine being
-    blocked doesn't kill the feature. Returns [] if everything fails.
-    """
-    backends = ["auto", "google, bing, brave, mojeek, yahoo, duckduckgo"]
-    last_err = None
-    for backend in backends:
-        try:
-            results = list(DDGS().text(query, max_results=max_results, backend=backend))
-            if results:
-                return results
-        except Exception as e:
-            last_err = e
-            print(f"web_search backend='{backend}' failed: {type(e).__name__}: {e}")
-    if last_err:
-        print(f"web_search exhausted all backends: {type(last_err).__name__}: {last_err}")
-    return []
 
 
 # Anthropic rejects images over ~5MB or with very large dimensions
@@ -1155,7 +1133,7 @@ async def generate_gpt5_response(
                     search_snippets.append(f"Result: {title} - {body}")
 
             except Exception as e:
-                print(f"DuckDuckGo search failed for GPT-5: {type(e).__name__}: {e}")
+                print(f"Web search failed for GPT-5: {type(e).__name__}: {e}")
 
             today = datetime.now().strftime('%B %d, %Y')
             if search_snippets:
@@ -1624,7 +1602,6 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             user_query = history_messages[last_user_msg_index]['content']
             search_snippets = []
             try:
-                # Resilient multi-engine web search (DDG blocks Railway's IP)
                 print("Starting web search")
                 results = await asyncio.to_thread(web_search, user_query, 5)
                 print(f"Web search returned {len(results)} results")
@@ -1636,7 +1613,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
                     search_snippets.append(f"Result: {title} - {body}")
 
             except Exception as e:
-                print(f"DuckDuckGo search failed: {type(e).__name__}: {e}")
+                print(f"Web search failed: {type(e).__name__}: {e}")
 
             # Always inject the date and search context, even if search failed
             today = datetime.now().strftime('%B %d, %Y')

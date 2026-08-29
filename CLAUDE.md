@@ -29,7 +29,7 @@ cd frontend && npm run lint
 cd frontend && npm run build
 
 # Backend verification
-python -m compileall -q main.py projects.py project_store.py project_context.py project_prompt.py project_templates.py source_extract.py llm_content.py rag_service.py rag_identity.py rag_chunks.py message_storage.py cost_tracker.py
+python -m compileall -q main.py projects.py project_store.py project_context.py project_prompt.py project_templates.py source_extract.py llm_content.py rag_service.py rag_identity.py rag_chunks.py message_storage.py cost_tracker.py web_search.py
 python -m unittest discover -s tests -v
 
 # Firestore integration tests (emulator port 8082; run from the repo root)
