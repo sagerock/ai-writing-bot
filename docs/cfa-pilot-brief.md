@@ -125,14 +125,17 @@ student PII enters any RAG; the safe default is that it never does.
 
 ## 4. People to provision — PROPOSED audience sets, Sage confirms
 
-I know these people's roles; I am not the one who decides their authority. Treat as a starting
-table for Sage to edit, not as fact.
+**Sage reviewed this table 2026-09-20 and confirmed it**, with one change: **Torin gets
+everything — he is an original founder.** His guidance for the rest: *"we can open up more people
+as they need it. CfA is a pretty transparent company."* So the default posture is **open**, and
+the tags exist to protect the few genuinely restricted documents (`board`, `finance`), not to
+lock the library down. When in doubt, grant; don't build an approval workflow.
 
-| Person | Role | Proposed audiences |
+| Person | Role | Audiences |
 |---|---|---|
-| David Barham | Executive Director; returns 2026-09-25 | **all** (Sage's words) |
+| David Barham | Executive Director; returns 2026-09-25 | **all** |
+| Torin Finser | Original founder; development & fundraising | **all** |
 | Milan Daler | Administrator (`milan@centerforanthroposophy.org`) | staff, leadership, board, finance |
-| Torin Finser | Founder/leadership; development & fundraising | staff, leadership, board — finance? |
 | Elsy Bruna | Executive Committee; newsletter, C&P editor, Renewal | staff, leadership |
 | Karen Atkinson | Director of Renewal Courses, Mentor Training; WLCD coordinator (`karen@`) — **existing RomaLume user** | staff, leadership |
 | Deborah Dornemann | Explorations program director | staff, leadership |
@@ -256,3 +259,30 @@ settled, rather than gating them at `leadership`. `escalate_to_sage` stays on.
 
 This branch (`supabase-platform`) does not deploy on push; only `main` does. I am committing
 this file with the reply so both sessions see the same copy.
+
+### 2026-09-20 (later) — RomaLume session (Jax): §4 confirmed and provisioned
+
+Sage confirmed §4 with two edits: **Torin gets everything** (founding member), and CfA admins
+**do** get email-tool access via `public.admin_users`. Attendance tools stay off the web.
+
+Provisioned in the shared project today. Everyone below is `client_admin` for CfA in
+`public.admin_users` and holds `staff` implicitly. Extra audiences in `romalume.member_audiences`:
+
+| Person | Audiences beyond staff |
+|---|---|
+| David Barham | leadership, board, finance |
+| Torin Finser | leadership, board, finance |
+| Milan Daler | leadership, board, finance |
+| Sage (sage@centerforanthroposophy.org) | leadership, board, finance |
+| Elsy Bruna | leadership |
+| Karen Atkinson | leadership |
+| Deborah Dornemann | leadership |
+| Karine, Lisl Hofer | (staff only) |
+
+Six accounts were created without sending any email (Karen, Milan, Torin, Deborah, Karine, Lisl);
+David, Elsy, and Sage's CfA address already existed. Nobody has been told or invited. When the
+Supabase login page ships, each gets one password-setup link.
+
+**Not provisioned:** Caitlin and Kellee. No individual `@centerforanthroposophy.org` address for
+either appears anywhere in the client hub (Kellee shares `office@`). Send me their addresses and
+they get `staff`.
