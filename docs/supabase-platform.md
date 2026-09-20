@@ -48,8 +48,11 @@ objects) was taken first into the gitignored `.firebase-export/` folder.
    auth surface. `/user/me` supplies role and school branding after login.
 4. **Done: hosting on Cloudflare Pages.** Project `romalume` builds `frontend`
    from `sagerock/ai-writing-bot` on push to `main` (`romalume.pages.dev`).
-5. **Cutover (needs `DATABASE_URL`).** Merge the branch, confirm Railway boots,
-   then point `romalume.com` at Pages and remove the Firebase Hosting records.
+5. **Done: cutover, 2026-09-20.** `main` deployed to Railway with the API
+   connecting as the dedicated `romalume_app` role; `romalume.com` and `www`
+   are proxied CNAMEs to `romalume.pages.dev`; the Firebase Hosting records
+   and the Firebase credential on Railway are gone. The Firebase project
+   itself still exists and can be deleted once the export is confirmed.
 6. **Later: persona branding UI and the school library** (see
    `docs/cfa-pilot-brief.md`).
 
