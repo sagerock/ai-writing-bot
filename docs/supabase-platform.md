@@ -17,6 +17,8 @@ administrator has one identity across RomaLume, the email tool, and Ask.
 | Uploaded files | Supabase Storage bucket `romalume-sources`, path `<client_id>/<project_id>/<source_id>/<filename>`. |
 | Billing | Pilot schools are comped at the client level (`romalume.school_settings.comped`). Individual Stripe subscriptions remain for non-school users until the cutover. |
 | Branding | Each school sees RomaLume under its Ask persona's name (`school_settings.brand_name`, e.g. Iris for CfA), with the persona's mailbox in `persona_email`. No school-facing RomaLume name. Decided 2026-09-20. |
+| Audiences within a school | Library documents carry one tag: `staff`, `leadership`, `board`, `finance`. People hold a set per school in `romalume.member_audiences`. Enforced in Postgres by `romalume.can_read_audience()`; Qdrant carries the same tag and pre-filters. From `docs/cfa-pilot-brief.md` §1a. |
+| School voice | `school_settings.voice_notes`, editable by leadership, derived from published content. |
 | Pilot | Center for Anthroposophy. Karen Atkinson's individual Stripe subscription ends 2026-10-20 and her account is comped from 2026-09-20. |
 | Deadline | Usable by CfA administrators before the AWSNA workshop, 2026-11-05 and 2026-11-06. |
 
