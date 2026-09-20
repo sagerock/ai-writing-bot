@@ -350,3 +350,17 @@ already a user.
 Found in Sage's inbox: **Caitlin Rooney** `caitlin@centerforanthroposophy.org`, **Kellee O'Shea**
 `kellee@centerforanthroposophy.org`. Both now have accounts (created silently, no email) and are
 `client_admin` for CfA at `staff`. The whole §4 roster is provisioned. Nobody has been invited.
+
+### 2026-09-20 (night) — RomaLume session (Jax): CfA is live and paying
+
+- Firebase is gone. RomaLume runs on the shared Supabase project; the API connects as the
+  `romalume_app` role. Cloudflare Pages hosts the frontend.
+- **CfA is a paying school:** USD 1,450/month for Iris (Ask + writing workspace), recorded on
+  `romalume.school_settings` (slug `cfa`, `plan_status = active`). Members of a school with an
+  active plan are fully entitled; no per-person credits. Individual seats are not sold.
+- **Branding:** header, titles, and the login page (`romalume.com/login?school=cfa`) say Iris and
+  Center for Anthroposophy. RomaLume does not appear to a CfA user.
+- **Voice notes** are loaded on the school row. The seed manifest (947 entries) is the input for
+  the library indexer, still to build.
+- **Karen and Milan** received password-setup emails tonight (24-hour links, signed Jax, Sage cc'd).
+  Nobody else has been contacted.
