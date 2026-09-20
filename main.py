@@ -1675,13 +1675,25 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     response_accum = ""
     try:
         try:
+            last_metadata = {}
             async for chunk in llm.astream(llm_history):
+                last_metadata = getattr(chunk, "response_metadata", None) or last_metadata
                 token = stream_chunk_text(chunk.content) if hasattr(chunk, 'content') else str(chunk)
                 if not token:
                     continue
                 response_accum += token
                 # Use JSON encoding to safely transport tokens with special characters
                 yield f"data: {json.dumps(token)}\n\n"
+            if not response_accum and last_metadata.get("stop_reason") == "refusal":
+                # Anthropic safety classifiers return HTTP 200 with no text and
+                # stop_reason "refusal". Without this the user saw a blank reply.
+                print(f"Model refusal for {req.model}: {last_metadata}")
+                err_msg = (
+                    "\n\n⚠️ This model declined to answer this request. "
+                    "Please try a different model."
+                )
+                response_accum += err_msg
+                yield f"data: {json.dumps(err_msg)}\n\n"
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -3621,7 +3633,8 @@ MODEL_COSTS = {
     "gpt-5.2-pro": 0.19,        # $21.00 input / $168.00 output (premium)
     "gpt-5.2": 0.016,           # $1.75 input / $14.00 output (flagship)
     # Anthropic Claude
-    "claude-fable-5": 0.06,    # $10 input / $50 output
+    "claude-fable-5-1": 0.06,  # $10 input / $50 output
+    "claude-fable-5": 0.06,    # retired alias, same price
     "claude-opus-5": 0.03,     # $5 input / $25 output
     "claude-sonnet-5": 0.012,  # $2 input / $10 output
     "claude-opus-4-6": 0.03,   # historical

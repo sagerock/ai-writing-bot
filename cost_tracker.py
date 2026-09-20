@@ -27,12 +27,13 @@ MODEL_PRICING = {
     "gpt-5.2-codex": {"input": 1.75, "output": 14.00},
 
     # Current Anthropic Claude family
-    "claude-fable-5": {"input": 10.00, "output": 50.00},
+    "claude-fable-5-1": {"input": 10.00, "output": 50.00},
     "claude-opus-5": {"input": 5.00, "output": 25.00},
     "claude-sonnet-5": {"input": 2.00, "output": 10.00},
     "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
 
     # Historical Claude models
+    "claude-fable-5": {"input": 10.00, "output": 50.00},
     "claude-opus-4-7": {"input": 5.00, "output": 25.00},
     "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-opus-4-5": {"input": 5.00, "output": 25.00},
@@ -95,8 +96,8 @@ MODELS_CATALOG = [
     },
     # Anthropic Claude
     {
-        "id": "claude-fable-5",
-        "name": "Claude Fable 5",
+        "id": "claude-fable-5-1",
+        "name": "Claude Fable 5.1",
         "provider": "Anthropic",
         "category": "Claude",
         "description": "Anthropic's most capable widely released model",
@@ -200,6 +201,9 @@ MODEL_ID_ALIASES = {
     "gpt-5.2-2025-12-11": "gpt-5.6-terra",
     "gpt-5.2-pro-2025-12-11": "gpt-5.6-sol",
     "gpt-5.2-codex-2025-12-11": "gpt-5.6-sol",
+    # Fable 5 refuses RomaLume's citation contract (reasoning_extraction);
+    # Fable 5.1 answers it at the same price. Verified 2026-09-19.
+    "claude-fable-5": "claude-fable-5-1",
     "claude-opus-4-7": "claude-opus-5",
     "claude-opus-4-6": "claude-opus-5",
     "claude-sonnet-4-6": "claude-sonnet-5",

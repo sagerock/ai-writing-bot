@@ -28,7 +28,7 @@ class CostTrackerTests(unittest.TestCase):
                 "gpt-5.6-sol",
                 "gpt-5.6-terra",
                 "gpt-5.6-luna",
-                "claude-fable-5",
+                "claude-fable-5-1",
                 "claude-opus-5",
                 "claude-sonnet-5",
                 "claude-haiku-4-5-20251001",

@@ -5,7 +5,7 @@ const FALLBACK_MODELS = [
   { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', provider: 'OpenAI' },
   { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', provider: 'OpenAI' },
   { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', provider: 'OpenAI' },
-  { id: 'claude-fable-5', name: 'Claude Fable 5', provider: 'Anthropic' },
+  { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', provider: 'Anthropic' },
   { id: 'claude-opus-5', name: 'Claude Opus 5', provider: 'Anthropic' },
   { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'Anthropic' },
   { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', provider: 'Anthropic' },
