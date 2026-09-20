@@ -126,9 +126,15 @@ export async function reauthenticateWithCredential(_user, credential) {
 // Password-reset / email-action page. Supabase delivers the user here with a
 // recovery session already established from the link.
 export async function verifyPasswordResetCode() {
-  const { data } = await supabase.auth.getSession();
-  if (!data.session) throw new Error('Reset link is invalid or has expired.');
-  return data.session.user.email;
+  // The recovery link's code is exchanged for a session asynchronously on
+  // load, so wait briefly for it rather than failing on the first look.
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return data.session.user.email;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error('Reset link is invalid or has expired.');
 }
 
 export async function confirmPasswordReset(_auth, _code, newPassword) {

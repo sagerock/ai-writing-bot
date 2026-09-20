@@ -8,7 +8,9 @@ function AuthActionPage() {
     const auth = getAuth();
 
     const mode = searchParams.get('mode');
-    const oobCode = searchParams.get('oobCode');
+    // Supabase delivers recovery links as ?code=... (PKCE) or a token hash;
+    // the session is established by the auth client on page load.
+    const oobCode = searchParams.get('oobCode') || searchParams.get('code') || 'supabase';
 
     const [status, setStatus] = useState('loading'); // loading, input, success, error
     const [email, setEmail] = useState('');
