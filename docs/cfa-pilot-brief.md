@@ -286,3 +286,67 @@ Supabase login page ships, each gets one password-setup link.
 **Not provisioned:** Caitlin and Kellee. No individual `@centerforanthroposophy.org` address for
 either appears anywhere in the client hub (Kellee shares `office@`). Send me their addresses and
 they get `staff`.
+
+### 2026-09-20 — CfA session (Jax), reply 2
+
+Both deliverables are in this folder.
+
+**1. Seed-corpus manifest → `docs/cfa-seed-manifest.json`** (392 KB, 947 items, 22 exclusions).
+Your five fields on every item, plus `kind`, `retired`, `url`, `note` where useful. Counts:
+`staff` 928 · `leadership` 12 · `board` 0 (empty, as asked) · `finance` 7 (the two folders only,
+documents only). Things to know before you point the indexer at it:
+
+- **The 348 WordPress pages are a long tail, not a curated set.** 41 are flagged `retired: true`
+  (301 source in our 8/28 redirect exports, or a title that reads as copy/draft/old); the
+  9/14 sweep added ~58 more 301s that those exports may not hold — re-check against the live
+  Redirection list. Even among the 307 "live" pages, the real designed spine is ~30. **Prefer
+  `cfa-website/src/content/spine/*.md`** (the new site, git-backed, current) for program pages,
+  and treat the WordPress pages as backfill.
+- **Posts overlap.** `cfa-website/src/content/posts/` is the migrated Center & Periphery archive
+  (2010→) and duplicates the WordPress posts export by slug. Dedupe on slug; prefer the
+  cfa-website copy. The Fall 2026 issue is on branch `cp-fall-2026`, not yet on `main`.
+- **Finance is documents only.** From the audit folder I listed exactly one file (the workbook);
+  the other 20 are Gravity Forms entry dumps, Thinkific enrollments, Cvent rows, a donor's form
+  and QBO receipts — all in `excluded` with the reason. The HolyOps shared-drive P&L workbooks
+  are deliberately not listed; they are Milan's Drive and his call.
+- Renewal materials are four Drive folder URLs (`source_system: google_drive`,
+  `last_modified: null`) — enumerate with the Drive API.
+
+**2. Voice notes → `docs/cfa-voice-notes.md`**, 560 words, plain text, ready for
+`school_settings.voice_notes`. Derived from David's forewords, Torin's appeals, the Gerwin
+tribute and the Renewal page — not from anything private.
+
+**§4 is confirmed by Sage (9/20)** with one change already edited above: **Torin holds every
+tag** (original founder). His posture: *"we can open up more people as they need it. CfA is a
+pretty transparent company."* Default open.
+
+**Your question about `admin_users` granting email-tool access too is Sage's, not mine** — I've
+put it to him and will append his answer here. Don't provision until it lands.
+
+§5: agreed — attendance tools off the web entirely until the DPA, `escalate_to_sage` on. Thanks
+for the correction on branch deploys.
+
+### 2026-09-20 — CfA session (Jax), reply 3: Sage's answer on email-tool access
+
+**Keep them separate.** Sage 9/20: RomaLume/Iris membership must not grant `mail.sagerock.com`
+access by side effect. Please give RomaLume its own membership — a flag or a `romalume`-schema
+membership table keyed on `(client_id, user_id)` — rather than creating `public.admin_users`
+rows for CfA staff. Reasons on record: Caitlin is the only person authorized to initiate CfA
+campaigns, "Iris never sends," and a writing tool that hands out send capability is the exact
+failure we designed against.
+
+Consequence for your `user_audiences()` / `can_read_audience()`: they should read school
+membership from that romalume-side table, not from `admin_users.client_id`. Super admins
+unchanged.
+
+Nobody at CfA gets an `admin_users` row unless Sage grants it deliberately, one person at a
+time. With that settled, §4 is fully confirmed and you can provision when the membership
+model is in place: David and Torin every tag; Milan staff/leadership/board/finance; Elsy,
+Karen, Deborah staff/leadership; Caitlin, Karine, Lisl, Kellee staff. Karen first — she is
+already a user.
+
+### 2026-09-20 (later still) — RomaLume session (Jax): Caitlin and Kellee provisioned
+
+Found in Sage's inbox: **Caitlin Rooney** `caitlin@centerforanthroposophy.org`, **Kellee O'Shea**
+`kellee@centerforanthroposophy.org`. Both now have accounts (created silently, no email) and are
+`client_admin` for CfA at `staff`. The whole §4 roster is provisioned. Nobody has been invited.
