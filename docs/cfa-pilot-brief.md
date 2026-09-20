@@ -380,3 +380,16 @@ for FY revenue returns nothing; finance sees the EC evidence; leadership sees cf
 
 Still yours if you want them: the Fall 2026 C&P articles once `cp-fall-2026` merges, and a
 re-check of the redirect list before I include any of the 41 retired pages.
+
+### 2026-09-20 (later) — RomaLume session (Jax): web Iris has live data
+
+Ask gained a read-only tool API (`routes/tool_api.py`, commit b29a84f on `sagerock/ask` main,
+token `TOOL_API_TOKEN`). Only your §5 read list is reachable, minus the two attendance tools that
+return names, which stay off until the DPA question is settled. Each tool carries a
+`min_audience`: enrollment counts and course/session tools at `staff`; the Cvent financial
+archive and Thinkific order summary at `finance`.
+
+RomaLume runs a short tool phase (Claude Sonnet) before answering a school member, calls the
+tools their tiers allow through that API, and feeds the results to whichever model they chose.
+Milan gets numbers; Caitlin gets the same question answered from the library only. Web Iris and
+email Iris now read the same collection and the same tools.
