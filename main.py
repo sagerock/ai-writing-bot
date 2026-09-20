@@ -424,6 +424,18 @@ def log_usage_with_cost(
         print(f"Failed to log usage with cost: {e}")
 
 
+def effective_subscription_status(user_data: dict) -> str:
+    """Subscription status as the app should treat it.
+
+    A user document with ``comped: true`` is treated as an active subscriber
+    regardless of Stripe state. Used for pilot organizations (CfA, 2026-09-20)
+    whose Stripe subscriptions were ended so they are not billed.
+    """
+    if user_data.get("comped"):
+        return "active"
+    return user_data.get("subscription_status", "none")
+
+
 # --- Authentication ---
 async def get_current_user(authorization: str = Header(...)):
     """Verifies Firebase ID token from Authorization header and returns user data."""
@@ -1277,7 +1289,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
             return {"is_subscriber": False, "credits_remaining": initial_credits - 1}
 
         user_data = user_snapshot.to_dict()
-        subscription_status = user_data.get("subscription_status", "none")
+        subscription_status = effective_subscription_status(user_data)
 
         # Active subscribers do not spend credits, but retain a safety ceiling.
         if subscription_status == "active":
@@ -2306,7 +2318,7 @@ async def get_user_billing(user: dict = Depends(get_current_user)):
 
         # Get subscription info
         subscription_amount_cents = user_data.get("subscription_amount", 2000)  # Default $20
-        subscription_status = user_data.get("subscription_status", "none")
+        subscription_status = effective_subscription_status(user_data)
 
         # Calculate current month's AI cost
         current_month_ai_cost_cents = monthly_data.get("total_ai_cost_cents", 0)
@@ -2394,7 +2406,8 @@ async def get_user_subscription(user: dict = Depends(get_current_user)):
             current_period_end = current_period_end.isoformat() if hasattr(current_period_end, 'isoformat') else str(current_period_end)
 
         return JSONResponse(content={
-            "status": user_data.get("subscription_status", "none"),
+            "status": effective_subscription_status(user_data),
+            "comped": bool(user_data.get("comped")),
             "amount_cents": user_data.get("subscription_amount", 0),
             "stripe_customer_id": user_data.get("stripe_customer_id"),
             "current_period_end": current_period_end,
