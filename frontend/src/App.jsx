@@ -14,10 +14,8 @@ const AdminPage = lazy(() => import('./components/AdminPage'));
 const AdminUsersPage = lazy(() => import('./components/AdminUsersPage'));
 const ModelDocsPage = lazy(() => import('./pages/ModelDocsPage'));
 const ModelsPage = lazy(() => import('./pages/ModelsPage'));
-const PricingPage = lazy(() => import('./pages/PricingPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const AuthActionPage = lazy(() => import('./pages/AuthActionPage'));
-const SubscriptionSuccess = lazy(() => import('./pages/SubscriptionSuccess'));
 const ProjectsHome = lazy(() => import('./pages/ProjectsHome'));
 const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace'));
 
@@ -45,20 +43,8 @@ function AdminRoute({ user, children }) {
     return children;
 }
 
-// Redirect logged-in users, but check for subscribe param first
 function AuthRedirect() {
-    const [searchParams] = useSearchParams();
-    const subscribeAmount = searchParams.get('subscribe');
-
-    if (subscribeAmount) {
-        return <Navigate to={`/pricing?amount=${subscribeAmount}`} replace />;
-    }
     return <Navigate to="/chat" replace />;
-}
-
-function useSearchParams() {
-    const location = useLocation();
-    return [new URLSearchParams(location.search)];
 }
 
 function App() {
@@ -84,31 +70,30 @@ function App() {
 
     useEffect(() => {
         const path = location.pathname;
-        const base = "RomaLume - AI Writing Assistant";
+        const brand = user?.school?.brand_name || 'RomaLume';
+        const base = `${brand} - AI Writing Assistant`;
         let title = base;
         if (path === '/chat') {
-            title = "RomaLume - Chat";
+            title = `${brand} - Chat`;
         } else if (path === '/projects') {
-            title = "RomaLume - Projects";
+            title = `${brand} - Projects`;
         } else if (path.startsWith('/projects/')) {
-            title = "RomaLume - Project Workspace";
+            title = `${brand} - Project Workspace`;
         } else if (path === '/account') {
-            title = "RomaLume - My Account";
+            title = `${brand} - My Account`;
         } else if (path === '/admin') {
-            title = "RomaLume - Admin Panel";
+            title = `${brand} - Admin Panel`;
         } else if (path === '/admin/users') {
-            title = "RomaLume - Admin Users";
+            title = `${brand} - Admin Users`;
         } else if (path === '/login' || path === '/register') {
-            title = "RomaLume - Login";
-        } else if (path === '/pricing') {
-            title = "RomaLume - Pricing";
+            title = `${brand} - Login`;
         } else if (path === '/about') {
-            title = "RomaLume - About";
+            title = `${brand} - About`;
         } else if (path === '/models') {
-            title = "RomaLume - Models";
+            title = `${brand} - Models`;
         }
         document.title = title;
-    }, [location]);
+    }, [location, user]);
 
     // Sync dark mode with DOM and localStorage
     useEffect(() => {
@@ -380,16 +365,10 @@ function App() {
             <Route path="/forgot-password" element={!user ? <AuthPage /> : <Navigate to="/chat" />} />
             <Route path="/model-docs" element={<ModelDocsPage />} />
             <Route path="/models" element={<ModelsPage />} />
-            <Route path="/pricing" element={<PricingPage auth={auth} />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/auth/action" element={<AuthActionPage />} />
 
             {/* Protected routes */}
-            <Route path="/subscribe/success" element={
-                <ProtectedRoute user={user}>
-                    <SubscriptionSuccess />
-                </ProtectedRoute>
-            } />
             <Route path="/chat" element={
                 <ProtectedRoute user={user}>
                     {renderChatInterface()}

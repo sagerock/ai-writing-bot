@@ -66,10 +66,9 @@ const HomePage = () => {
         <p className="tagline">One tool. Multiple AI models. Unlimited possibilities.</p>
         <p className="sub-tagline">Access GPT-5, Claude, Gemini, and more — all in one place.</p>
         <div className="cta-buttons">
-          <Link to="/register" className="btn btn-primary btn-large">Start Free — 100 Credits</Link>
-          <Link to="/login" className="btn btn-secondary">Login</Link>
+          <Link to="/login" className="btn btn-primary btn-large">Login</Link>
         </div>
-        <p className="no-card">No credit card required</p>
+        <p className="no-card">Access is arranged per school.</p>
       </header>
 
       {/* Powered By — Credibility Strip */}
@@ -159,9 +158,9 @@ const HomePage = () => {
 
       {/* Final CTA */}
       <section className="final-cta-section scroll-reveal">
-        <h2>Ready to Write with Clarity?</h2>
-        <p>Get started with 100 free credits. No credit card required.</p>
-        <Link to="/register" className="btn btn-primary btn-large">Get Started Free</Link>
+        <h2>Bring this to your school</h2>
+        <p>Every administrator gets the same assistant, the same library, and the same voice.</p>
+        <a href="mailto:sage@sagerock.com" className="btn btn-primary btn-large">Talk to Sage</a>
       </section>
 
       <footer className="home-footer">

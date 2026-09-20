@@ -38,13 +38,11 @@ const PublicNav = ({ activePage = 'home', navRef, alwaysScrolled = true, extraLi
           )}
           <Link to="/about" className={`nav-link${activePage === 'about' ? ' active' : ''}`} onClick={closeMenu}>About</Link>
           <Link to="/models" className={`nav-link${activePage === 'models' ? ' active' : ''}`} onClick={closeMenu}>Models</Link>
-          <Link to="/pricing" className={`nav-link${activePage === 'pricing' ? ' active' : ''}`} onClick={closeMenu}>Pricing</Link>
           <Link to="/login" className="nav-link" onClick={closeMenu}>Login</Link>
-          <Link to="/register" className="nav-btn nav-btn-menu" onClick={closeMenu}>Get Started</Link>
         </div>
 
         <div className="nav-mobile-actions">
-          <Link to="/register" className="nav-btn nav-btn-cta">Get Started</Link>
+          <Link to="/login" className="nav-btn nav-btn-cta">Login</Link>
           <button
             className={`nav-hamburger${menuOpen ? ' nav-hamburger-open' : ''}`}
             onClick={() => setMenuOpen(!menuOpen)}

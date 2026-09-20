@@ -9,7 +9,6 @@ import {
 } from '../auth/authClient';
 import { API_URL } from '../apiConfig';
 import { useModelOptions } from '../useModelOptions';
-import BillingDashboard from './BillingDashboard';
 
 const AccountPanel = ({ auth }) => {
     const modelOptions = useModelOptions();
@@ -582,7 +581,23 @@ const AccountPanel = ({ auth }) => {
             {error && <p className="error">{error}</p>}
             {success && <p className="success">{success}</p>}
 
-            <BillingDashboard auth={auth} />
+            <div className="account-school-section">
+                <h3>Your School</h3>
+                {auth?.currentUser?.school ? (
+                    <p>
+                        You're signed in as a member of <strong>{auth.currentUser.school.name}</strong>
+                        {auth.currentUser.school.brand_name && (
+                            <> and your writing assistant is <strong>{auth.currentUser.school.brand_name}</strong></>
+                        )}.
+                        {auth.currentUser.school.persona_email && (
+                            <> You can also email {auth.currentUser.school.brand_name || 'your assistant'} at{' '}
+                            <a href={`mailto:${auth.currentUser.school.persona_email}`}>{auth.currentUser.school.persona_email}</a>.</>
+                        )}
+                    </p>
+                ) : (
+                    <p>Access is arranged per school. If your school should be set up here, contact Sage at <a href="mailto:sage@sagerock.com">sage@sagerock.com</a>.</p>
+                )}
+            </div>
 
             <hr />
 

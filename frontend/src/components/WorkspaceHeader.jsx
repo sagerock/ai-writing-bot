@@ -3,7 +3,6 @@ import './WorkspaceHeader.css';
 
 export default function WorkspaceHeader({
   user,
-  isSubscriber,
   darkMode,
   onToggleDarkMode,
   onLogout,
@@ -13,8 +12,8 @@ export default function WorkspaceHeader({
   return (
     <header className="App-header project-app-header">
       <div className="project-brand-cluster">
-        <Link to="/chat" className="project-brand" aria-label="RomaLume quick chat">
-          <span>RomaLume</span>
+        <Link to="/chat" className="project-brand" aria-label={`${user?.school?.brand_name || 'RomaLume'} quick chat`}>
+          <span>{user?.school?.brand_name || 'RomaLume'}</span>
         </Link>
         {onToggleSidebar && (
           <button
@@ -40,7 +39,6 @@ export default function WorkspaceHeader({
         >
           {darkMode ? '☀️' : '🌙'}
         </button>
-        {!isSubscriber && <Link to="/pricing" className="upgrade-button">Upgrade</Link>}
         {user?.isAdmin && <Link to="/admin" className="account-button">⚙️</Link>}
         <Link to="/account" className="account-button">👤</Link>
         <button onClick={onLogout}>Logout</button>
