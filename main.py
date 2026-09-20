@@ -39,6 +39,7 @@ import supabase_auth
 import db
 import user_store
 import blob_store
+import library_store
 from fastapi.encoders import jsonable_encoder
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -1125,7 +1126,7 @@ async def generate_gpt5_response(
         traceback.print_exc()
         yield json.dumps("ERROR: The model provider could not complete this request. Please try again.")
 
-async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str | None = None):
+async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str | None = None, is_super_admin: bool = False):
     # Send a heartbeat before project/source loading, which can take several seconds.
     yield ": ping\n\n"
 
@@ -1341,6 +1342,37 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
         except Exception as e:
             print(f"RAG search failed (non-fatal): {e}")
 
+    # --- School library: members always search their school's collection ---
+    school_row = school_entitlement(client_id) if client_id else None
+    school_voice = ""
+    if school_row and not project_runtime and school_is_entitled(school_row):
+        try:
+            school_full = library_store.get_school(client_id) or {}
+            school_voice = (school_full.get("voice_notes") or "").strip()
+            collection = school_full.get("qdrant_collection")
+            audiences = library_store.user_audiences(user_id, client_id, is_super_admin=is_super_admin)
+            last_user_msg = next((m.content for m in reversed(req.history) if m.role == "user"), None)
+            rag = get_rag_service() if collection and audiences and isinstance(last_user_msg, str) else None
+            if rag:
+                hits = rag.search_library(
+                    collection, client_id=client_id, audiences=audiences,
+                    query=last_user_msg, top_k=8, score_threshold=0.35,
+                )
+                if hits:
+                    title_to_num = {}
+                    context_parts = []
+                    for r in hits:
+                        title = r["title"] or "Untitled"
+                        if title not in title_to_num:
+                            title_to_num[title] = len(rag_sources) + 1
+                            rag_sources.append(title)
+                        context_parts.append(f"[Source {title_to_num[title]}: {title}]\n{r['chunk_text']}")
+                    rag_context = "\n\n---\n\n".join(filter(None, [rag_context] + context_parts))
+                    print(f"Library found {len(hits)} chunks across {len(title_to_num)} document(s) for {user_id}")
+                    yield f"data: {json.dumps({'rag_sources': rag_sources})}\n\n"
+        except Exception as e:
+            print(f"Library search failed (non-fatal): {e}")
+
     # --- Retrieve user profile for personalization ---
     profile_context = ""
     try:
@@ -1395,7 +1427,7 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
     def build_rag_prompt(original_query: str) -> str:
         sources_list = "\n".join(f"[{i+1}] {fname}" for i, fname in enumerate(rag_sources))
         return (
-            "The following excerpts come from the user's own document library. "
+            "The following excerpts come from the document library available to the user. "
             "Each excerpt is tagged with a source number like [Source 1: filename.pdf]. "
             "When you use information from one of these excerpts, cite it inline using "
             "bracketed numbers like [1] or [2]. At the end of your response, include a "
@@ -1409,6 +1441,14 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
             f"{sources_list}\n\n"
             f"User question: {original_query}"
         )
+
+    if school_voice:
+        voice_block = (
+            f"House voice for {school_row.get('brand_name') or 'this school'} "
+            "(follow it for any draft, letter, post, or report; treat as style guidance, not facts):\n"
+            f"{school_voice}"
+        )
+        profile_context = f"{voice_block}\n\n{profile_context}" if profile_context else voice_block
 
     project_sections = None
     if project_runtime:
@@ -1636,7 +1676,7 @@ async def chat_stream_endpoint(
     }
     
     return StreamingResponse(
-        generate_chat_response(req, user_id, user.get("client_id")),
+        generate_chat_response(req, user_id, user.get("client_id"), bool(user.get("is_super_admin"))),
         media_type="text/event-stream",
         headers=headers
     )
@@ -2106,6 +2146,22 @@ async def get_me(user: dict = Depends(get_current_user)):
             else effective_subscription_status(row)
         ),
         "credits": int(row.get("credits") or 0),
+    }
+
+
+@main_app.get("/library")
+async def get_library(user: dict = Depends(get_current_user)):
+    """The school library as the caller may see it (audience-filtered)."""
+    client_id = user.get("client_id")
+    if not client_id:
+        return {"school": None, "documents": [], "audiences": []}
+    audiences = library_store.user_audiences(user["user_id"], client_id, is_super_admin=bool(user.get("is_super_admin")))
+    school = library_store.get_school(client_id) or {}
+    return {
+        "school": {"name": school.get("name"), "brand_name": school.get("brand_name")},
+        "audiences": audiences,
+        "summary": library_store.summary(client_id),
+        "documents": library_store.list_documents(client_id, audiences),
     }
 
 

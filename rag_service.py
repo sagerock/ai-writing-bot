@@ -303,6 +303,117 @@ class RAGService:
             for r in results
         ]
 
+    # ------------------------------------------------------------------
+    # School libraries (2026-09-20). One Qdrant collection per school, every
+    # point tagged with client_id and audience so retrieval is pre-filtered
+    # before anything reaches a model. See docs/cfa-pilot-brief.md §1a.
+    # ------------------------------------------------------------------
+
+    def ensure_library_collection(self, collection: str) -> None:
+        from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
+
+        if not self.qdrant.collection_exists(collection):
+            self.qdrant.create_collection(
+                collection_name=collection,
+                vectors_config=VectorParams(size=EMBEDDING_DIMENSION, distance=Distance.COSINE),
+            )
+            print(f"Created Qdrant collection {collection}")
+        for field in ("client_id", "audience", "document_id"):
+            try:
+                self.qdrant.create_payload_index(
+                    collection_name=collection, field_name=field,
+                    field_schema=PayloadSchemaType.KEYWORD,
+                )
+            except Exception:
+                pass  # already indexed
+
+    def index_library_document(
+        self,
+        collection: str,
+        *,
+        client_id: str,
+        document_id: str,
+        text: str,
+        audience: str,
+        title: str,
+        metadata: Optional[dict] = None,
+    ) -> int:
+        """Replace and index one library document. Returns the chunk count."""
+        self.delete_library_document(collection, document_id)
+        chunks = [c for c in self.splitter.split_text(text) if c.strip()]
+        if not chunks:
+            return 0
+        points = []
+        for start in range(0, len(chunks), 64):
+            batch = chunks[start:start + 64]
+            embeddings = self._get_embeddings(batch)
+            for offset, (chunk, embedding) in enumerate(zip(batch, embeddings)):
+                i = start + offset
+                payload = {
+                    "client_id": client_id,
+                    "audience": audience,
+                    "document_id": document_id,
+                    "title": title,
+                    "filename": title,
+                    "chunk_index": i,
+                    "chunk_text": chunk,
+                    **(metadata or {}),
+                }
+                points.append(PointStruct(id=stable_point_id(document_id, i), vector=embedding, payload=payload))
+        retry_on_timeout(lambda: self.qdrant.upsert(collection_name=collection, points=points))
+        return len(chunks)
+
+    def delete_library_document(self, collection: str, document_id: str) -> None:
+        try:
+            self.qdrant.delete(
+                collection_name=collection,
+                points_selector=Filter(must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]),
+                wait=True,
+            )
+        except Exception as e:
+            print(f"Warning: could not delete library document {document_id}: {e}")
+
+    def search_library(
+        self,
+        collection: str,
+        *,
+        client_id: str,
+        audiences: List[str],
+        query: str,
+        top_k: int = 8,
+        score_threshold: float = 0.35,
+    ) -> List[dict]:
+        """Search a school library, pre-filtered to the caller's audiences."""
+        from qdrant_client.models import MatchAny
+
+        if not audiences:
+            return []
+        query_embedding = self._get_embeddings([query])[0]
+        response = self.qdrant.query_points(
+            collection_name=collection,
+            query=query_embedding,
+            query_filter=Filter(must=[
+                FieldCondition(key="client_id", match=MatchValue(value=client_id)),
+                FieldCondition(key="audience", match=MatchAny(any=list(audiences))),
+            ]),
+            limit=top_k,
+            score_threshold=score_threshold,
+        )
+        return [
+            {
+                "title": r.payload.get("title"),
+                "filename": r.payload.get("title"),
+                "chunk_text": r.payload.get("chunk_text"),
+                "chunk_index": r.payload.get("chunk_index"),
+                "score": r.score,
+                "audience": r.payload.get("audience"),
+                "url": r.payload.get("url"),
+                "source_system": r.payload.get("source_system"),
+                "document_id": r.payload.get("document_id"),
+            }
+            for r in response.points
+        ]
+
     def get_user_indexed_documents(self, user_id: str) -> List[dict]:
         """
         Get list of indexed documents for a user.
