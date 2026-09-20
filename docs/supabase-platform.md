@@ -16,6 +16,7 @@ administrator has one identity across RomaLume, the email tool, and Ask.
 | Document text for search | Stays in Qdrant (Railway "Qdrant General", the same instance Ask reads). Supabase holds the registry, never the chunks. |
 | Uploaded files | Supabase Storage bucket `romalume-sources`, path `<client_id>/<project_id>/<source_id>/<filename>`. |
 | Billing | Pilot schools are comped at the client level (`romalume.school_settings.comped`). Individual Stripe subscriptions remain for non-school users until the cutover. |
+| Branding | Each school sees RomaLume under its Ask persona's name (`school_settings.brand_name`, e.g. Iris for CfA), with the persona's mailbox in `persona_email`. No school-facing RomaLume name. Decided 2026-09-20. |
 | Pilot | Center for Anthroposophy. Karen Atkinson's individual Stripe subscription ends 2026-10-20 and her account is comped from 2026-09-20. |
 | Deadline | Usable by CfA administrators before the AWSNA workshop, 2026-11-05 and 2026-11-06. |
 
@@ -36,11 +37,14 @@ would have made "seamless" impossible.
 2. **Schema and stores.** `romalume` schema applied; `ProjectStore`,
    `message_storage`, settings, and usage move to Postgres behind the same
    interfaces; Storage bucket replaces the Firebase bucket.
-3. **School library.** Projects can belong to the school (`owner = client`).
+3. **Persona branding.** Header, page title, login page, and empty states
+   read `brand_name`, `logo_url`, `accent_color`, and `tagline` from the
+   school row. "Email Iris" links to `persona_email`.
+4. **School library.** Projects can belong to the school (`owner = client`).
    Uploads index into the school's Qdrant collection and register in
    `romalume.library_documents`. Iris's `search_content` points at that
    collection.
-4. **Data move and cutover.** Twenty-nine Firebase users, one project, about a
+5. **Data move and cutover.** Twenty-nine Firebase users, one project, about a
    hundred documents. A one-time script maps Firebase UID to Supabase user by
    email and copies rows. Then Firebase is removed from the codebase.
 
