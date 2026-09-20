@@ -40,6 +40,7 @@ import db
 import user_store
 import blob_store
 import library_store
+import ask_tools
 from fastapi.encoders import jsonable_encoder
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -1126,7 +1127,7 @@ async def generate_gpt5_response(
         traceback.print_exc()
         yield json.dumps("ERROR: The model provider could not complete this request. Please try again.")
 
-async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str | None = None, is_super_admin: bool = False):
+async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str | None = None, is_super_admin: bool = False, requester_email: str | None = None):
     # Send a heartbeat before project/source loading, which can take several seconds.
     yield ": ping\n\n"
 
@@ -1345,6 +1346,9 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
     # --- School library: members always search their school's collection ---
     school_row = school_entitlement(client_id) if client_id else None
     school_voice = ""
+    live_data_block = ""
+    school_full = None
+    audiences = []
     if school_row and not project_runtime and school_is_entitled(school_row):
         try:
             school_full = library_store.get_school(client_id) or {}
@@ -1372,6 +1376,25 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
                     yield f"data: {json.dumps({'rag_sources': rag_sources})}\n\n"
         except Exception as e:
             print(f"Library search failed (non-fatal): {e}")
+
+        # --- Live data: the school's Ask persona tools, gated by audience ---
+        try:
+            persona_slug = (school_full or {}).get("persona_slug")
+            if persona_slug and ask_tools.is_configured():
+                live_block, calls = await ask_tools.gather_live_data(
+                    persona_slug=persona_slug,
+                    persona_name=school_full.get("brand_name") or persona_slug.title(),
+                    audiences=audiences,
+                    history=[m.model_dump() for m in req.history],
+                    requester=requester_email,
+                    get_llm=get_llm,
+                )
+                if calls:
+                    yield f"data: {json.dumps({'tools_used': [c['tool'] for c in calls]})}\n\n"
+                if live_block:
+                    live_data_block = live_block
+        except Exception as e:
+            print(f"Live data phase failed (non-fatal): {e}")
 
     # --- Retrieve user profile for personalization ---
     profile_context = ""
@@ -1441,6 +1464,9 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
             f"{sources_list}\n\n"
             f"User question: {original_query}"
         )
+
+    if live_data_block:
+        profile_context = f"{live_data_block}\n\n{profile_context}" if profile_context else live_data_block
 
     if school_voice:
         voice_block = (
@@ -1676,7 +1702,7 @@ async def chat_stream_endpoint(
     }
     
     return StreamingResponse(
-        generate_chat_response(req, user_id, user.get("client_id"), bool(user.get("is_super_admin"))),
+        generate_chat_response(req, user_id, user.get("client_id"), bool(user.get("is_super_admin")), user.get("email")),
         media_type="text/event-stream",
         headers=headers
     )
