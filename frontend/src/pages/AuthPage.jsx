@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from '../auth/authClient';
 import { API_URL } from '../apiConfig';
@@ -16,6 +16,26 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const subscribeAmount = null;
+
+  // School branding: /login?school=cfa shows the school's assistant name
+  // instead of RomaLume, and the choice sticks for later visits.
+  const [school, setSchool] = useState(null);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const slug = (params.get('school') || localStorage.getItem('romalume-school') || '').trim().toLowerCase();
+    if (!slug) return;
+    fetch(`${API_URL}/schools/${encodeURIComponent(slug)}/branding`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          localStorage.setItem('romalume-school', slug);
+          setSchool(data);
+        } else {
+          localStorage.removeItem('romalume-school');
+        }
+      })
+      .catch(() => {});
+  }, [location.search]);
 
   // Determine which form to show based on the URL path
   const isRegister = location.pathname === '/register';
@@ -189,10 +209,17 @@ const AuthPage = () => {
 
   return (
     <div className="auth-page-wrapper">
-      <PublicNav activePage="auth" />
+      {!school && <PublicNav activePage="auth" />}
       <div className="auth-page">
         <div className="auth-container">
-          <img src="/logo.png" alt="RomaLume Logo" className="auth-logo" />
+          {school ? (
+            <div className="auth-school-brand">
+              <h1 style={{ marginBottom: 4 }}>{school.brand_name || school.name}</h1>
+              <p style={{ marginTop: 0, opacity: 0.75 }}>{school.tagline || school.name}</p>
+            </div>
+          ) : (
+            <img src="/logo.png" alt="RomaLume Logo" className="auth-logo" />
+          )}
           {renderForm()}
           {error && <p className="error">{error}</p>}
           {info && <p className="success">{info}</p>}

@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, AsyncGenerator, List, Literal, Optional
 import asyncio
+import time
 from uuid import uuid4
 import io
 import sys
@@ -350,6 +351,28 @@ def log_usage_with_cost(
     except Exception as e:
         print(f"Failed to log usage with cost: {e}")
         print(f"Failed to log usage with cost: {e}")
+
+
+def school_entitlement(client_id: str | None) -> dict | None:
+    """The caller's school plan, if they belong to a school. Cached briefly."""
+    if not client_id:
+        return None
+    cached = _SCHOOL_CACHE.get(client_id)
+    if cached and cached[0] > time.monotonic():
+        return cached[1]
+    row = db.fetch_one(
+        "select client_id::text as client_id, comped, plan_status, brand_name from romalume.school_settings where client_id = %s",
+        (client_id,),
+    )
+    _SCHOOL_CACHE[client_id] = (time.monotonic() + 60, row)
+    return row
+
+
+def school_is_entitled(school: dict | None) -> bool:
+    return bool(school and (school.get("comped") or school.get("plan_status") in ("trial", "active")))
+
+
+_SCHOOL_CACHE: dict = {}
 
 
 def effective_subscription_status(user_data: dict) -> str:
@@ -1102,7 +1125,7 @@ async def generate_gpt5_response(
         traceback.print_exc()
         yield json.dumps("ERROR: The model provider could not complete this request. Please try again.")
 
-async def generate_chat_response(req: ChatRequest, user_id: str):
+async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str | None = None):
     # Send a heartbeat before project/source loading, which can take several seconds.
     yield ": ping\n\n"
 
@@ -1151,6 +1174,8 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         with db.transaction() as conn:
             user_data = user_store.lock_user(user_id, conn)
             subscription_status = effective_subscription_status(user_data)
+            if school_is_entitled(school_entitlement(client_id)):
+                subscription_status = "active"
 
             if subscription_status == "active":
                 today = datetime.now(timezone.utc).date()
@@ -1611,7 +1636,7 @@ async def chat_stream_endpoint(
     }
     
     return StreamingResponse(
-        generate_chat_response(req, user_id),
+        generate_chat_response(req, user_id, user.get("client_id")),
         media_type="text/event-stream",
         headers=headers
     )
@@ -2076,9 +2101,21 @@ async def get_me(user: dict = Depends(get_current_user)):
         "role": user.get("role"),
         "client_id": client_id,
         "school": school,
-        "subscription_status": effective_subscription_status(row),
+        "subscription_status": (
+            "active" if school_is_entitled(school_entitlement(client_id))
+            else effective_subscription_status(row)
+        ),
         "credits": int(row.get("credits") or 0),
     }
+
+
+@main_app.get("/schools/{slug}/branding")
+async def get_school_branding(slug: str):
+    """Public branding for a school's login page (no PII)."""
+    row = db.fetch_one("select * from romalume.public_branding(%s)", (slug.strip().lower()[:64],))
+    if not row:
+        raise HTTPException(status_code=404, detail="Unknown school.")
+    return row
 
 
 @main_app.get("/user/credits")

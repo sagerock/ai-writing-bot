@@ -348,7 +348,9 @@ function App() {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0f0d0a' }}>
                 <div style={{ textAlign: 'center', color: '#b5ada0', fontFamily: 'DM Sans, sans-serif' }}>
-                    <img src="/logo.png" alt="RomaLume" style={{ height: 48, marginBottom: 16, opacity: 0.8 }} />
+                    {!localStorage.getItem('romalume-school') && (
+                        <img src="/logo.png" alt="RomaLume" style={{ height: 48, marginBottom: 16, opacity: 0.8 }} />
+                    )}
                     <div style={{ fontSize: '0.9rem' }}>Loading...</div>
                 </div>
             </div>

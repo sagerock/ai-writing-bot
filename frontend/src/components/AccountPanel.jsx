@@ -54,7 +54,7 @@ const AccountPanel = ({ auth }) => {
             'This permanently deletes your chats, files, profile, and account data. Type DELETE to continue.'
         );
         if (confirmation !== 'DELETE') return;
-        if (!window.confirm('Permanently delete this RomaLume account?')) return;
+        if (!window.confirm('Permanently delete this account?')) return;
 
         setError('');
         try {
@@ -712,7 +712,7 @@ const AccountPanel = ({ auth }) => {
                                 type="text"
                                 value={editFormData.projects || ''}
                                 onChange={(e) => handleEditFormChange('projects', e.target.value)}
-                                placeholder="e.g., RomaLume AI tool, website redesign"
+                                placeholder="e.g., admissions letters, board report"
                             />
                         </div>
                         <div className="profile-field">
