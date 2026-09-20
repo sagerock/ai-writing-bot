@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { initializeApp } from 'firebase/app'
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth, onAuthStateChanged, signOut } from './auth/authClient'
 import Chat from './components/Chat'
 import RecentChats from './components/RecentChats'
 import WorkspaceHeader from './components/WorkspaceHeader'
@@ -22,20 +21,7 @@ const SubscriptionSuccess = lazy(() => import('./pages/SubscriptionSuccess'));
 const ProjectsHome = lazy(() => import('./pages/ProjectsHome'));
 const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace'));
 
-// IMPORTANT: Replace with your app's Firebase project configuration
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// Auth provider (Supabase or Firebase) is chosen in src/auth/authClient.js.
 
 function ProtectedRoute({ user, children }) {
     const location = useLocation();

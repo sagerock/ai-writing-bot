@@ -38,6 +38,7 @@ def get_rag_service():
 import firebase_admin
 from firebase_admin import credentials, firestore, storage, auth as firebase_auth
 from langchain_anthropic import ChatAnthropic
+import supabase_auth
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -437,13 +438,24 @@ def effective_subscription_status(user_data: dict) -> str:
 
 
 # --- Authentication ---
+AUTH_PROVIDER = (os.getenv("AUTH_PROVIDER") or "firebase").strip().lower()
+
+
 async def get_current_user(authorization: str = Header(...)):
-    """Verifies Firebase ID token from Authorization header and returns user data."""
+    """Verifies the bearer token and returns user data.
+
+    AUTH_PROVIDER=supabase validates a Supabase access token against the shared
+    SageRock project (see supabase_auth.py and docs/supabase-platform.md).
+    Anything else keeps the Firebase ID token path.
+    """
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization scheme.")
-    
+
     token = authorization.split("Bearer ")[1]
-    
+
+    if AUTH_PROVIDER == "supabase":
+        return await supabase_auth.verify_supabase_token(token)
+
     try:
         # Use the Admin SDK so audience/issuer checks and token revocation are
         # enforced consistently with the configured Firebase project.

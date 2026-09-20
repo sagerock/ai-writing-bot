@@ -6,7 +6,7 @@ import {
     reauthenticateWithCredential,
     EmailAuthProvider,
     signOut
-} from 'firebase/auth';
+} from '../auth/authClient';
 import { API_URL } from '../apiConfig';
 import { useModelOptions } from '../useModelOptions';
 import BillingDashboard from './BillingDashboard';

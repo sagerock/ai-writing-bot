@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode } from 'firebase/auth';
+import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode } from '../auth/authClient';
 import './HomePage.css';
 
 function AuthActionPage() {

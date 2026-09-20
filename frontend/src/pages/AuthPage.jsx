@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from '../auth/authClient';
 import { API_URL } from '../apiConfig';
 import PublicNav from '../components/PublicNav';
 import './HomePage.css';
@@ -65,6 +65,8 @@ const AuthPage = () => {
     } catch (err) {
       if (err.message === 'timeout') {
         setError('Registration is taking too long. Please close all browser tabs and try again.');
+      } else if (err.code === 'auth/confirm-email') {
+        navigate('/login', { state: { info: 'Check your email to confirm your account, then log in.' } });
       } else {
         setError(err.message);
       }
