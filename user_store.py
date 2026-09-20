@@ -119,13 +119,13 @@ def list_users() -> list[dict]:
     rows = db.fetch_all(
         """
         select u.id as uid, u.email,
-               coalesce(s.display_name, u.raw_user_meta_data->>'full_name', '') as display_name,
+               coalesce(s.display_name, u.display_name, '') as display_name,
                coalesce(s.credits, %s) as credits, coalesce(s.credits_used, 0) as credits_used,
                coalesce(s.subscription_status, 'none') as subscription_status,
                coalesce(s.comped, false) as comped,
                exists (select 1 from public.admin_users a where a.user_id = u.id and a.role = 'super_admin') as is_admin,
                u.created_at, u.last_sign_in_at, s.last_seen_at
-        from auth.users u
+        from romalume.auth_users() u
         left join romalume.user_settings s on s.user_id = u.id
         order by u.created_at desc
         """,
@@ -136,11 +136,7 @@ def list_users() -> list[dict]:
 
 def get_auth_user(user_id: str) -> dict | None:
     return _out(db.fetch_one(
-        """
-        select id, email, email_confirmed_at is not null as email_verified,
-               raw_user_meta_data->>'full_name' as display_name, created_at, last_sign_in_at
-        from auth.users where id = %s
-        """,
+        "select * from romalume.auth_users() where id = %s",
         (user_id,),
     ))
 

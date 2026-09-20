@@ -836,7 +836,7 @@ def prepare_project_runtime(
     rag = get_rag_service() if project.get("context_mode") == "retrieval" else None
     context = load_project_context(
         store=store,
-        bucket=bucket,
+        bucket=get_storage_bucket(),
         rag=rag,
         user_id=user_id,
         project_id=req.project_id,
