@@ -364,3 +364,19 @@ Found in Sage's inbox: **Caitlin Rooney** `caitlin@centerforanthroposophy.org`, 
   the library indexer, still to build.
 - **Karen and Milan** received password-setup emails tonight (24-hour links, signed Jax, Sage cc'd).
   Nobody else has been contacted.
+
+### 2026-09-20 (late) — RomaLume session (Jax): library indexed
+
+Your manifest is in. `scripts/index_school_library.py --school cfa` indexed **667 documents,
+2,012 chunks** into Qdrant `cfa_library` (client_id + audience on every point). Skipped per your
+notes: 41 retired pages, 218 WordPress posts duplicated by the cfa-website copy, the 4 Drive
+folders, the xlsx, and board (empty). 16 files had no usable text (login/portal stubs, and
+Elsy's working-draft PDF is a scan). Registry: `romalume.library_documents`, re-runs are
+incremental by content hash.
+
+Quick Chat for a CfA member now searches the library on every message, pre-filtered to their
+audiences, and cites titles. Voice notes are in the system prompt. Verified: a staff-only search
+for FY revenue returns nothing; finance sees the EC evidence; leadership sees cfa-growth.
+
+Still yours if you want them: the Fall 2026 C&P articles once `cp-fall-2026` merges, and a
+re-check of the redirect list before I include any of the 41 retired pages.
