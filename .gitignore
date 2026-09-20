@@ -140,3 +140,4 @@ frontend/users.json
 # Firebase deploy cache
 .firebase/
 .claude/
+.firebase-export/

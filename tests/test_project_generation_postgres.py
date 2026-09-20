@@ -7,11 +7,11 @@ from unittest.mock import patch
 from uuid import uuid4
 
 
-@unittest.skipUnless(
-    os.getenv("FIRESTORE_EMULATOR_HOST"),
-    "requires the Firestore emulator",
-)
-class ProjectGenerationFirestoreTests(unittest.TestCase):
+from tests.pg_fixture import PostgresFixture, POSTGRES_AVAILABLE
+
+
+@unittest.skipUnless(POSTGRES_AVAILABLE, "requires DATABASE_URL")
+class ProjectGenerationPostgresTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import main
@@ -19,12 +19,13 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
         cls.main = main
 
     def setUp(self):
+        import user_store
+
         main = self.main
-        self.user_id = f"generation-user-{uuid4().hex}"
-        main.db.collection("users").document(self.user_id).set(
-            {"subscription_status": "active"}
-        )
-        self.store = main.ProjectStore(main.db)
+        self.pg = PostgresFixture()
+        self.user_id = self.pg.create_user()
+        user_store.update_user(self.user_id, subscription_status="active")
+        self.store = main.ProjectStore()
         self.project = self.store.create_project(
             self.user_id,
             name="Smith memo",
@@ -82,9 +83,7 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
         self.bucket = FakeBucket()
 
     def tearDown(self):
-        self.main.db.recursive_delete(
-            self.main.db.collection("users").document(self.user_id)
-        )
+        self.pg.cleanup()
 
     def _request(self, model, chat_id):
         return self.main.ChatRequest(
@@ -117,14 +116,9 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
             "Smith learned of the injury in 2022",
         )
         self.assertNotIn("<!-- evidence", assistant["content"])
-        current_chat = (
-            self.main.db.collection("users")
-            .document(self.user_id)
-            .collection("conversations")
-            .document("current_chat")
-            .get()
-        )
-        self.assertFalse(current_chat.exists)
+        import user_store
+
+        self.assertEqual(user_store.get_current_messages(self.user_id), [])
 
     def test_langchain_path_uses_shared_project_prompt_and_saves_citations(self):
         chat = self.store.create_chat(
@@ -150,7 +144,7 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
 
         fake_llm = FakeLlm()
         with (
-            patch.object(self.main, "bucket", self.bucket),
+            patch.object(self.main, "get_storage_bucket", lambda: self.bucket),
             patch.object(self.main, "get_llm", return_value=fake_llm),
             patch.object(self.main, "log_usage_with_cost"),
         ):
@@ -205,7 +199,7 @@ class ProjectGenerationFirestoreTests(unittest.TestCase):
                 fake_self.responses = FakeResponses()
 
         with (
-            patch.object(self.main, "bucket", self.bucket),
+            patch.object(self.main, "get_storage_bucket", lambda: self.bucket),
             patch.object(self.main, "AsyncOpenAI", FakeOpenAI),
             patch.object(self.main, "log_usage_with_cost"),
         ):

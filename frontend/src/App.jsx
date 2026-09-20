@@ -21,7 +21,7 @@ const SubscriptionSuccess = lazy(() => import('./pages/SubscriptionSuccess'));
 const ProjectsHome = lazy(() => import('./pages/ProjectsHome'));
 const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace'));
 
-// Auth provider (Supabase or Firebase) is chosen in src/auth/authClient.js.
+// Auth is Supabase; see src/auth/authClient.js.
 
 function ProtectedRoute({ user, children }) {
     const location = useLocation();
@@ -189,14 +189,24 @@ function App() {
             settled = true;
             if (currentUser) {
                 try {
-                    const tokenPromise = currentUser.getIdTokenResult();
-                    const tokenTimeout = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Token request timed out')), 5000)
-                    );
-                    const idTokenResult = await Promise.race([tokenPromise, tokenTimeout]);
-                    currentUser.isAdmin = idTokenResult.claims.admin === true;
+                    const token = await currentUser.getIdToken();
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 5000);
+                    const res = await fetch(`${API_URL}/user/me`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                        signal: controller.signal,
+                    });
+                    clearTimeout(timer);
+                    if (res.ok) {
+                        const me = await res.json();
+                        currentUser.isAdmin = me.is_admin === true;
+                        currentUser.school = me.school || null;
+                        currentUser.displayName = me.display_name || currentUser.displayName;
+                    } else {
+                        currentUser.isAdmin = false;
+                    }
                 } catch (err) {
-                    console.error('Error getting token:', err);
+                    console.error('Error loading account:', err);
                     currentUser.isAdmin = false;
                 }
                 setUser(currentUser);

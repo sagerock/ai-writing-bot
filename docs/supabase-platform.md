@@ -33,39 +33,44 @@ would have made "seamless" impossible.
 
 ## Phases
 
-1. **Auth swap** (this branch). Backend accepts a Supabase access token when
-   `AUTH_PROVIDER=supabase`; frontend logs in with supabase-js. Firebase stays
-   the default until the frontend ships.
-2. **Schema and stores.** `romalume` schema applied; `ProjectStore`,
-   `message_storage`, settings, and usage move to Postgres behind the same
-   interfaces; Storage bucket replaces the Firebase bucket.
-3. **Persona branding.** Header, page title, login page, and empty states
-   read `brand_name`, `logo_url`, `accent_color`, and `tagline` from the
-   school row. "Email Iris" links to `persona_email`.
-4. **School library.** Projects can belong to the school (`owner = client`).
-   Uploads index into the school's Qdrant collection and register in
-   `romalume.library_documents`. Iris's `search_content` points at that
-   collection.
-5. **Data move and cutover.** Twenty-nine Firebase users, one project, about a
-   hundred documents. A one-time script maps Firebase UID to Supabase user by
-   email and copies rows. Then Firebase is removed from the codebase.
+Sage changed the plan on 2026-09-20 from a gradual migration to a hard cut:
+Firebase is retired outright and the old user base is not migrated. Only two
+people were known to be using RomaLume (Rocky and Karen); anyone else can
+email Sage. A full snapshot of Firestore (22 users, 27 MB) and Storage (130
+objects) was taken first into the gitignored `.firebase-export/` folder.
+
+1. **Done: schema.** Migrations 001-005 applied to the shared project.
+2. **Done: backend on Postgres and Supabase Storage.** `db.py`, `user_store.py`,
+   `project_store.py`, `blob_store.py`, `supabase_auth.py`. No Firebase code
+   remains. Tokens are Supabase access tokens; admins are `super_admin` rows in
+   `public.admin_users`.
+3. **Done: frontend on Supabase Auth.** `src/auth/authClient.js` is the only
+   auth surface. `/user/me` supplies role and school branding after login.
+4. **Done: hosting on Cloudflare Pages.** Project `romalume` builds `frontend`
+   from `sagerock/ai-writing-bot` on push to `main` (`romalume.pages.dev`).
+5. **Cutover (needs `DATABASE_URL`).** Merge the branch, confirm Railway boots,
+   then point `romalume.com` at Pages and remove the Firebase Hosting records.
+6. **Later: persona branding UI and the school library** (see
+   `docs/cfa-pilot-brief.md`).
 
 ## Environment variables (Railway, backend)
 
 ```
-AUTH_PROVIDER=supabase            # or firebase (default until cutover)
 SUPABASE_URL=https://ckloewflialohuvixmvd.supabase.co
-SUPABASE_ANON_KEY=...             # used to validate user tokens
-SUPABASE_SERVICE_KEY=...          # server-side reads and writes
+SUPABASE_ANON_KEY=sb_publishable_...   # validates user tokens
+SUPABASE_SERVICE_KEY=...               # server-side reads, writes, storage
+DATABASE_URL=postgresql://...          # Supabase transaction pooler, port 6543
+STORAGE_BUCKET=romalume-sources
 ```
 
 Frontend (`frontend/.env`):
 
 ```
-VITE_AUTH_PROVIDER=supabase
 VITE_SUPABASE_URL=https://ckloewflialohuvixmvd.supabase.co
-VITE_SUPABASE_ANON_KEY=...
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
 ```
+
+Cloudflare Pages holds the same two variables for production and preview.
 
 ## Migrations
 

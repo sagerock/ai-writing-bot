@@ -10,8 +10,6 @@ import socket
 import hashlib
 from urllib.parse import urlparse
 
-os.environ["GRPC_DNS_RESOLVER"] = "native"  # Force gRPC to use system DNS
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -35,18 +33,16 @@ def get_rag_service():
     except Exception as e:
         print(f"Warning: RAG service unavailable: {e}")
         return None
-import firebase_admin
-from firebase_admin import credentials, firestore, storage, auth as firebase_auth
 from langchain_anthropic import ChatAnthropic
 import supabase_auth
+import db
+import user_store
+import blob_store
+from fastapi.encoders import jsonable_encoder
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from openai import AsyncOpenAI
-from google.cloud.firestore_v1.query import Query
-from google.cloud.firestore_v1.transaction import Transaction
-from google.cloud.firestore_v1.document import DocumentReference
-from google.api_core.exceptions import AlreadyExists
 from cost_tracker import (
     calculate_cost_cents,
     estimate_request_cost,
@@ -89,61 +85,25 @@ except ImportError:
     SENDGRID_AVAILABLE = False
     print("Warning: SendGrid not available. Email functionality will be disabled.")
 
-# Set longer timeout for Firebase connections
-socket.setdefaulttimeout(30)
-
-# Firebase-related initialization
-# Support both environment variable (for Render/Railway) and local file (for local dev)
-firebase_creds = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
-if firebase_creds:
-    # Use environment variable (Render/Railway deployment)
-    try:
-        # Try parsing as-is first
-        cred_dict = json.loads(firebase_creds)
-        cred = credentials.Certificate(cred_dict)
-        print("✓ Using Firebase credentials from environment variable")
-    except json.JSONDecodeError as e:
-        # Railway may escape quotes or add extra escaping - try to fix common issues
-        try:
-            # Remove potential outer quotes and unescape
-            cleaned = firebase_creds.strip()
-            if cleaned.startswith('"') and cleaned.endswith('"'):
-                cleaned = cleaned[1:-1]
-            # Replace escaped quotes
-            cleaned = cleaned.replace('\\"', '"')
-            # Replace escaped newlines with actual newlines
-            cleaned = cleaned.replace('\\n', '\n')
-            cred_dict = json.loads(cleaned)
-            cred = credentials.Certificate(cred_dict)
-            print("✓ Using Firebase credentials from environment variable (after cleanup)")
-        except json.JSONDecodeError as e2:
-            print(f"✗ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-            print(f"✗ Cleanup attempt also failed: {e2}")
-            raise e
+# Data layer: Supabase Postgres (db.py) and Supabase Storage (blob_store.py).
+# Firebase was retired on 2026-09-20; see docs/supabase-platform.md.
+if db.is_configured():
+    print("✓ Postgres configured (Supabase)")
 else:
-    # Use local file (local development)
-    try:
-        cred = credentials.Certificate("firebase_service_account.json")
-        print("✓ Using Firebase credentials from local file")
-    except FileNotFoundError:
-        print("✗ Error: firebase_service_account.json not found and FIREBASE_SERVICE_ACCOUNT_JSON env var not set")
-        raise
-
-storage_bucket_name = os.getenv('STORAGE_BUCKET')
-if not firebase_admin._apps:
-    firebase_options = {'storageBucket': storage_bucket_name} if storage_bucket_name else None
-    firebase_admin.initialize_app(cred, firebase_options)
-db = firestore.client()
-bucket = storage.bucket(storage_bucket_name) if storage_bucket_name else None
+    print("✗ DATABASE_URL not set; data access will fail")
+if blob_store.is_configured():
+    print(f"✓ Storage configured (bucket {blob_store.DEFAULT_BUCKET})")
+else:
+    print("⚠ Storage not configured (SUPABASE_URL / SUPABASE_SERVICE_KEY not set)")
 
 
 def get_storage_bucket():
-    if bucket is None:
-        raise HTTPException(status_code=503, detail="Cloud Storage is not configured.")
-    return bucket
+    if not blob_store.is_configured():
+        raise HTTPException(status_code=503, detail="Storage is not configured.")
+    return blob_store.bucket()
 
 # mem0 removed - replaced with user profile system
-# Profiles are stored in Firestore at users/{user_id}/settings/profile
+# Profiles live in romalume.user_settings.profile
 print("✓ User profile system enabled (mem0 removed)")
 
 # Email Marketing Tool integration (for onboarding sequences)
@@ -370,58 +330,25 @@ def log_usage_with_cost(
     search_web: bool = False,
     search_docs: bool = False
 ):
-    """
-    Log estimated token counts and provider cost.
-    Also updates monthly aggregates for billing.
-    """
+    """Log estimated token counts and provider cost (per request and all-time)."""
     try:
-        # Calculate tokens and cost
         input_tokens = estimate_tokens(input_text, model)
         output_tokens = estimate_tokens(output_text, model)
         cost_cents = calculate_cost_cents(model, input_tokens, output_tokens)
-
-        now = datetime.now()
-        month_key = now.strftime("%Y-%m")
-        date_key = now.strftime("%Y-%m-%d")
-
-        # Log individual request
-        db.collection("usage_logs").add({
-            "user_id": user_id,
-            "model": model,
-            "original_model": original_model,
-            "routed_category": routed_category,
-            "timestamp": firestore.SERVER_TIMESTAMP,
-            "date_key": date_key,
-            "month_key": month_key,
-            "search_web": search_web,
-            "search_docs": search_docs,
-            # New cost tracking fields
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost_cents": cost_cents,
-        })
-
-        # Update monthly aggregate for this user
-        monthly_ref = db.collection("user_monthly_usage").document(f"{user_id}_{month_key}")
-        monthly_ref.set({
-            "user_id": user_id,
-            "month": month_key,
-            "total_ai_cost_cents": firestore.Increment(cost_cents),
-            "total_requests": firestore.Increment(1),
-            "total_input_tokens": firestore.Increment(input_tokens),
-            "total_output_tokens": firestore.Increment(output_tokens),
-            "updated_at": firestore.SERVER_TIMESTAMP,
-        }, merge=True)
-
-        # Update user's all-time totals
-        db.collection("users").document(user_id).set({
-            "all_time_ai_cost_cents": firestore.Increment(cost_cents),
-            "all_time_requests": firestore.Increment(1),
-        }, merge=True)
-
+        user_store.log_usage(
+            user_id=user_id,
+            model=model,
+            original_model=original_model,
+            routed_category=routed_category,
+            search_web=search_web,
+            search_docs=search_docs,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_cents=cost_cents,
+        )
         print(f"Usage logged: {model}, {input_tokens}+{output_tokens} tokens, ${cost_cents/100:.4f}")
-
     except Exception as e:
+        print(f"Failed to log usage with cost: {e}")
         print(f"Failed to log usage with cost: {e}")
 
 
@@ -438,36 +365,16 @@ def effective_subscription_status(user_data: dict) -> str:
 
 
 # --- Authentication ---
-AUTH_PROVIDER = (os.getenv("AUTH_PROVIDER") or "firebase").strip().lower()
-
-
 async def get_current_user(authorization: str = Header(...)):
-    """Verifies the bearer token and returns user data.
+    """Verifies the Supabase access token and returns the user record.
 
-    AUTH_PROVIDER=supabase validates a Supabase access token against the shared
-    SageRock project (see supabase_auth.py and docs/supabase-platform.md).
-    Anything else keeps the Firebase ID token path.
+    See supabase_auth.py. The dict carries user_id, email, client_id, role and
+    is_super_admin.
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization scheme.")
-
     token = authorization.split("Bearer ")[1]
-
-    if AUTH_PROVIDER == "supabase":
-        return await supabase_auth.verify_supabase_token(token)
-
-    try:
-        # Use the Admin SDK so audience/issuer checks and token revocation are
-        # enforced consistently with the configured Firebase project.
-        decoded_token = await asyncio.to_thread(
-            firebase_auth.verify_id_token,
-            token,
-            check_revoked=True,
-        )
-        decoded_token["user_id"] = decoded_token.get("uid") or decoded_token.get("user_id")
-        return decoded_token
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
+    return await supabase_auth.verify_supabase_token(token)
 
 # Allow CORS for frontend
 main_app.add_middleware(
@@ -622,44 +529,16 @@ def get_client_ip(request: Request) -> str:
 async def check_signup_rate_limit(request: Request):
     """Check if this IP can create a new account."""
     client_ip = get_client_ip(request)
-
-    # Skip rate limiting for whitelisted IPs
     if client_ip in SIGNUP_RATE_LIMIT_WHITELIST:
         return {"allowed": True, "attempts_remaining": 999}
-
-    # Get signup attempts from this IP in the last 24 hours
-    signup_ref = db.collection("signup_rate_limits").document(client_ip)
-    signup_doc = signup_ref.get()
-
-    if signup_doc.exists:
-        data = signup_doc.to_dict()
-        attempts = data.get("attempts", [])
-
-        # Filter to only attempts within the rate window
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
-        recent_attempts = [a for a in attempts if a > cutoff]
-
-        if len(recent_attempts) >= SIGNUP_RATE_LIMIT:
-            # Calculate when they can try again
-            oldest_attempt = min(recent_attempts)
-            can_retry_at = oldest_attempt + timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
-            hours_remaining = (can_retry_at - datetime.now(timezone.utc)).total_seconds() / 3600
-
-            return {
-                "allowed": False,
-                "reason": f"Too many accounts created from this network. Please try again in {int(hours_remaining) + 1} hours.",
-                "attempts_remaining": 0
-            }
-
+    attempts = user_store.signup_attempts(client_ip, SIGNUP_RATE_WINDOW_HOURS)
+    if attempts >= SIGNUP_RATE_LIMIT:
         return {
-            "allowed": True,
-            "attempts_remaining": SIGNUP_RATE_LIMIT - len(recent_attempts)
+            "allowed": False,
+            "reason": f"Too many accounts created from this network. Please try again in {SIGNUP_RATE_WINDOW_HOURS} hours.",
+            "attempts_remaining": 0,
         }
-
-    return {
-        "allowed": True,
-        "attempts_remaining": SIGNUP_RATE_LIMIT
-    }
+    return {"allowed": True, "attempts_remaining": SIGNUP_RATE_LIMIT - attempts}
 
 class SignupRequest(BaseModel):
     email: str | None = Field(default=None, max_length=320)
@@ -673,24 +552,9 @@ async def record_signup(
 ):
     """Record a successful signup attempt for rate limiting and send to email marketing."""
     client_ip = get_client_ip(request)
+    user_store.record_signup_attempt(client_ip, SIGNUP_RATE_WINDOW_HOURS)
+    user_store.ensure_user(user["user_id"], user.get("email"))
 
-    signup_ref = db.collection("signup_rate_limits").document(client_ip)
-    signup_doc = signup_ref.get()
-
-    now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(hours=SIGNUP_RATE_WINDOW_HOURS)
-
-    if signup_doc.exists:
-        data = signup_doc.to_dict()
-        attempts = data.get("attempts", [])
-        # Keep only recent attempts + new one
-        recent_attempts = [a for a in attempts if a > cutoff]
-        recent_attempts.append(now)
-        signup_ref.update({"attempts": recent_attempts, "last_attempt": now})
-    else:
-        signup_ref.set({"attempts": [now], "last_attempt": now})
-
-    # Send to email marketing tool in the background
     authenticated_email = user.get("email", "").lower().strip()
     if body and body.email and body.email.lower().strip() == authenticated_email:
         background_tasks.add_task(
@@ -1255,7 +1119,6 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         yield "data: [DONE]\n\n"
         return
 
-    user_ref = db.collection("users").document(user_id)
     storage_history = [message.model_dump() for message in req.history]
 
     project_tokens = 0
@@ -1279,72 +1142,47 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
         yield f"data: {json.dumps({'chat_id': req.chat_id})}\n\n"
 
     # Check subscription status and credits
-    transaction = db.transaction()
-
-    @firestore.transactional
-    def check_access_and_update(transaction: Transaction, user_ref: DocumentReference):
+    def check_access_and_update():
         """
         Check if user can access the service:
-        1. Active subscribers → daily safety limit (no credit deduction)
-        2. Free users → use credits (100 free messages)
+        1. Active subscribers -> daily safety limit (no credit deduction)
+        2. Free users -> use credits (100 free messages)
         """
-        user_snapshot = user_ref.get(transaction=transaction)
+        with db.transaction() as conn:
+            user_data = user_store.lock_user(user_id, conn)
+            subscription_status = effective_subscription_status(user_data)
 
-        if not user_snapshot.exists:
-            # New user - give them 100 free messages
-            initial_credits = 100
-            transaction.set(user_ref, {
-                "credits": initial_credits - 1,
-                "credits_used": 1,
-                "subscription_status": "none"
-            })
-            return {"is_subscriber": False, "credits_remaining": initial_credits - 1}
+            if subscription_status == "active":
+                today = datetime.now(timezone.utc).date()
+                usage_date = user_data.get("daily_usage_date")
+                daily_requests = user_data.get("daily_requests", 0) if usage_date == today else 0
+                if daily_requests >= PAID_DAILY_MESSAGE_LIMIT:
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Daily message limit reached. Please try again tomorrow."
+                    )
+                user_store.update_user(user_id, conn=conn, daily_usage_date=today, daily_requests=daily_requests + 1)
+                return {"is_subscriber": True, "credits_remaining": None}
 
-        user_data = user_snapshot.to_dict()
-        subscription_status = effective_subscription_status(user_data)
-
-        # Active subscribers do not spend credits, but retain a safety ceiling.
-        if subscription_status == "active":
-            today = datetime.now(timezone.utc).date().isoformat()
-            usage_date = user_data.get("daily_usage_date")
-            daily_requests = user_data.get("daily_requests", 0) if usage_date == today else 0
-            if daily_requests >= PAID_DAILY_MESSAGE_LIMIT:
+            if project_tokens > PROJECT_HAIKU_FULL_CONTEXT_TOKENS:
                 raise HTTPException(
-                    status_code=429,
-                    detail="Daily message limit reached. Please try again tomorrow."
+                    status_code=402,
+                    detail=(
+                        "This project is too large for the free-tier model. "
+                        "Subscribe or reduce its sources to continue."
+                    ),
                 )
-            transaction.update(user_ref, {
-                "daily_usage_date": today,
-                "daily_requests": daily_requests + 1,
-            })
-            return {"is_subscriber": True, "credits_remaining": None}
-
-        # Free users use credits
-        if project_tokens > PROJECT_HAIKU_FULL_CONTEXT_TOKENS:
-            raise HTTPException(
-                status_code=402,
-                detail=(
-                    "This project is too large for the free-tier model. "
-                    "Subscribe or reduce its sources to continue."
-                ),
-            )
-        credits = user_data.get("credits", 0)
-
-        if credits <= 0:
-            raise HTTPException(
-                status_code=402,
-                detail="You've used all your free messages! Subscribe to continue and support Houseless Movement."
-            )
-
-        transaction.update(user_ref, {
-            "credits": firestore.Increment(-1),
-            "credits_used": firestore.Increment(1)
-        })
-
-        return {"is_subscriber": False, "credits_remaining": credits - 1}
+            credits = int(user_data.get("credits") or 0)
+            if credits <= 0:
+                raise HTTPException(
+                    status_code=402,
+                    detail="You've used all your free messages! Subscribe to continue and support Houseless Movement."
+                )
+            user_store.increment_user(user_id, conn=conn, credits=-1, credits_used=1)
+            return {"is_subscriber": False, "credits_remaining": credits - 1}
 
     try:
-        access_info = check_access_and_update(transaction, user_ref)
+        access_info = check_access_and_update()
     except HTTPException as e:
         yield f"data: ERROR: {e.detail}\n\n"
         yield "data: [DONE]\n\n"
@@ -1481,11 +1319,9 @@ async def generate_chat_response(req: ChatRequest, user_id: str):
     # --- Retrieve user profile for personalization ---
     profile_context = ""
     try:
-        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
-        profile_doc = profile_ref.get()
+        profile = (user_store.get_user(user_id) or {}).get("profile") or {}
 
-        if profile_doc.exists:
-            profile = profile_doc.to_dict()
+        if profile:
             profile_parts = []
             currently_parts = []
 
@@ -1796,12 +1632,13 @@ async def archive_chat(req: ArchiveRequest, user: dict = Depends(get_current_use
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         archive_id = f"chat_archive_{timestamp}.md"
 
-    db.collection("users").document(user_id).collection("archives").document(archive_id).set({
-        "projectName": project_name,
-        "model": req.model,
-        "messages": compact_messages_for_storage(req.history),
-        "archivedAt": firestore.SERVER_TIMESTAMP
-    })
+    user_store.create_archive(
+        user_id,
+        archive_id=archive_id,
+        project_name=project_name,
+        model=req.model,
+        messages=req.history,
+    )
 
     return JSONResponse(content={"message": f"Chat archived to {archive_id} in project {project_name}"})
 
@@ -1831,14 +1668,10 @@ async def get_user_profile(user: dict = Depends(get_current_user)):
     """Get the user's curated profile."""
     user_id = user['user_id']
     try:
-        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
-        profile_doc = profile_ref.get()
-
-        if profile_doc.exists:
-            return JSONResponse(content={"profile": profile_doc.to_dict()})
-        else:
-            # Return empty profile structure
-            return JSONResponse(content={"profile": {
+        profile = (user_store.get_user(user_id) or {}).get("profile") or {}
+        if profile:
+            return JSONResponse(content={"profile": profile})
+        return JSONResponse(content={"profile": {
                 "always_remember": "",
                 "currently": [],
                 "family": [],
@@ -1863,14 +1696,11 @@ async def update_user_profile(profile: UserProfile, user: dict = Depends(get_cur
     """Manually update the user's profile."""
     user_id = user['user_id']
     try:
-        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
+        existing = (user_store.get_user(user_id) or {}).get("profile") or {}
         profile_data = profile.model_dump()
-        existing = profile_ref.get()
-        profile_data["last_archive_count"] = (
-            existing.to_dict().get("last_archive_count", 0) if existing.exists else 0
-        )
+        profile_data["last_archive_count"] = existing.get("last_archive_count", 0)
         profile_data["last_updated"] = datetime.now().isoformat()
-        profile_ref.set(profile_data)
+        user_store.update_user(user_id, profile=profile_data, profile_updated_at=datetime.now(timezone.utc))
         return JSONResponse(content={"message": "Profile updated successfully", "profile": profile_data})
     except Exception as e:
         print(f"Error updating profile: {e}")
@@ -1888,14 +1718,11 @@ async def generate_user_profile(user: dict = Depends(get_current_user)):
 
     try:
         # Get existing profile to preserve fields
-        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
-        existing_profile_doc = profile_ref.get()
-        existing_profile = existing_profile_doc.to_dict() if existing_profile_doc.exists else {}
+        existing_profile = (user_store.get_user(user_id) or {}).get("profile") or {}
 
         # Fetch archives
-        archives_ref = db.collection("users").document(user_id).collection("archives")
-        archives_list = list(archives_ref.order_by("archivedAt", direction=firestore.Query.DESCENDING).limit(50).stream())
-        total_archive_count = len(list(archives_ref.stream()))
+        archives_list = user_store.list_archives(user_id, limit=50)
+        total_archive_count = user_store.count_archives(user_id)
 
         # Split into recent (for "currently") and all (for static profile)
         recent_archives = archives_list[:5]  # Last 5 for "currently"
@@ -1904,7 +1731,7 @@ async def generate_user_profile(user: dict = Depends(get_current_user)):
         def extract_conversations(archive_list, max_convs=30):
             conversations = []
             for archive in archive_list:
-                data = archive.to_dict()
+                data = archive
                 messages = data.get("messages", [])
                 if messages:
                     conv_text = []
@@ -2032,7 +1859,7 @@ Focus on recent/current activities, not permanent traits. Return ONLY valid JSON
         profile_data["last_updated"] = datetime.now().isoformat()
         profile_data["last_archive_count"] = total_archive_count
 
-        profile_ref.set(profile_data)
+        user_store.update_user(user_id, profile=profile_data, profile_updated_at=datetime.now(timezone.utc))
 
         return JSONResponse(content={
             "message": "Profile generated successfully",
@@ -2057,15 +1884,10 @@ async def auto_generate_profile(user: dict = Depends(get_current_user)):
 
     try:
         # Get current profile
-        profile_ref = db.collection("users").document(user_id).collection("settings").document("profile")
-        profile_doc = profile_ref.get()
+        profile = (user_store.get_user(user_id) or {}).get("profile") or {}
+        total_archives = user_store.count_archives(user_id)
 
-        # Count total archives
-        archives_ref = db.collection("users").document(user_id).collection("archives")
-        total_archives = len(list(archives_ref.stream()))
-
-        if profile_doc.exists:
-            profile = profile_doc.to_dict()
+        if profile:
             last_archive_count = profile.get("last_archive_count", 0)
 
             # Only regenerate if 10+ new archives since last generation
@@ -2109,57 +1931,40 @@ async def auto_generate_profile(user: dict = Depends(get_current_user)):
             "profile": None
         })
 
+def _archive_summary(row: dict) -> dict:
+    messages = row.get("messages") or []
+    title = row.get("title")
+    preview = row.get("preview")
+    if not preview:
+        for msg in messages:
+            if msg.get("role") == "assistant":
+                content = msg.get("content", "") or ""
+                preview = content[:150] + ("..." if len(content) > 150 else "")
+                break
+    display_title = None
+    for msg in messages:
+        if msg.get("role") == "user":
+            content = msg.get("content", "") or ""
+            display_title = content[:200] + ("..." if len(content) > 200 else "")
+            break
+    archived_at = row.get("archived_at")
+    return {
+        "id": str(row["id"]),
+        "model": row.get("model"),
+        "archivedAt": archived_at.isoformat() if hasattr(archived_at, "isoformat") else archived_at,
+        "title": display_title or (title or "").replace(".md", "") or "Untitled",
+        "preview": preview or "No preview available",
+        "messageCount": len(messages),
+    }
+
+
 @main_app.get("/archives")
 async def get_archives(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
-    archives_ref = db.collection("users").document(user_id).collection("archives")
-    archives = archives_ref.stream()
-
     project_archives = {}
-    for archive in archives:
-        data = archive.to_dict()
-        project = data.get("projectName", "General")
-        if project not in project_archives:
-            project_archives[project] = []
-
-        archived_at = data.get("archivedAt")
-        if archived_at and hasattr(archived_at, 'isoformat'):
-            archived_at = archived_at.isoformat()
-
-        # Get title and preview from stored data or generate from messages
-        title = data.get("title")
-        preview = data.get("preview")
-        messages = data.get("messages", [])
-
-        # If no title stored, use first user message as title
-        if not title and messages:
-            for msg in messages:
-                if msg.get("role") == "user":
-                    content = msg.get("content", "")
-                    # Show full query up to 200 chars
-                    title = content[:200]
-                    if len(content) > 200:
-                        title += "..."
-                    break
-
-        # If no preview stored, use first assistant response (truncated)
-        if not preview and messages:
-            for msg in messages:
-                if msg.get("role") == "assistant":
-                    preview = msg.get("content", "")[:150]
-                    if len(msg.get("content", "")) > 150:
-                        preview += "..."
-                    break
-
-        project_archives[project].append({
-            "id": archive.id,
-            "model": data.get("model"),
-            "archivedAt": archived_at,
-            "title": title or archive.id.replace(".md", ""),
-            "preview": preview or "No preview available",
-            "messageCount": len(messages)
-        })
-
+    for row in user_store.list_archives(user_id):
+        project = row.get("project_name") or "General"
+        project_archives.setdefault(project, []).append(_archive_summary(row))
     return JSONResponse(content=project_archives)
 
 @main_app.get("/legacy-projects")
@@ -2167,56 +1972,31 @@ async def get_legacy_projects(user: dict = Depends(get_current_user)):
     """Get all projects with their chats and documents organized together."""
     user_id = user['user_id']
     try:
-        # Get archives
-        archives_ref = db.collection("users").document(user_id).collection("archives")
-        archives = archives_ref.stream()
-
-        # Get documents
-        docs_ref = db.collection("users").document(user_id).collection("documents")
-        docs = docs_ref.stream()
-
         projects = {}
-
-        # Process archives
-        for archive in archives:
-            data = archive.to_dict()
-            project = data.get("projectName", "General")
-            if project not in projects:
-                projects[project] = {"chats": [], "documents": []}
-            
-            archived_at = data.get("archivedAt")
-            if archived_at and hasattr(archived_at, 'isoformat'):
-                archived_at = archived_at.isoformat()
-
+        for row in user_store.list_archives(user_id):
+            project = row.get("project_name") or "General"
+            projects.setdefault(project, {"chats": [], "documents": []})
+            archived_at = row.get("archived_at")
             projects[project]["chats"].append({
-                "id": archive.id,
-                "model": data.get("model"),
-                "archivedAt": archived_at,
-                "type": "chat"
+                "id": str(row["id"]),
+                "model": row.get("model"),
+                "archivedAt": archived_at.isoformat() if hasattr(archived_at, "isoformat") else archived_at,
+                "type": "chat",
             })
-
-        # Process documents
-        for doc in docs:
-            data = doc.to_dict()
-            project = data.get("projectName", "General")
-            if project not in projects:
-                projects[project] = {"chats": [], "documents": []}
-            
-            uploaded_at = data.get("uploadedAt")
-            if uploaded_at and hasattr(uploaded_at, 'isoformat'):
-                uploaded_at = uploaded_at.isoformat()
-
+        for row in user_store.list_documents(user_id):
+            project = row.get("project_name") or "General"
+            projects.setdefault(project, {"chats": [], "documents": []})
+            shape = user_store.document_api_shape(row)
             projects[project]["documents"].append({
-                "filename": data.get("filename"),
-                "contentType": data.get("contentType"),
-                "size": data.get("size"),
-                "uploadedAt": uploaded_at,
+                "filename": shape["filename"],
+                "contentType": shape["contentType"],
+                "size": shape["size"],
+                "uploadedAt": shape["uploadedAt"],
                 "type": "document",
-                "indexed": data.get("indexed", False),
-                "chunkCount": data.get("chunkCount", 0),
-                "indexingError": data.get("indexingError")
+                "indexed": shape["indexed"],
+                "chunkCount": shape["chunkCount"],
+                "indexingError": shape["indexingError"],
             })
-
         return JSONResponse(content=projects)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2225,19 +2005,16 @@ async def get_legacy_projects(user: dict = Depends(get_current_user)):
 async def get_archive_content(archive_id: str, user: dict = Depends(get_current_user)):
     user_id = user['user_id']
     try:
-        doc_ref = db.collection("users").document(user_id).collection("archives").document(archive_id)
-        doc = doc_ref.get()
-        if not doc.exists:
+        row = user_store.get_archive(user_id, archive_id)
+        if not row:
             raise HTTPException(status_code=404, detail="Archive not found")
-        
-        data = doc.to_dict()
-        # Convert timestamp to string before sending
-        archived_at = data.get("archivedAt")
-        if archived_at and hasattr(archived_at, 'isoformat'):
-             data['archivedAt'] = archived_at.isoformat()
-        data["messages"] = compact_messages_for_storage(data.get("messages", []))
-            
-        return JSONResponse(content=data)
+        archived_at = row.get("archived_at")
+        return JSONResponse(content={
+            "projectName": row.get("project_name") or "General",
+            "model": row.get("model"),
+            "archivedAt": archived_at.isoformat() if hasattr(archived_at, "isoformat") else archived_at,
+            "messages": compact_messages_for_storage(row.get("messages") or []),
+        })
     except HTTPException:
         raise
     except Exception as e:
@@ -2248,35 +2025,17 @@ async def get_archive_content(archive_id: str, user: dict = Depends(get_current_
 async def get_documents(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
     try:
-        docs_ref = db.collection("users").document(user_id).collection("documents").order_by("uploadedAt", direction=Query.DESCENDING)
-        docs = docs_ref.stream()
-        
         project_documents = {}
-        for doc in docs:
-            data = doc.to_dict()
-            project = data.get("projectName", "General")  # Default to "General" for existing docs
-            
-            if project not in project_documents:
-                project_documents[project] = []
-            
-            uploaded_at = data.get("uploadedAt")
-            if uploaded_at and hasattr(uploaded_at, 'isoformat'):
-                data['uploadedAt'] = uploaded_at.isoformat()
-            
-            project_documents[project].append(data)
-        
+        for row in user_store.list_documents(user_id):
+            shape = user_store.document_api_shape(row)
+            project_documents.setdefault(shape["projectName"], []).append(shape)
         return JSONResponse(content=project_documents)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @main_app.get("/history")
 async def get_history(user: dict = Depends(get_current_user)):
-    user_id = user['user_id']
-    doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
-    doc = doc_ref.get()
-    if doc.exists:
-        return JSONResponse(content=compact_messages_for_storage(doc.to_dict().get("messages", [])))
-    return JSONResponse(content=[])
+    return JSONResponse(content=user_store.get_current_messages(user['user_id']))
 
 @main_app.get("/documents/indexed")
 async def get_indexed_documents(user: dict = Depends(get_current_user)):
@@ -2292,20 +2051,42 @@ async def get_indexed_documents(user: dict = Depends(get_current_user)):
         print(f"Failed to get indexed documents: {e}")
         return JSONResponse(content={"documents": [], "error": str(e)})
 
+@main_app.get("/user/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    """Who the caller is: identity, school, role, and branding for the UI."""
+    row = user_store.ensure_user(user["user_id"], user.get("email")) or {}
+    school = None
+    client_id = user.get("client_id") or row.get("client_id")
+    if client_id:
+        school = db.fetch_one(
+            """
+            select c.id::text as id, c.name, s.brand_name, s.persona_email, s.logo_url,
+                   s.accent_color, s.tagline, s.comped
+            from public.clients c
+            left join romalume.school_settings s on s.client_id = c.id
+            where c.id = %s
+            """,
+            (client_id,),
+        )
+    return {
+        "user_id": user["user_id"],
+        "email": user.get("email"),
+        "display_name": row.get("display_name"),
+        "is_admin": bool(user.get("is_super_admin")),
+        "role": user.get("role"),
+        "client_id": client_id,
+        "school": school,
+        "subscription_status": effective_subscription_status(row),
+        "credits": int(row.get("credits") or 0),
+    }
+
+
 @main_app.get("/user/credits")
 async def get_user_credits(user: dict = Depends(get_current_user)):
-    user_id = user['user_id']
-    user_ref = db.collection("users").document(user_id)
-    user_snapshot = user_ref.get()
-
-    if not user_snapshot.exists:
-        # This case should ideally not happen if user has interacted at least once.
-        # But as a fallback, we can say they have the initial free credits.
-        return JSONResponse(content={"credits": 100})
-
-    user_data = user_snapshot.to_dict()
-    credits = user_data.get("credits", 0)
-    return JSONResponse(content={"credits": credits})
+    user_data = user_store.get_user(user['user_id'])
+    if not user_data:
+        return JSONResponse(content={"credits": user_store.INITIAL_CREDITS})
+    return JSONResponse(content={"credits": int(user_data.get("credits") or 0)})
 
 
 # --- Billing & Subscription Endpoints ---
@@ -2316,17 +2097,12 @@ async def get_user_billing(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
 
     try:
-        # Get user data
-        user_ref = db.collection("users").document(user_id)
-        user_snapshot = user_ref.get()
-        user_data = user_snapshot.to_dict() if user_snapshot.exists else {}
+        user_data = user_store.get_user(user_id) or {}
 
         # Get current month's usage
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         month_key = now.strftime("%Y-%m")
-        monthly_ref = db.collection("user_monthly_usage").document(f"{user_id}_{month_key}")
-        monthly_snapshot = monthly_ref.get()
-        monthly_data = monthly_snapshot.to_dict() if monthly_snapshot.exists else {}
+        monthly_data = user_store.month_usage(user_id, month_key)
 
         # Get subscription info
         subscription_amount_cents = user_data.get("subscription_amount", 2000)  # Default $20
@@ -2341,12 +2117,12 @@ async def get_user_billing(user: dict = Depends(get_current_user)):
         current_month_charity_cents = max(0, subscription_amount_cents - current_month_ai_cost_cents)
 
         # Get all-time totals
-        all_time_ai_cost_cents = user_data.get("all_time_ai_cost_cents", 0)
+        all_time_ai_cost_cents = float(user_data.get("all_time_ai_cost_cents") or 0)
         all_time_requests = user_data.get("all_time_requests", 0)
 
         # Calculate all-time charity (would need to track subscription payments)
         # For now, estimate based on months subscribed
-        all_time_charity_cents = user_data.get("all_time_charity_cents", 0)
+        all_time_charity_cents = float(user_data.get("all_time_charity_cents") or 0)
 
         # Check if user is approaching their subscription limit (80% threshold)
         usage_warning = current_month_ai_cost_cents >= (subscription_amount_cents * 0.8)
@@ -2400,19 +2176,15 @@ async def get_user_subscription(user: dict = Depends(get_current_user)):
     user_id = user['user_id']
 
     try:
-        user_ref = db.collection("users").document(user_id)
-        user_snapshot = user_ref.get()
+        user_data = user_store.get_user(user_id)
 
-        if not user_snapshot.exists:
+        if not user_data:
             return JSONResponse(content={
                 "status": "none",
                 "amount_cents": 0,
                 "stripe_customer_id": None,
             })
 
-        user_data = user_snapshot.to_dict()
-
-        # Convert Firestore timestamp to ISO string if present
         current_period_end = user_data.get("subscription_current_period_end")
         if current_period_end:
             current_period_end = current_period_end.isoformat() if hasattr(current_period_end, 'isoformat') else str(current_period_end)
@@ -2462,23 +2234,21 @@ async def create_stripe_checkout(
         amount_cents = req.amount_cents
 
         # Check if user already has a Stripe customer ID
-        user_ref = db.collection("users").document(user_id)
-        user_snapshot = user_ref.get()
-        user_data = user_snapshot.to_dict() if user_snapshot.exists else {}
+        user_data = user_store.ensure_user(user_id, user_email) or {}
         stripe_customer_id = user_data.get("stripe_customer_id")
 
         # Create or retrieve Stripe customer
         if not stripe_customer_id:
             customer = stripe.Customer.create(
                 email=user_email,
-                metadata={"firebase_user_id": user_id}
+                metadata={"firebase_user_id": user_id, "romalume_user_id": user_id}
             )
             stripe_customer_id = customer.id
             # Save customer ID
-            user_ref.set({"stripe_customer_id": stripe_customer_id}, merge=True)
+            user_store.update_user(user_id, stripe_customer_id=stripe_customer_id)
         else:
             customer = stripe.Customer.retrieve(stripe_customer_id)
-            if customer.metadata.get("firebase_user_id") != user_id:
+            if (customer.metadata.get("romalume_user_id") or customer.metadata.get("firebase_user_id")) != user_id:
                 raise HTTPException(status_code=409, detail="Billing account ownership mismatch.")
 
         # Create checkout session with variable pricing
@@ -2503,6 +2273,7 @@ async def create_stripe_checkout(
             cancel_url=cancel_url,
             metadata={
                 "firebase_user_id": user_id,
+                "romalume_user_id": user_id,
                 "amount_cents": str(amount_cents),
             },
         )
@@ -2538,16 +2309,14 @@ async def create_stripe_portal(req: PortalRequest = None, user: dict = Depends(g
     portal_return_url = validated_frontend_url(req.return_url if req else None, "/account")
 
     try:
-        user_ref = db.collection("users").document(user_id)
-        user_snapshot = user_ref.get()
+        user_data = user_store.get_user(user_id)
 
-        if not user_snapshot.exists:
+        if not user_data:
             return JSONResponse(
                 status_code=404,
                 content={"error": "User not found"}
             )
 
-        user_data = user_snapshot.to_dict()
         stripe_customer_id = user_data.get("stripe_customer_id")
 
         if not stripe_customer_id:
@@ -2557,7 +2326,7 @@ async def create_stripe_portal(req: PortalRequest = None, user: dict = Depends(g
             )
 
         customer = stripe.Customer.retrieve(stripe_customer_id)
-        if customer.metadata.get("firebase_user_id") != user_id:
+        if (customer.metadata.get("romalume_user_id") or customer.metadata.get("firebase_user_id")) != user_id:
             raise HTTPException(status_code=409, detail="Billing account ownership mismatch.")
 
         # Create portal session
@@ -2594,16 +2363,14 @@ async def update_stripe_subscription(req: UpdateSubscriptionRequest, user: dict 
     user_id = user['user_id']
 
     try:
-        user_ref = db.collection("users").document(user_id)
-        user_snapshot = user_ref.get()
+        user_data = user_store.get_user(user_id)
 
-        if not user_snapshot.exists:
+        if not user_data:
             return JSONResponse(
                 status_code=404,
                 content={"error": "User not found"}
             )
 
-        user_data = user_snapshot.to_dict()
         subscription_id = user_data.get("stripe_subscription_id")
 
         if not subscription_id:
@@ -2618,7 +2385,7 @@ async def update_stripe_subscription(req: UpdateSubscriptionRequest, user: dict 
         if not stripe_customer_id or subscription.customer != stripe_customer_id:
             raise HTTPException(status_code=409, detail="Subscription ownership mismatch.")
         customer = stripe.Customer.retrieve(stripe_customer_id)
-        if customer.metadata.get("firebase_user_id") != user_id:
+        if (customer.metadata.get("romalume_user_id") or customer.metadata.get("firebase_user_id")) != user_id:
             raise HTTPException(status_code=409, detail="Billing account ownership mismatch.")
 
         if subscription.status != "active":
@@ -2664,10 +2431,7 @@ async def update_stripe_subscription(req: UpdateSubscriptionRequest, user: dict 
             proration_behavior="create_prorations",  # Charge/credit the difference immediately
         )
 
-        # Update Firestore with new amount
-        user_ref.update({
-            "subscription_amount": req.amount_cents,
-        })
+        user_store.update_user(user_id, subscription_amount=req.amount_cents)
 
         return JSONResponse(content={
             "success": True,
@@ -2716,14 +2480,7 @@ async def stripe_webhook(request: Request):
     event_id = event.get("id")
     if not event_id:
         return JSONResponse(status_code=400, content={"error": "Missing event ID"})
-    event_ref = db.collection("stripe_webhook_events").document(event_id)
-    try:
-        event_ref.create({
-            "status": "processing",
-            "type": event.get("type"),
-            "received_at": firestore.SERVER_TIMESTAMP,
-        })
-    except AlreadyExists:
+    if not user_store.claim_stripe_event(event_id):
         return JSONResponse(content={"status": "duplicate"})
 
     event_type = event["type"]
@@ -2733,92 +2490,67 @@ async def stripe_webhook(request: Request):
 
     try:
         if event_type == "checkout.session.completed":
-            # New subscription created
             customer_id = data.get("customer")
             subscription_id = data.get("subscription")
             metadata = data.get("metadata", {})
-            user_id = metadata.get("firebase_user_id")
+            user_id = metadata.get("romalume_user_id") or metadata.get("firebase_user_id")
             amount_cents = int(metadata.get("amount_cents", 2000))
 
             if user_id:
-                # Get subscription details
                 subscription = stripe.Subscription.retrieve(subscription_id)
-
-                db.collection("users").document(user_id).set({
-                    "stripe_customer_id": customer_id,
-                    "stripe_subscription_id": subscription_id,
-                    "subscription_status": "active",
-                    "subscription_amount": amount_cents,
-                    "subscription_started_at": firestore.SERVER_TIMESTAMP,
-                    "subscription_current_period_end": datetime.fromtimestamp(subscription.current_period_end, tz=timezone.utc),
-                }, merge=True)
-
+                period_end = subscription.get("current_period_end") if hasattr(subscription, "get") else None
+                user_store.update_user(
+                    user_id,
+                    stripe_customer_id=customer_id,
+                    stripe_subscription_id=subscription_id,
+                    subscription_status="active",
+                    subscription_amount=amount_cents,
+                    subscription_current_period_end=(
+                        datetime.fromtimestamp(period_end, tz=timezone.utc) if period_end else None
+                    ),
+                )
                 print(f"Subscription activated for user {user_id}: ${amount_cents/100}")
 
         elif event_type == "customer.subscription.updated":
-            subscription_id = data.get("id")
             status = data.get("status")
             customer_id = data.get("customer")
-
-            # Find user by customer ID
-            users = db.collection("users").where("stripe_customer_id", "==", customer_id).limit(1).get()
-
-            for user_doc in users:
-                user_doc.reference.update({
-                    "subscription_status": status,
-                    "subscription_current_period_end": datetime.fromtimestamp(data.get("current_period_end", 0), tz=timezone.utc),
-                })
-                print(f"Subscription updated for {user_doc.id}: {status}")
+            row = user_store.get_user_by_stripe_customer(customer_id)
+            if row:
+                period_end = data.get("current_period_end")
+                user_store.update_user(
+                    row["user_id"],
+                    subscription_status=status,
+                    subscription_current_period_end=(
+                        datetime.fromtimestamp(period_end, tz=timezone.utc) if period_end else None
+                    ),
+                )
+                print(f"Subscription updated for {row['user_id']}: {status}")
 
         elif event_type == "customer.subscription.deleted":
             customer_id = data.get("customer")
-
-            # Find user by customer ID
-            users = db.collection("users").where("stripe_customer_id", "==", customer_id).limit(1).get()
-
-            for user_doc in users:
-                user_doc.reference.update({
-                    "subscription_status": "canceled",
-                })
-                print(f"Subscription canceled for {user_doc.id}")
+            row = user_store.get_user_by_stripe_customer(customer_id)
+            if row:
+                user_store.update_user(row["user_id"], subscription_status="canceled")
+                print(f"Subscription canceled for {row['user_id']}")
 
         elif event_type == "invoice.paid":
             customer_id = data.get("customer")
             amount_paid = data.get("amount_paid", 0)
-
-            # Find user and update charity tracking
-            users = db.collection("users").where("stripe_customer_id", "==", customer_id).limit(1).get()
-
-            for user_doc in users:
-                # Get current month's AI cost to calculate charity portion
-                user_id = user_doc.id
+            row = user_store.get_user_by_stripe_customer(customer_id)
+            if row:
                 invoice_created = datetime.fromtimestamp(data.get("created", 0), tz=timezone.utc)
-                month_key = invoice_created.strftime("%Y-%m")
-                monthly_ref = db.collection("user_monthly_usage").document(f"{user_id}_{month_key}")
-                monthly_snapshot = monthly_ref.get()
-                monthly_data = monthly_snapshot.to_dict() if monthly_snapshot.exists else {}
-                ai_cost = monthly_data.get("total_ai_cost_cents", 0)
-
+                ai_cost = user_store.month_usage(row["user_id"], invoice_created.strftime("%Y-%m"))["total_ai_cost_cents"]
                 charity_amount = max(0, amount_paid - ai_cost)
+                user_store.increment_user(row["user_id"], all_time_charity_cents=charity_amount)
+                print(f"Invoice paid for {row['user_id']}: ${amount_paid/100}, charity: ${charity_amount/100}")
 
-                user_doc.reference.set({
-                    "all_time_charity_cents": firestore.Increment(charity_amount),
-                    "last_payment_at": firestore.SERVER_TIMESTAMP,
-                }, merge=True)
-
-                print(f"Invoice paid for {user_id}: ${amount_paid/100}, charity: ${charity_amount/100}")
-
-        event_ref.update({
-            "status": "completed",
-            "completed_at": firestore.SERVER_TIMESTAMP,
-        })
     except Exception as e:
         print(f"Webhook processing error: {e}")
         import traceback
         traceback.print_exc()
         # Release the claim so Stripe's retry can process the event again.
         try:
-            event_ref.delete()
+            user_store.release_stripe_event(event_id)
         except Exception as cleanup_error:
             print(f"Failed to release webhook claim {event_id}: {cleanup_error}")
         return JSONResponse(status_code=500, content={"error": "Webhook processing failed"})
@@ -2855,20 +2587,17 @@ def index_document_background(
             print(f"Background: Failed to index in Qdrant: {e}")
             indexing_error = str(e)
 
-        # Save metadata to Firestore
-        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
-        doc_data = {
-            "storagePath": file_path,
-            "filename": filename,
-            "contentType": content_type,
-            "size": len(file_content),
-            "projectName": project_name,
-            "uploadedAt": firestore.SERVER_TIMESTAMP,
-            "indexed": indexed_chunks > 0,
-            "chunkCount": indexed_chunks,
-            "indexingError": indexing_error
-        }
-        doc_ref.set(doc_data)
+        user_store.upsert_document(
+            user_id,
+            filename=filename,
+            storage_path=file_path,
+            content_type=content_type,
+            size=len(file_content),
+            project_name=project_name,
+            indexed=indexed_chunks > 0,
+            chunk_count=indexed_chunks,
+            indexing_error=indexing_error,
+        )
         print(f"Background: Saved metadata for {filename}")
 
     except Exception as e:
@@ -3027,24 +2756,18 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
             print(f"Failed to index document in Qdrant: {e}")
             indexing_error = str(e)
 
-        # Save metadata to Firestore
-        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
-        doc_data = {
-            "storagePath": file_path,
-            "filename": filename,
-            "contentType": file.content_type,
-            "size": len(file_content),
-            "projectName": project_name,
-            "uploadedAt": firestore.SERVER_TIMESTAMP,
-            "indexed": indexed_chunks > 0,
-            "chunkCount": indexed_chunks,
-            "indexingError": indexing_error
-        }
-        doc_ref.set(doc_data)
-
-        # We can't get the server timestamp back immediately without another read,
-        # so we'll approximate it for the response. The value in the DB will be accurate.
-        doc_data['uploadedAt'] = datetime.now().isoformat()
+        row = user_store.upsert_document(
+            user_id,
+            filename=filename,
+            storage_path=file_path,
+            content_type=file.content_type,
+            size=len(file_content),
+            project_name=project_name,
+            indexed=indexed_chunks > 0,
+            chunk_count=indexed_chunks,
+            indexing_error=indexing_error,
+        )
+        doc_data = user_store.document_api_shape(row)
         
         # This is the user-facing message that will be added to the chat
         display_message = f"File '{filename}' has been successfully uploaded and saved."
@@ -3085,13 +2808,10 @@ async def get_document_content(filename: str, user: dict = Depends(get_current_u
     user_id = user['user_id']
     filename = safe_filename(filename)
     try:
-        # Lookup the document metadata to confirm it exists and get storage path
-        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
-        doc_snapshot = doc_ref.get()
-        if not doc_snapshot.exists:
+        doc_data = user_store.get_document(user_id, filename)
+        if not doc_data:
             raise HTTPException(status_code=404, detail="Document not found.")
-        doc_data = doc_snapshot.to_dict()
-        storage_path = doc_data["storagePath"]
+        storage_path = doc_data["storage_path"]
         expected_path = f"{user_id}/documents/{filename}"
         if storage_path != expected_path:
             raise HTTPException(status_code=409, detail="Document storage metadata is invalid.")
@@ -3128,13 +2848,8 @@ async def get_document_content(filename: str, user: dict = Depends(get_current_u
 async def delete_archive(archive_id: str, user: dict = Depends(get_current_user)):
     user_id = user['user_id']
     try:
-        doc_ref = db.collection("users").document(user_id).collection("archives").document(archive_id)
-        
-        # Check if the document exists before trying to delete
-        if not doc_ref.get().exists:
+        if not user_store.delete_archive(user_id, archive_id):
             raise HTTPException(status_code=404, detail="Archive not found.")
-
-        doc_ref.delete()
         return JSONResponse(content={"message": f"Archive '{archive_id}' deleted successfully."})
     except HTTPException:
         raise
@@ -3147,13 +2862,8 @@ async def delete_document(filename: str, user: dict = Depends(get_current_user))
     user_id = user['user_id']
     filename = safe_filename(filename)
     try:
-        # First, delete the Firestore metadata document
-        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
-        doc_snapshot = doc_ref.get()
-        if not doc_snapshot.exists:
+        if not user_store.delete_document(user_id, filename):
             raise HTTPException(status_code=404, detail="Document metadata not found.")
-
-        doc_ref.delete()
 
         # Second, delete the actual file from Cloud Storage
         storage_path = f"{user_id}/documents/{filename}"
@@ -3182,36 +2892,19 @@ async def download_document(filename: str, user: dict = Depends(get_current_user
     """Generate a signed URL to download the original file."""
     user_id = user['user_id']
     filename = safe_filename(filename)
-
     try:
-        # Verify document exists in Firestore
-        doc_ref = db.collection("users").document(user_id).collection("documents").document(filename)
-        doc_snapshot = doc_ref.get()
-        if not doc_snapshot.exists:
+        doc_data = user_store.get_document(user_id, filename)
+        if not doc_data:
             raise HTTPException(status_code=404, detail="Document not found.")
-
-        doc_data = doc_snapshot.to_dict()
-        storage_path = doc_data.get("storagePath", f"{user_id}/documents/{filename}")
+        storage_path = doc_data.get("storage_path") or f"{user_id}/documents/{filename}"
         expected_path = f"{user_id}/documents/{filename}"
         if storage_path != expected_path:
             raise HTTPException(status_code=409, detail="Document storage metadata is invalid.")
-
-        # Get blob and generate signed URL
         blob = get_storage_bucket().blob(storage_path)
         if not blob.exists():
             raise HTTPException(status_code=404, detail="File not found in storage.")
-
-        # Generate signed URL valid for 1 hour
-        from datetime import timedelta
-        url = blob.generate_signed_url(
-            version="v4",
-            expiration=timedelta(hours=1),
-            method="GET",
-            response_disposition=f'attachment; filename="{filename}"'
-        )
-
+        url = blob.signed_url(expires_in=3600, download_name=filename)
         return JSONResponse(content={"download_url": url, "filename": filename})
-
     except HTTPException:
         raise
     except Exception as e:
@@ -3219,25 +2912,18 @@ async def download_document(filename: str, user: dict = Depends(get_current_user
         raise HTTPException(status_code=500, detail="Failed to generate download link.")
 
 
-# --- Firestore Data Functions ---
+# --- Conversation persistence ---
 def get_conversation(user_id: str) -> List[dict]:
-    """Loads the current conversation history from Firestore."""
-    doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
-    doc = doc_ref.get()
-    if doc.exists:
-        return compact_messages_for_storage(doc.to_dict().get("messages", []))
-    return []
+    """Loads the current Quick Chat thread."""
+    return user_store.get_current_messages(user_id)
 
 def save_conversation(user_id: str, messages: List[dict]):
-    """Saves the entire conversation history to Firestore."""
-    doc_ref = db.collection("users").document(user_id).collection("conversations").document("current_chat")
-    doc_ref.set({"messages": compact_messages_for_storage(messages), "updatedAt": firestore.SERVER_TIMESTAMP})
+    """Saves the current Quick Chat thread."""
+    user_store.save_current_messages(user_id, messages)
 
 async def get_current_admin_user(user: dict = Depends(get_current_user)):
-    """Verifies that the current user is an admin."""
-    # The 'admin' claim is set by the set_admin.py script
-    # and is part of the user's ID token.
-    if not user.get("admin"):
+    """Verifies that the current user is a super admin (public.admin_users)."""
+    if not user.get("is_super_admin"):
         raise HTTPException(status_code=403, detail="Forbidden: User does not have admin privileges.")
     return user
 
@@ -3254,31 +2940,15 @@ class UserUpdate(BaseModel):
 
 
 def delete_user_data(user_id: str):
-    """Delete account data across Firebase, Storage, Qdrant, and usage collections."""
-    user_ref = db.collection("users").document(user_id)
-    user_snapshot = user_ref.get()
-    user_data = user_snapshot.to_dict() if user_snapshot.exists else {}
+    """Delete account data across Postgres, Storage, Qdrant, and Supabase Auth."""
+    user_data = user_store.get_user(user_id) or {}
 
     subscription_id = user_data.get("stripe_subscription_id")
     if STRIPE_ENABLED and subscription_id:
-        stripe.Subscription.retrieve(subscription_id).cancel()
-
-    for subcollection_name in [
-        "archives", "conversations", "documents", "settings", "therapy_notes"
-    ]:
-        for document in user_ref.collection(subcollection_name).stream():
-            document.reference.delete()
-
-    for project in user_ref.collection("projects").stream():
-        db.recursive_delete(project.reference)
-
-    for collection_name in ["usage_logs", "feedback", "user_monthly_usage"]:
-        for document in db.collection(collection_name).where("user_id", "==", user_id).stream():
-            document.reference.delete()
-
-    if bucket is not None:
-        for blob in bucket.list_blobs(prefix=f"{user_id}/"):
-            blob.delete()
+        try:
+            stripe.Subscription.retrieve(subscription_id).cancel()
+        except Exception as stripe_error:
+            print(f"Non-fatal Stripe cancel error: {stripe_error}")
 
     try:
         rag = get_rag_service()
@@ -3292,8 +2962,14 @@ def delete_user_data(user_id: str):
     except Exception as rag_error:
         print(f"Non-fatal Qdrant account cleanup error: {rag_error}")
 
-    user_ref.delete()
-    firebase_auth.delete_user(user_id)
+    if blob_store.is_configured():
+        try:
+            blob_store.bucket().delete_prefix(f"{user_id}/")
+        except Exception as storage_error:
+            print(f"Non-fatal storage cleanup error: {storage_error}")
+
+    user_store.delete_user_rows(user_id)
+    supabase_auth.delete_auth_user(user_id)
 
 
 class DeleteAccountRequest(BaseModel):
@@ -3310,32 +2986,20 @@ async def delete_own_account(
 
 @main_app.get("/admin/users", response_model=List[dict])
 async def list_users(_: dict = Depends(get_current_admin_user)):
-    """Lists all users from Firebase Auth and merges with Firestore data."""
+    """Lists every Supabase auth user merged with RomaLume settings."""
     try:
-        # Get all users from Firebase Authentication
-        auth_users = firebase_auth.list_users().iterate_all()
-        
         users_list = []
-        for user in auth_users:
-            user_data = {
-                "uid": user.uid,
-                "email": user.email,
-                "displayName": user.display_name or "",
-                "isAdmin": user.custom_claims.get("admin", False) if user.custom_claims else False,
-                "credits": 0,  # Default credits
-                "credits_used": 0 # Default used credits
-            }
-            
-            # Fetch credit data from Firestore
-            user_doc = db.collection("users").document(user.uid).get()
-            if user_doc.exists:
-                firestore_data = user_doc.to_dict()
-                user_data["credits"] = firestore_data.get("credits", 0)
-                user_data["credits_used"] = firestore_data.get("credits_used", 0)
-                user_data["subscriptionStatus"] = firestore_data.get("subscription_status", "none")
-
-            users_list.append(user_data)
-            
+        for row in user_store.list_users():
+            users_list.append({
+                "uid": row["uid"],
+                "email": row.get("email"),
+                "displayName": row.get("display_name") or "",
+                "isAdmin": bool(row.get("is_admin")),
+                "credits": int(row.get("credits") or 0),
+                "credits_used": int(row.get("credits_used") or 0),
+                "subscriptionStatus": "active" if row.get("comped") else row.get("subscription_status", "none"),
+                "comped": bool(row.get("comped")),
+            })
         return users_list
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while fetching users: {e}")
@@ -3343,8 +3007,7 @@ async def list_users(_: dict = Depends(get_current_admin_user)):
 @main_app.post("/admin/users/{user_id}/credits")
 async def update_user_credits(user_id: str, credit_update: CreditUpdate, _: dict = Depends(get_current_admin_user)):
     try:
-        user_ref = db.collection("users").document(user_id)
-        user_ref.set({"credits": firestore.Increment(credit_update.amount)}, merge=True)
+        user_store.increment_user(user_id, credits=credit_update.amount)
         return JSONResponse(content={"message": f"Credits for user {user_id} updated successfully."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -3352,10 +3015,7 @@ async def update_user_credits(user_id: str, credit_update: CreditUpdate, _: dict
 @main_app.post("/admin/users/{user_id}/role")
 async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depends(get_current_admin_user)):
     try:
-        target_user = firebase_auth.get_user(user_id)
-        claims = dict(target_user.custom_claims or {})
-        claims["admin"] = role_update.is_admin
-        firebase_auth.set_custom_user_claims(user_id, claims)
+        user_store.set_super_admin(user_id, role_update.is_admin)
         return {"message": f"User role updated successfully. Admin: {role_update.is_admin}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -3364,22 +3024,12 @@ async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depe
 async def update_user(user_id: str, user_update: UserUpdate, _: dict = Depends(get_current_admin_user)):
     """Update user fields (display_name, credits, is_admin)."""
     try:
-        # Update display name in Firebase Auth
         if user_update.display_name is not None:
-            firebase_auth.update_user(user_id, display_name=user_update.display_name)
-
-        # Update credits in Firestore
+            user_store.update_user(user_id, display_name=user_update.display_name)
         if user_update.credits is not None:
-            user_ref = db.collection("users").document(user_id)
-            user_ref.set({"credits": user_update.credits}, merge=True)
-
-        # Update admin status in Firebase Auth custom claims
+            user_store.update_user(user_id, credits=user_update.credits)
         if user_update.is_admin is not None:
-            target_user = firebase_auth.get_user(user_id)
-            claims = dict(target_user.custom_claims or {})
-            claims["admin"] = user_update.is_admin
-            firebase_auth.set_custom_user_claims(user_id, claims)
-
+            user_store.set_super_admin(user_id, user_update.is_admin)
         return {"message": "User updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -3399,11 +3049,7 @@ async def admin_delete_user(user_id: str, _: dict = Depends(get_current_admin_us
 async def set_user_paid(user_id: str, _: dict = Depends(get_current_admin_user)):
     """Manually mark a user as a paid subscriber (bypasses Stripe)."""
     try:
-        user_ref = db.collection("users").document(user_id)
-        user_ref.set({
-            "subscription_status": "active",
-            "subscription_started_at": firestore.SERVER_TIMESTAMP,
-        }, merge=True)
+        user_store.update_user(user_id, subscription_status="active")
         print(f"Admin manually set user {user_id} as paid")
         return {"message": "User marked as paid subscriber"}
     except Exception as e:
@@ -3413,10 +3059,7 @@ async def set_user_paid(user_id: str, _: dict = Depends(get_current_admin_user))
 async def set_user_free(user_id: str, _: dict = Depends(get_current_admin_user)):
     """Manually revert a user to free tier."""
     try:
-        user_ref = db.collection("users").document(user_id)
-        user_ref.set({
-            "subscription_status": "none",
-        }, merge=True)
+        user_store.update_user(user_id, subscription_status="none", comped=False)
         print(f"Admin manually set user {user_id} as free")
         return {"message": "User reverted to free tier"}
     except Exception as e:
@@ -3426,19 +3069,13 @@ async def set_user_free(user_id: str, _: dict = Depends(get_current_admin_user))
 async def admin_unsubscribe_user(user_id: str, _: dict = Depends(get_current_admin_user)):
     """Unsubscribe a user from all system emails."""
     try:
-        user_ref = db.collection("users").document(user_id)
-
-        # Set all email preferences to False
-        user_ref.set({
-            "email_preferences": {
-                "feature_updates": False,
-                "bug_fixes": False,
-                "pricing_changes": False,
-                "usage_tips": False,
-                "charity_updates": False
-            }
-        }, merge=True)
-
+        user_store.update_user(user_id, email_preferences={
+            "feature_updates": False,
+            "bug_fixes": False,
+            "pricing_changes": False,
+            "usage_tips": False,
+            "charity_updates": False,
+        })
         print(f"User {user_id} unsubscribed from all emails")
         return {"message": "User unsubscribed from all emails"}
     except Exception as e:
@@ -3446,195 +3083,73 @@ async def admin_unsubscribe_user(user_id: str, _: dict = Depends(get_current_adm
 
 @main_app.get("/admin/debug/user/{user_id}/credits")
 async def debug_user_credits(user_id: str, _: dict = Depends(get_current_admin_user)):
-    """
-    Debug endpoint for investigating credit issues for a specific user.
-    Returns detailed information about the user's credit status.
-    """
+    """Debug endpoint for investigating credit issues for a specific user."""
     try:
-        # Get user data from Firestore
-        user_ref = db.collection("users").document(user_id)
-        user_doc = user_ref.get()
-        
-        # Get user data from Firebase Auth
-        auth_user_data = None
-        try:
-            auth_user = firebase_auth.get_user(user_id)
-            auth_user_data = {
-                "email": auth_user.email,
-                "display_name": auth_user.display_name,
-                "email_verified": auth_user.email_verified,
-                "disabled": auth_user.disabled,
-                "custom_claims": auth_user.custom_claims
-            }
-        except Exception as auth_error:
-            print(f"Auth error for user {user_id}: {auth_error}")
-
-        # Simulate the credit check logic
-        transaction = db.transaction()
-        
-        @firestore.transactional
-        def simulate_credit_check(transaction: Transaction, user_ref):
-            user_snapshot = user_ref.get(transaction=transaction)
-            
-            if not user_snapshot.exists:
-                return {
-                    "status": "new_user",
-                    "would_get_initial_credits": True,
-                    "initial_credits_amount": 100
-                }
-            
-            user_data = user_snapshot.to_dict()
-            credits = user_data.get("credits", 0)
-            
-            return {
-                "status": "existing_user",
-                "current_credits": credits,
-                "credits_type": type(credits).__name__,
-                "would_pass_check": credits > 0,
-                "credits_after_use": credits - 1 if credits > 0 else credits
-            }
-        
-        credit_simulation = simulate_credit_check(transaction, user_ref)
-        
-        # Prepare response
+        auth_user = user_store.get_auth_user(user_id)
+        row = user_store.get_user(user_id)
+        credits = int(row.get("credits") or 0) if row else None
         debug_info = {
             "user_id": user_id,
             "timestamp": datetime.now().isoformat(),
-            "firebase_auth": {
-                "exists": auth_user_data is not None,
-                "data": auth_user_data
-            },
-            "firestore": {
-                "document_exists": user_doc.exists,
-                "raw_data": user_doc.to_dict() if user_doc.exists else None
-            },
-            "credit_simulation": credit_simulation,
-            "diagnosis": {
-                "likely_issue": None,
-                "recommendations": []
-            }
+            "auth": {"exists": auth_user is not None, "data": auth_user},
+            "settings": {"row_exists": row is not None, "raw_data": row},
+            "credit_simulation": (
+                {"status": "new_user", "would_get_initial_credits": True, "initial_credits_amount": user_store.INITIAL_CREDITS}
+                if row is None else
+                {"status": "existing_user", "current_credits": credits, "would_pass_check": credits > 0,
+                 "credits_after_use": credits - 1 if credits > 0 else credits}
+            ),
+            "diagnosis": {"likely_issue": None, "recommendations": []},
         }
-        
-        # Determine likely issues and recommendations
-        if not user_doc.exists:
-            debug_info["diagnosis"]["likely_issue"] = "User document doesn't exist in Firestore"
-            debug_info["diagnosis"]["recommendations"] = [
-                "User should make their first request to create the document with initial 100 credits",
-                "If they have made requests, there may be a database connectivity issue"
-            ]
-        elif not credit_simulation.get("would_pass_check", True):
+        if row is None:
+            debug_info["diagnosis"]["likely_issue"] = "User has no settings row yet"
+            debug_info["diagnosis"]["recommendations"] = ["First request creates the row with initial credits"]
+        elif credits <= 0:
             debug_info["diagnosis"]["likely_issue"] = "User has 0 or negative credits"
-            debug_info["diagnosis"]["recommendations"] = [
-                "Add credits using the admin panel",
-                f"Current credits: {credit_simulation.get('current_credits', 'unknown')}"
-            ]
+            debug_info["diagnosis"]["recommendations"] = ["Add credits using the admin panel", f"Current credits: {credits}"]
         else:
             debug_info["diagnosis"]["likely_issue"] = "Credits appear normal"
-            debug_info["diagnosis"]["recommendations"] = [
-                "Check client-side issues (browser cache, authentication)",
-                "Verify correct user ID is being used",
-                "Check API logs for other error messages"
-            ]
-
-        return JSONResponse(content=debug_info)
-        
+            debug_info["diagnosis"]["recommendations"] = ["Check client-side issues (browser cache, authentication)"]
+        return JSONResponse(content=jsonable_encoder(debug_info))
     except Exception as e:
         print(f"Debug credit error: {e}")
         raise HTTPException(status_code=500, detail=f"Debug failed: {str(e)}")
 
 @main_app.get("/admin/debug/credits/summary")
 async def debug_credits_summary(_: dict = Depends(get_current_admin_user)):
-    """
-    Debug endpoint that provides a summary of all users' credit status.
-    Useful for identifying widespread credit issues.
-    """
+    """Summary of all users' credit status."""
     try:
-        # Get all users from Firebase Auth (limit to 100 for performance)
-        auth_users = firebase_auth.list_users(max_results=100).users
-        
+        rows = user_store.list_users()
         summary = {
-            "total_users_checked": len(auth_users),
-            "users_with_credits": 0,
-            "users_out_of_credits": 0,
+            "total_users_checked": len(rows),
+            "users_with_credits": sum(1 for r in rows if int(r.get("credits") or 0) > 0),
+            "users_out_of_credits": sum(1 for r in rows if int(r.get("credits") or 0) <= 0),
             "users_no_firestore_data": 0,
             "users_with_errors": 0,
             "timestamp": datetime.now().isoformat(),
-            "sample_issues": []
+            "sample_issues": [
+                {"user_id": r["uid"], "email": r.get("email"), "credits": int(r.get("credits") or 0), "issue": "out_of_credits"}
+                for r in rows if int(r.get("credits") or 0) <= 0
+            ][:5],
         }
-        
-        for user in auth_users:
-            try:
-                user_ref = db.collection("users").document(user.uid)
-                user_doc = user_ref.get()
-                
-                if not user_doc.exists:
-                    summary["users_no_firestore_data"] += 1
-                else:
-                    user_data = user_doc.to_dict()
-                    credits = user_data.get("credits", 0)
-                    
-                    if isinstance(credits, (int, float)):
-                        if credits > 0:
-                            summary["users_with_credits"] += 1
-                        else:
-                            summary["users_out_of_credits"] += 1
-                            if len(summary["sample_issues"]) < 5:
-                                summary["sample_issues"].append({
-                                    "user_id": user.uid,
-                                    "email": user.email,
-                                    "credits": credits,
-                                    "issue": "out_of_credits"
-                                })
-                    else:
-                        summary["users_with_errors"] += 1
-                        if len(summary["sample_issues"]) < 5:
-                            summary["sample_issues"].append({
-                                "user_id": user.uid,
-                                "email": user.email,
-                                "credits": credits,
-                                "issue": "invalid_credits_type"
-                            })
-                            
-            except Exception as user_error:
-                summary["users_with_errors"] += 1
-                print(f"Error checking user {user.uid}: {user_error}")
-        
         return JSONResponse(content=summary)
-        
     except Exception as e:
         print(f"Debug credits summary error: {e}")
         raise HTTPException(status_code=500, detail=f"Debug summary failed: {str(e)}")
 
 @main_app.post("/admin/debug/user/{user_id}/fix-credits")
 async def fix_user_credits(user_id: str, credit_amount: int, _: dict = Depends(get_current_admin_user)):
-    """
-    Emergency endpoint to fix a user's credits.
-    This bypasses the normal credit update endpoint to directly set credits.
-    """
+    """Emergency endpoint to directly set a user's credits."""
     try:
         if credit_amount < 0:
             raise HTTPException(status_code=400, detail="Credit amount must be non-negative")
-        
-        user_ref = db.collection("users").document(user_id)
-        user_ref.set({
-            "credits": credit_amount,
-            "credits_fixed_at": firestore.SERVER_TIMESTAMP,
-            "credits_fixed_by": "admin_debug_endpoint"
-        }, merge=True)
-        
-        # Verify the fix
-        updated_doc = user_ref.get()
-        if updated_doc.exists:
-            updated_credits = updated_doc.to_dict().get("credits")
-            return JSONResponse(content={
-                "message": f"Credits fixed successfully",
-                "user_id": user_id,
-                "new_credits": updated_credits,
-                "timestamp": datetime.now().isoformat()
-            })
-        else:
-            raise HTTPException(status_code=500, detail="Failed to verify credit fix")
-            
+        row = user_store.update_user(user_id, credits=credit_amount)
+        return JSONResponse(content={
+            "message": "Credits fixed successfully",
+            "user_id": user_id,
+            "new_credits": int(row.get("credits") or 0),
+            "timestamp": datetime.now().isoformat(),
+        })
     except HTTPException:
         raise
     except Exception as e:
@@ -3690,52 +3205,17 @@ def estimate_cost(model: str, request_count: int) -> float:
 async def get_analytics_overview(_: dict = Depends(get_current_admin_user)):
     """Get high-level usage statistics."""
     try:
-        today = datetime.now().strftime("%Y-%m-%d")
-        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-        month_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-
-        usage_logs = db.collection("usage_logs")
-
-        # Get all logs (for total count)
-        all_logs = list(usage_logs.stream())
-        total_requests = len(all_logs)
-
-        # Count by date ranges
-        today_count = 0
-        week_count = 0
-        month_count = 0
-        model_counts = {}
-        unique_users_today = set()
-
-        for log in all_logs:
-            data = log.to_dict()
-            date_key = data.get("date_key", "")
-            model = data.get("model", "unknown")
-            user_id = data.get("user_id", "")
-
-            # Count by model
-            model_counts[model] = model_counts.get(model, 0) + 1
-
-            if date_key == today:
-                today_count += 1
-                unique_users_today.add(user_id)
-            if date_key >= week_ago:
-                week_count += 1
-            if date_key >= month_ago:
-                month_count += 1
-
-        # Find top model
-        top_model = max(model_counts, key=model_counts.get) if model_counts else "N/A"
-        top_model_count = model_counts.get(top_model, 0)
-
+        totals = user_store.usage_overview()
+        models = user_store.usage_by_model()
+        top = models[0] if models else None
         return {
-            "total_requests_all_time": total_requests,
-            "total_requests_today": today_count,
-            "total_requests_this_week": week_count,
-            "total_requests_this_month": month_count,
-            "active_users_today": len(unique_users_today),
-            "top_model": top_model,
-            "top_model_requests": top_model_count
+            "total_requests_all_time": int(totals.get("total") or 0),
+            "total_requests_today": int(totals.get("today") or 0),
+            "total_requests_this_week": int(totals.get("week") or 0),
+            "total_requests_this_month": int(totals.get("month") or 0),
+            "active_users_today": int(totals.get("users_today") or 0),
+            "top_model": top["model"] if top else "N/A",
+            "top_model_requests": int(top["requests"]) if top else 0,
         }
     except Exception as e:
         print(f"Analytics overview error: {e}")
@@ -3748,31 +3228,21 @@ async def get_daily_analytics(
 ):
     """Get daily request counts for the past N days. Use days=0 for all time."""
     try:
-        usage_logs = db.collection("usage_logs")
-
-        if days == 0:
-            # All time - no date filter
-            logs = list(usage_logs.stream())
-        else:
-            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-            logs = list(usage_logs.where("date_key", ">=", start_date).stream())
-
-        # Aggregate by date
-        daily_data = {}
-        for log in logs:
-            data = log.to_dict()
-            date_key = data.get("date_key", "")
-            model = data.get("model", "unknown")
-
-            if date_key not in daily_data:
-                daily_data[date_key] = {"date": date_key, "total_requests": 0, "requests_by_model": {}}
-
-            daily_data[date_key]["total_requests"] += 1
-            daily_data[date_key]["requests_by_model"][model] = daily_data[date_key]["requests_by_model"].get(model, 0) + 1
-
-        # Sort by date
-        result = sorted(daily_data.values(), key=lambda x: x["date"])
-        return result
+        rows = db.fetch_all(
+            """
+            select to_char(created_at at time zone 'UTC', 'YYYY-MM-DD') as date, model, count(*) as n
+            from romalume.usage_logs
+            where (%s = 0 or created_at >= now() - (%s || ' days')::interval)
+            group by 1, 2 order by 1
+            """,
+            (days, str(days)),
+        )
+        daily = {}
+        for r in rows:
+            entry = daily.setdefault(r["date"], {"date": r["date"], "total_requests": 0, "requests_by_model": {}})
+            entry["total_requests"] += int(r["n"])
+            entry["requests_by_model"][r["model"]] = int(r["n"])
+        return sorted(daily.values(), key=lambda x: x["date"])
     except Exception as e:
         print(f"Daily analytics error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get daily analytics: {str(e)}")
@@ -3784,37 +3254,18 @@ async def get_model_analytics(
 ):
     """Get usage breakdown by model with cost estimates. Use days=0 for all time."""
     try:
-        usage_logs = db.collection("usage_logs")
-
-        if days == 0:
-            # All time - no date filter
-            logs = list(usage_logs.stream())
-        else:
-            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-            logs = list(usage_logs.where("date_key", ">=", start_date).stream())
-
-        # Aggregate by model
-        model_counts = {}
-        total_requests = 0
-
-        for log in logs:
-            data = log.to_dict()
-            model = data.get("model", "unknown")
-            model_counts[model] = model_counts.get(model, 0) + 1
-            total_requests += 1
-
-        # Build result with percentages and costs
+        rows = user_store.usage_by_model(days or None)
+        total_requests = sum(int(r["requests"]) for r in rows)
         result = []
-        for model, count in sorted(model_counts.items(), key=lambda x: x[1], reverse=True):
+        for r in rows:
+            count = int(r["requests"])
             percentage = (count / total_requests * 100) if total_requests > 0 else 0
-            estimated_cost = estimate_cost(model, count)
             result.append({
-                "model": model,
+                "model": r["model"],
                 "total_requests": count,
                 "percentage": round(percentage, 1),
-                "estimated_cost": round(estimated_cost, 2)
+                "estimated_cost": round(estimate_cost(r["model"], count), 2),
             })
-
         return result
     except Exception as e:
         print(f"Model analytics error: {e}")
@@ -3931,32 +3382,15 @@ async def get_users_for_email(email_type: str) -> List[dict]:
             "display_name": "Test Admin"
         }]
 
-    users_ref = db.collection("users")
     users = []
-
-    # Get all users from Firebase Auth
     try:
-        page = firebase_auth.list_users()
-        for user in page.users:
-            # Get user preferences from Firestore
-            user_doc = users_ref.document(user.uid).get()
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                email_prefs = user_data.get("email_preferences", {})
-
-                # Check if user wants this type of email
-                if email_type == "all" or email_prefs.get(email_type, True):
-                    users.append({
-                        "uid": user.uid,
-                        "email": user.email,
-                        "display_name": user.display_name or user.email
-                    })
-            else:
-                # New user without preferences, default to True
+        for row in user_store.list_users():
+            prefs = (user_store.get_user(row["uid"]) or {}).get("email_preferences") or {}
+            if email_type == "all" or prefs.get(email_type, True):
                 users.append({
-                    "uid": user.uid,
-                    "email": user.email,
-                    "display_name": user.display_name or user.email
+                    "uid": row["uid"],
+                    "email": row.get("email"),
+                    "display_name": row.get("display_name") or row.get("email"),
                 })
     except Exception as e:
         print(f"Error getting users: {e}")
@@ -4016,59 +3450,42 @@ async def send_bulk_email(email_request: EmailRequest, _: dict = Depends(get_cur
         "failed_emails": failed_emails
     }
 
+DEFAULT_EMAIL_PREFERENCES = {
+        "feature_updates": True,
+        "bug_fixes": True,
+        "pricing_changes": True,
+        "usage_tips": True,
+        "charity_updates": True
+    }
+
+
 @main_app.get("/user/email-preferences")
 async def get_user_email_preferences(user: dict = Depends(get_current_user)):
     """Get user's email preferences."""
-    user_ref = db.collection("users").document(user["user_id"])
-    user_doc = user_ref.get()
-    
-    if user_doc.exists:
-        user_data = user_doc.to_dict()
-        email_prefs = user_data.get("email_preferences", {
-            "feature_updates": True,
-            "bug_fixes": True,
-            "pricing_changes": True,
-            "usage_tips": True,
-            "charity_updates": True
-        })
-        return email_prefs
-    else:
-        # Return default preferences for new users
-        return {
-            "feature_updates": True,
-            "bug_fixes": True,
-            "pricing_changes": True,
-            "usage_tips": True,
-            "charity_updates": True
-        }
+    row = user_store.get_user(user["user_id"]) or {}
+    prefs = row.get("email_preferences") or {}
+    return {**DEFAULT_EMAIL_PREFERENCES, **prefs}
 
 @main_app.post("/user/email-preferences")
 async def update_user_email_preferences(
-    preferences: EmailPreferences, 
+    preferences: EmailPreferences,
     user: dict = Depends(get_current_user)
 ):
     """Update user's email preferences."""
-    user_ref = db.collection("users").document(user["user_id"])
-    
-    # Update or create user document with email preferences
-    user_ref.set({
-        "email_preferences": {
-            "feature_updates": preferences.feature_updates,
-            "bug_fixes": preferences.bug_fixes,
-            "pricing_changes": preferences.pricing_changes,
-            "usage_tips": preferences.usage_tips,
-            "charity_updates": preferences.charity_updates
-        }
-    }, merge=True)
-    
+    user_store.update_user(user["user_id"], email_preferences={
+        "feature_updates": preferences.feature_updates,
+        "bug_fixes": preferences.bug_fixes,
+        "pricing_changes": preferences.pricing_changes,
+        "usage_tips": preferences.usage_tips,
+        "charity_updates": preferences.charity_updates,
+    })
     return {"message": "Email preferences updated successfully"}
 
 @main_app.get("/user/chat-settings")
 async def get_user_chat_settings(user: dict = Depends(get_current_user)):
     """Get user's chat settings (simplified mode, default model, etc.)."""
     user_id = user["user_id"]
-    user_ref = db.collection("users").document(user_id)
-    user_doc = user_ref.get()
+    row = user_store.get_user(user_id)
 
     # Default settings for new users
     default_settings = {
@@ -4079,9 +3496,8 @@ async def get_user_chat_settings(user: dict = Depends(get_current_user)):
         "dark_mode": True
     }
 
-    if user_doc.exists:
-        user_data = user_doc.to_dict()
-        stored_settings = user_data.get("chat_settings", {})
+    if row:
+        stored_settings = row.get("chat_settings") or {}
         settings = {
             key: stored_settings.get(key, default_value)
             for key, default_value in default_settings.items()
@@ -4100,17 +3516,13 @@ async def update_user_chat_settings(
 ):
     """Update user's chat settings."""
     user_id = user["user_id"]
-    user_ref = db.collection("users").document(user_id)
-
-    user_ref.set({
-        "chat_settings": {
-            "simplified_mode": settings.simplified_mode,
-            "default_model": settings.default_model,
-            "default_temperature": settings.default_temperature,
-            "always_ask_mode": settings.always_ask_mode,
-            "dark_mode": settings.dark_mode
-        }
-    }, merge=True)
+    user_store.update_user(user_id, chat_settings={
+        "simplified_mode": settings.simplified_mode,
+        "default_model": settings.default_model,
+        "default_temperature": settings.default_temperature,
+        "always_ask_mode": settings.always_ask_mode,
+        "dark_mode": settings.dark_mode,
+    })
 
     return {"message": "Chat settings updated successfully"}
 
@@ -4123,16 +3535,14 @@ async def submit_feedback(
     user_id = user["user_id"]
 
     try:
-        db.collection("feedback").add({
-            "user_id": user_id,
-            "message_id": feedback.message_id,
-            "rating": feedback.rating,
-            "model": feedback.model,
-            "routed_category": feedback.routed_category,
-            "message_snippet": feedback.message_snippet,
-            "timestamp": firestore.SERVER_TIMESTAMP,
-            "date_key": datetime.now().strftime("%Y-%m-%d")
-        })
+        db.execute(
+            """
+            insert into romalume.feedback (user_id, message_id, rating, model, routed_category, message_snippet, context)
+            values (%s, %s, %s, %s, %s, %s, '{}'::jsonb)
+            """,
+            (user_id, feedback.message_id, feedback.rating, feedback.model,
+             feedback.routed_category, feedback.message_snippet),
+        )
         return {"message": "Feedback recorded successfully"}
     except Exception as e:
         print(f"Failed to record feedback: {e}")
@@ -4145,13 +3555,13 @@ async def get_feedback_analytics(
 ):
     """Get feedback analytics - thumbs up/down by model."""
     try:
-        feedback_logs = db.collection("feedback")
-
-        if days == 0:
-            logs = list(feedback_logs.stream())
-        else:
-            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-            logs = list(feedback_logs.where("date_key", ">=", start_date).stream())
+        logs = db.fetch_all(
+            """
+            select model, rating, routed_category from romalume.feedback
+            where rating is not null and (%s = 0 or created_at >= now() - (%s || ' days')::interval)
+            """,
+            (days, str(days)),
+        )
 
         # Aggregate by model and rating
         model_feedback = {}
@@ -4159,11 +3569,10 @@ async def get_feedback_analytics(
         total_up = 0
         total_down = 0
 
-        for log in logs:
-            data = log.to_dict()
-            model = data.get("model", "unknown")
-            rating = data.get("rating", "unknown")
-            category = data.get("routed_category", "direct")
+        for data in logs:
+            model = data.get("model") or "unknown"
+            rating = data.get("rating") or "unknown"
+            category = data.get("routed_category") or "direct"
 
             # Model aggregation
             if model not in model_feedback:
@@ -4212,30 +3621,10 @@ async def unsubscribe_user(token: str, email_type: str = None):
     """Unsubscribe user from specific email type or all emails."""
     try:
         user_id = verify_unsubscribe_token(token)
-        # Get user from Firebase Auth
-        firebase_auth.get_user(user_id)
-        user_ref = db.collection("users").document(user_id)
-        
-        # Get current preferences
-        user_doc = user_ref.get()
-        if user_doc.exists:
-            user_data = user_doc.to_dict()
-            email_prefs = user_data.get("email_preferences", {
-                "feature_updates": True,
-                "bug_fixes": True,
-                "pricing_changes": True,
-                "usage_tips": True,
-                "charity_updates": True
-            })
-        else:
-            email_prefs = {
-                "feature_updates": True,
-                "bug_fixes": True,
-                "pricing_changes": True,
-                "usage_tips": True,
-                "charity_updates": True
-            }
-        
+        if not user_store.get_auth_user(user_id):
+            raise ValueError("Unknown user")
+        email_prefs = {**DEFAULT_EMAIL_PREFERENCES, **((user_store.get_user(user_id) or {}).get("email_preferences") or {})}
+
         # Update preferences based on email_type
         if email_type and email_type in email_prefs:
             # Unsubscribe from specific type
@@ -4247,11 +3636,8 @@ async def unsubscribe_user(token: str, email_type: str = None):
                 email_prefs[key] = False
             message = "Unsubscribed from all emails"
         
-        # Save updated preferences
-        user_ref.set({
-            "email_preferences": email_prefs
-        }, merge=True)
-        
+        user_store.update_user(user_id, email_preferences=email_prefs)
+
         # Return HTML page with confirmation
         html_content = f"""
         <!DOCTYPE html>

@@ -5,21 +5,16 @@ from uuid import uuid4
 from project_store import ProjectNotFound, ProjectStore
 
 
-@unittest.skipUnless(
-    os.getenv("FIRESTORE_EMULATOR_HOST"),
-    "requires the Firestore emulator",
-)
-class ProjectStoreFirestoreTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from google.cloud import firestore
+from tests.pg_fixture import PostgresFixture, POSTGRES_AVAILABLE
 
-        cls.db = firestore.Client(project="demo-romalume")
 
+@unittest.skipUnless(POSTGRES_AVAILABLE, "requires DATABASE_URL")
+class ProjectStorePostgresTests(unittest.TestCase):
     def setUp(self):
-        self.user_id = f"test-user-{uuid4().hex}"
-        self.other_user_id = f"other-user-{uuid4().hex}"
-        self.store = ProjectStore(self.db, full_context_tokens=10)
+        self.pg = PostgresFixture()
+        self.user_id = self.pg.create_user()
+        self.other_user_id = self.pg.create_user()
+        self.store = ProjectStore(full_context_tokens=10)
         self.project = self.store.create_project(
             self.user_id,
             name="Limitations memo",
@@ -35,12 +30,7 @@ class ProjectStoreFirestoreTests(unittest.TestCase):
         )
 
     def tearDown(self):
-        self.db.recursive_delete(
-            self.db.collection("users").document(self.user_id)
-        )
-        self.db.recursive_delete(
-            self.db.collection("users").document(self.other_user_id)
-        )
+        self.pg.cleanup()
 
     def test_project_crud_is_scoped_to_the_authenticated_owner_path(self):
         projects = self.store.list_projects(self.user_id)
@@ -192,17 +182,12 @@ class ProjectStoreFirestoreTests(unittest.TestCase):
         self.assertEqual(detail["chats"], [])
 
 
-@unittest.skipUnless(
-    os.getenv("FIRESTORE_EMULATOR_HOST"),
-    "requires the Firestore emulator",
-)
-class ProjectRoutesFirestoreTests(unittest.TestCase):
+@unittest.skipUnless(POSTGRES_AVAILABLE, "requires DATABASE_URL")
+class ProjectRoutesPostgresTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from fastapi import FastAPI, Header, HTTPException
         from fastapi.testclient import TestClient
-        from google.cloud import firestore
-
         from projects import create_projects_router
 
         class FakeBlob:
@@ -242,18 +227,20 @@ class ProjectRoutesFirestoreTests(unittest.TestCase):
             def delete_document(self, *args, **kwargs):
                 self.deleted.append((args, kwargs))
 
+        cls.pg = PostgresFixture()
+        cls.route_user_id = cls.pg.create_user()
+
         async def current_user(authorization: str | None = Header(default=None)):
             if authorization != "Bearer test-user":
                 raise HTTPException(status_code=401, detail="Unauthorized")
-            return {"user_id": "route-test-user"}
+            return {"user_id": cls.route_user_id}
 
-        cls.db = firestore.Client(project="demo-romalume")
         cls.bucket = FakeBucket()
         cls.rag = FakeRag()
         app = FastAPI()
         app.include_router(
             create_projects_router(
-                db=cls.db,
+                db=None,
                 get_current_user=current_user,
                 get_storage_bucket=lambda: cls.bucket,
                 get_rag_service=lambda: cls.rag,
@@ -268,18 +255,16 @@ class ProjectRoutesFirestoreTests(unittest.TestCase):
         cls.client = TestClient(app)
         cls.headers = {"Authorization": "Bearer test-user"}
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.pg.cleanup()
+
     def setUp(self):
-        self.db.recursive_delete(
-            self.db.collection("users").document("route-test-user")
-        )
+        import db as _db
+        _db.execute("delete from romalume.projects where user_id = %s", (self.route_user_id,))
         self.bucket.objects.clear()
         self.rag.indexed.clear()
         self.rag.deleted.clear()
-
-    def tearDown(self):
-        self.db.recursive_delete(
-            self.db.collection("users").document("route-test-user")
-        )
 
     def test_complete_project_endpoint_lifecycle(self):
         self.assertEqual(self.client.get("/projects").status_code, 401)

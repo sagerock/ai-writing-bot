@@ -87,3 +87,17 @@ async def verify_supabase_token(token: str) -> dict:
         "auth_provider": "supabase",
         **membership,
     }
+
+
+def delete_auth_user(user_id: str) -> None:
+    """Remove the Supabase Auth user (service role)."""
+    if not is_configured():
+        return
+    response = httpx.delete(
+        f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+        headers={"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+        timeout=15,
+    )
+    if response.status_code >= 400 and response.status_code != 404:
+        raise RuntimeError(f"Auth user delete failed ({response.status_code}): {response.text[:200]}")
+    _membership_cache.pop(user_id, None)
