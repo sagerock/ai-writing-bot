@@ -64,6 +64,7 @@ from project_prompt import (
 )
 from project_store import ChatNotFound, ProjectNotFound, ProjectStore
 from projects import create_projects_router
+from routing_policy import is_internal_client_data_query
 from source_extract import extract as extract_source
 
 # Stripe integration (optional - gracefully handle if not configured)
@@ -719,6 +720,7 @@ ROUTING_MODELS = {
     "writing": "claude-sonnet-5",      # Creative and tone-sensitive writing
     "analysis": "gemini-3.7-flash",    # Current GA reasoning workhorse
     "science": "gemini-3.7-flash",     # Complex explanations and quantitative work
+    "internal_data": "gemini-3.7-flash", # Private client documents and tools
     "realtime": "sonar-pro",           # Current events, live data - needs web search
 }
 
@@ -731,6 +733,7 @@ Categories:
 - writing: Creative writing (poems, stories, fiction), formal essays, persuasive copy, emotional/nuanced content, voice/tone sensitive writing
 - analysis: Deep data analysis, research synthesis, compare/contrast with reasoning, strategic planning, business analysis, detailed evaluations
 - science: Complex scientific explanations, mathematical proofs, physics problems, detailed educational content
+- internal_data: Questions about the client's private or organizational data, including revenue, income, expenses, enrollment, registrations, attendance, uploaded records, QuickBooks, Thinkific, Cvent, or internal reports
 - realtime: Current events, news, weather, stock prices, sports scores, "what happened today/recently", live data, anything requiring up-to-date information from the internet
 
 ROUTING RULES (follow strictly):
@@ -742,8 +745,9 @@ ROUTING RULES (follow strictly):
 6. Creative, emotional, or voice-sensitive writing -> writing
 7. Simple summaries or rewording -> general
 8. Deep analysis requiring reasoning -> analysis
-9. Questions about current/recent events, news, prices, weather, scores -> realtime
-10. Questions containing "today", "latest", "current", "recent", "now", "this week" -> realtime
+9. Questions about the user's organization or its private records -> internal_data, even when they mention today, current, recent, or a date range
+10. Questions about public current/recent events, news, prices, weather, scores -> realtime
+11. Public questions containing "today", "latest", "current", "recent", "now", "this week" -> realtime
 
 When uncertain between simple/general, choose simple.
 When uncertain between general/analysis, choose general.
@@ -761,7 +765,7 @@ _REALTIME_PATTERNS = _re.compile(
     r'|latest|current(?:ly)?|recent(?:ly)?|right now|just now'
     # News, weather, sports, markets
     r'|news|headline|weather|forecast|temperature outside'
-    r'|stock (?:price|market)|price of|how much (?:is|are|does)'
+    r'|stock (?:price|market)|price of'
     r'|score|who (?:won|lost|is winning)|game (?:tonight|today|yesterday)'
     r'|election|poll|results'
     r'|trending|viral'
@@ -782,11 +786,20 @@ def _needs_web_search(message: str) -> bool:
     return bool(_REALTIME_PATTERNS.search(message))
 
 
-async def route_to_best_model(user_message: str) -> tuple[str, str]:
+async def route_to_best_model(
+    user_message: str,
+    *,
+    has_client_context: bool = False,
+) -> tuple[str, str]:
     """
     Use Gemini Flash-Lite to quickly classify the message and route to the best model.
     Returns (model_name, category) tuple.
     """
+    if is_internal_client_data_query(
+        user_message, has_client_context=has_client_context
+    ):
+        return ROUTING_MODELS["internal_data"], "internal_data"
+
     try:
         model = ChatGoogleGenerativeAI(
             model="gemini-3.5-flash-lite",
@@ -1248,7 +1261,10 @@ async def generate_chat_response(
                 break
 
         if last_user_msg:
-            routed_model, routed_category = await route_to_best_model(last_user_msg)
+            routed_model, routed_category = await route_to_best_model(
+                last_user_msg,
+                has_client_context=client_id is not None,
+            )
             print(f"Auto-routing selected {routed_model} ({routed_category})")
             # Auto-enable web search for realtime queries
             auto_search_web = req.search_web or routed_category == "realtime"
@@ -1277,7 +1293,16 @@ async def generate_chat_response(
             if msg.role == 'user':
                 last_user_msg_for_search = msg.content if isinstance(msg.content, str) else ""
                 break
-        if last_user_msg_for_search and _needs_web_search(last_user_msg_for_search):
+        is_internal_query = is_internal_client_data_query(
+            last_user_msg_for_search or "",
+            has_client_context=client_id is not None,
+        )
+        if (
+            last_user_msg_for_search
+            and routed_category != "internal_data"
+            and not is_internal_query
+            and _needs_web_search(last_user_msg_for_search)
+        ):
             print("Auto-enabling web search after realtime keyword match")
             req = req.model_copy(update={"search_web": True})
 
