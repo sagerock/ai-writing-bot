@@ -7,6 +7,7 @@ can be tested without importing FastAPI, Firebase, or model-provider SDKs.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import io
 import re
 from typing import Literal, TypedDict
@@ -14,6 +15,7 @@ from typing import Literal, TypedDict
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
+from openpyxl import load_workbook
 from pypdf import PdfReader
 
 
@@ -37,6 +39,11 @@ DOCX_CONTENT_TYPES = frozenset(
         "application/docx",
     }
 )
+XLSX_CONTENT_TYPES = frozenset(
+    {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+)
+# A 10 MB .xlsx can expand to millions of cells; stop reading well before that.
+MAX_XLSX_CELLS = 500_000
 CSV_CONTENT_TYPES = frozenset(
     {
         "text/csv",
@@ -156,6 +163,70 @@ def _extract_csv(data: bytes) -> ExtractionResult:
     return {"text": text, "pages": pages, "kind": "paragraph"}
 
 
+def _render_table(rows: list[list[str]]) -> str:
+    width = max(len(row) for row in rows)
+    normalized_rows = [row + [""] * (width - len(row)) for row in rows]
+
+    def render_row(row: list[str]) -> str:
+        return "| " + " | ".join(_escape_markdown_cell(cell) for cell in row) + " |"
+
+    divider = "| " + " | ".join(["---"] * width) + " |"
+    return "\n".join(
+        [render_row(normalized_rows[0]), divider]
+        + [render_row(row) for row in normalized_rows[1:]]
+    )
+
+
+def _xlsx_cell_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dt.datetime):
+        if value.time() == dt.time(0, 0):
+            return value.date().isoformat()
+        return value.isoformat(sep=" ", timespec="minutes")
+    if isinstance(value, (dt.date, dt.time)):
+        return value.isoformat()
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def _extract_xlsx(data: bytes) -> ExtractionResult:
+    """Render every non-empty worksheet as a titled Markdown table.
+
+    Formula cells use the value Excel last calculated and saved.
+    """
+    workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    blocks: list[str] = []
+    cells_read = 0
+    truncated = False
+
+    try:
+        for sheet in workbook.worksheets:
+            rows: list[list[str]] = []
+            for values in sheet.iter_rows(values_only=True):
+                cells_read += len(values)
+                if cells_read > MAX_XLSX_CELLS:
+                    truncated = True
+                    break
+                row = [_xlsx_cell_text(value) for value in values]
+                while row and not row[-1]:
+                    row.pop()
+                if row:
+                    rows.append(row)
+            if rows:
+                blocks.append(f"## Sheet: {sheet.title}\n\n{_render_table(rows)}")
+            if truncated:
+                break
+    finally:
+        workbook.close()
+
+    if truncated:
+        blocks.append("[... spreadsheet truncated: too many cells to read ...]")
+    text, pages = _join_paragraph_blocks(blocks)
+    return {"text": text, "pages": pages, "kind": "paragraph"}
+
+
 def _render_docx_table(table: Table) -> str:
     rows = [[cell.text for cell in row.cells] for row in table.rows]
     if not rows:
@@ -194,6 +265,8 @@ def extract(data: bytes, content_type: str) -> ExtractionResult:
         return _extract_pdf(data)
     if normalized_type in DOCX_CONTENT_TYPES:
         return _extract_docx(data)
+    if normalized_type in XLSX_CONTENT_TYPES:
+        return _extract_xlsx(data)
     if normalized_type in CSV_CONTENT_TYPES:
         return _extract_csv(data)
     if normalized_type.startswith("text/") or normalized_type in {

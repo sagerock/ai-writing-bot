@@ -32,6 +32,7 @@ SUPPORTED_SOURCE_TYPES = {
     ".md": "text/markdown",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".csv": "text/csv",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
 
@@ -226,7 +227,7 @@ def create_projects_router(
         if not extraction_type:
             raise HTTPException(
                 status_code=400,
-                detail="Project sources must be PDF, TXT, Markdown, DOCX, or CSV.",
+                detail="Project sources must be PDF, TXT, Markdown, DOCX, CSV, or XLSX.",
             )
         data = await file.read(max_upload_bytes + 1)
         if len(data) > max_upload_bytes:

@@ -303,7 +303,7 @@ export default function ProjectsHome({
                 <input
                   type="file"
                   multiple
-                  accept=".pdf,.txt,.md,.docx,.csv"
+                  accept=".pdf,.txt,.md,.docx,.csv,.xlsx"
                   onChange={(event) => setFiles(Array.from(event.target.files || []))}
                 />
                 {files.length > 0 && <small>{files.length} file{files.length === 1 ? '' : 's'} selected</small>}

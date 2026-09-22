@@ -254,7 +254,7 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
                                 onChange={(e) => handleNewProjectUpload(e)} 
                                 style={{ display: 'none' }} 
                                 disabled={uploadingProject === newProjectName}
-                                accept=".pdf,.txt,.md"
+                                accept=".pdf,.txt,.md,.docx,.csv,.xlsx"
                             />
                         </div>
                     </div>
@@ -285,7 +285,7 @@ const ProjectsPanel = ({ auth, onLoadArchive, onSelectDocument, onUploadSuccess 
                                         onChange={(e) => handleFileUpload(e, projectName)} 
                                         style={{ display: 'none' }} 
                                         disabled={uploadingProject === projectName}
-                                        accept=".pdf,.txt,.md"
+                                        accept=".pdf,.txt,.md,.docx,.csv,.xlsx"
                                     />
                                 </div>
                             </summary>

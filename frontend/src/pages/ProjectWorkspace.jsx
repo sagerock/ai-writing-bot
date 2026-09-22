@@ -631,7 +631,7 @@ export default function ProjectWorkspace({
               <h2>Sources <span>{project.sources?.length || 0}</span></h2>
               <label className={`project-upload-button ${uploading ? 'disabled' : ''}`}>
                 {uploading ? 'Adding…' : '+ Add'}
-                <input type="file" multiple disabled={uploading} accept=".pdf,.txt,.md,.docx,.csv" onChange={handleUpload} />
+                <input type="file" multiple disabled={uploading} accept=".pdf,.txt,.md,.docx,.csv,.xlsx" onChange={handleUpload} />
               </label>
             </div>
             <div className="source-list">

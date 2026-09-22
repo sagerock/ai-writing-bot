@@ -2795,10 +2795,14 @@ async def upload_quick(
     text_extensions = ('.md', '.txt', '.pdf', '.csv', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.json', '.xml', '.yaml', '.yml', '.sh', '.bash', '.sql', '.java', '.c', '.cpp', '.h', '.go', '.rs', '.rb', '.php')
     # Image files (will be base64 encoded for vision models)
     image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
-    # Word documents
-    docx_extensions = ('.docx',)
+    # Word documents and Excel workbooks
+    office_types = {
+        '.docx': "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        '.xlsx': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }
+    office_extensions = tuple(office_types)
 
-    allowed_extensions = text_extensions + image_extensions + docx_extensions
+    allowed_extensions = text_extensions + image_extensions + office_extensions
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided.")
@@ -2839,11 +2843,9 @@ async def upload_quick(
             if not image_data:
                 raise HTTPException(status_code=400, detail="Image could not be processed safely.")
             text = f"[Image: {filename}]\n{image_data}"
-        elif filename_lower.endswith('.docx'):
-            extraction = extract_source(
-                file_content,
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            )
+        elif filename_lower.endswith(office_extensions):
+            extension = "." + filename_lower.rsplit(".", 1)[-1]
+            extraction = extract_source(file_content, office_types[extension])
             text = extraction["text"]
 
         # Truncate for chat context if too long (keep first 50k chars)
@@ -2878,6 +2880,19 @@ async def upload_quick(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Failed to read file.")
 
+# Stored documents beyond txt/md/pdf, extracted through source_extract
+STORED_DOCUMENT_TYPES = {
+    '.docx': "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    '.csv': "text/csv",
+    '.xlsx': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+def _extract_stored_document(filename: str, data: bytes) -> str:
+    extension = "." + filename.lower().rsplit(".", 1)[-1]
+    return extract_source(data, STORED_DOCUMENT_TYPES[extension])["text"]
+
+
 # File upload endpoint (full - saves to storage and indexes)
 @main_app.post("/upload")
 async def upload_file(user: dict = Depends(get_current_user), file: UploadFile = File(...), project_name: str = Form("General")):
@@ -2887,7 +2902,7 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided.")
     filename = safe_filename(file.filename)
-    allowed_extensions = ('.md', '.txt', '.pdf')
+    allowed_extensions = ('.md', '.txt', '.pdf') + tuple(STORED_DOCUMENT_TYPES)
     if not filename.lower().endswith(allowed_extensions):
         raise HTTPException(status_code=400, detail=f"Only {', '.join(allowed_extensions)} files are allowed.")
 
@@ -2916,6 +2931,8 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
                     raise HTTPException(status_code=413, detail="PDF has too many pages.")
                 text_pages = [page.extract_text() or "" for page in reader.pages]
                 text = "\n".join(text_pages)
+            elif filename.lower().endswith(tuple(STORED_DOCUMENT_TYPES)):
+                text = _extract_stored_document(filename, file_content)
         except HTTPException:
             raise
         except Exception as e:
@@ -2982,7 +2999,7 @@ async def upload_file(user: dict = Depends(get_current_user), file: UploadFile =
 
 @main_app.get("/document/{filename}")
 async def get_document_content(filename: str, user: dict = Depends(get_current_user)):
-    """Return the text content of a stored document (txt, md, pdf)."""
+    """Return the text content of a stored document (txt, md, pdf, docx, csv, xlsx)."""
     user_id = user['user_id']
     filename = safe_filename(filename)
     try:
@@ -3007,6 +3024,8 @@ async def get_document_content(filename: str, user: dict = Depends(get_current_u
             reader = PdfReader(io.BytesIO(pdf_bytes))
             text_pages = [page.extract_text() or "" for page in reader.pages]
             text = "\n".join(text_pages)
+        elif filename.lower().endswith(tuple(STORED_DOCUMENT_TYPES)):
+            text = _extract_stored_document(filename, blob.download_as_bytes())
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type.")
 

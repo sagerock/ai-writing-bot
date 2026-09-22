@@ -117,7 +117,7 @@ const DocumentsPanel = ({ auth, onSelectDocument, onUploadSuccess }) => {
                 onChange={handleFileUpload} 
                 style={{ display: 'none' }} 
                 disabled={loading}
-                accept=".pdf,.txt,.md"
+                accept=".pdf,.txt,.md,.docx,.csv,.xlsx"
             />
             {error && <p className="error">{error}</p>}
             {documents.length === 0 && !loading && <p className="no-documents">No documents uploaded.</p>}
