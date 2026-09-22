@@ -17,8 +17,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
+from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -29,6 +32,39 @@ MAX_TOOL_ROUNDS = 3
 
 _AUDIENCE_RANK = {"staff": 0, "marketing": 1, "leadership": 1, "board": 1, "finance": 2}
 _catalog_cache: dict[str, tuple[float, list[dict]]] = {}
+_RELATIVE_DAYS = re.compile(r"\b(?:last|past)\s+(\d{1,3})\s+days?\b", re.IGNORECASE)
+
+
+def reporting_date() -> date:
+    """Current date for relative reporting windows in the client timezone."""
+    timezone_name = os.getenv("ASK_TOOL_TIMEZONE", "America/New_York")
+    try:
+        return datetime.now(ZoneInfo(timezone_name)).date()
+    except Exception:  # noqa: BLE001 -- invalid deployment override falls back safely
+        return datetime.now(ZoneInfo("America/New_York")).date()
+
+
+def normalize_tool_args(
+    name: str,
+    args: dict,
+    *,
+    latest_user_message: str,
+    today: date | None = None,
+) -> dict:
+    """Make explicit relative periods authoritative over stale chat dates."""
+    normalized = dict(args or {})
+    if name != "get_cfa_accounting_summary":
+        return normalized
+    match = _RELATIVE_DAYS.search(latest_user_message or "")
+    if not match:
+        return normalized
+    days = int(match.group(1))
+    if not 1 <= days <= 366:
+        return normalized
+    end = today or reporting_date()
+    normalized["start_date"] = (end - timedelta(days=days - 1)).isoformat()
+    normalized["end_date"] = end.isoformat()
+    return normalized
 
 
 def is_configured() -> bool:
@@ -113,11 +149,24 @@ async def gather_live_data(
         for t in catalog
     ]
     llm = get_llm(TOOL_PHASE_MODEL).bind_tools(lc_tools)
+    today = reporting_date()
+    latest_user_message = next(
+        (
+            str(m.get("content"))
+            for m in reversed(history)
+            if m.get("role") == "user" and isinstance(m.get("content"), str)
+        ),
+        "",
+    )
     system = (
         f"You are the data-lookup step for {persona_name}, a school's assistant. "
+        f"Today is {today.isoformat()} in the organization's reporting timezone. "
         "Decide whether answering the user's latest message needs live data from the tools "
         "available. If it does, call the tools you need (you may call several). If it does not, "
-        "reply with the single word NONE and no tool calls. Never answer the question yourself."
+        "reply with the single word NONE and no tool calls. Never answer the question yourself. "
+        "The latest user message controls the requested date range. Prior assistant answers may "
+        "be wrong: never copy a date range from them unless the latest user explicitly refers to "
+        "that range. Resolve 'last N days' as an inclusive period ending today."
     )
     messages: list = [SystemMessage(content=system)]
     for m in history[-6:]:
@@ -138,12 +187,25 @@ async def gather_live_data(
             if not tool_calls:
                 break
             messages.append(response)
+            planned_calls = [
+                {
+                    **tc,
+                    "args": normalize_tool_args(
+                        tc["name"],
+                        tc.get("args") or {},
+                        latest_user_message=latest_user_message,
+                        today=today,
+                    ),
+                }
+                for tc in tool_calls
+            ]
             results = await asyncio.gather(*[
-                run_tool(persona_slug, tc["name"], tc.get("args") or {}, requester) for tc in tool_calls
+                run_tool(persona_slug, tc["name"], tc["args"], requester)
+                for tc in planned_calls
             ])
-            for tc, result in zip(tool_calls, results):
-                calls.append({"tool": tc["name"], "args": tc.get("args") or {}})
-                blocks.append(f"[{tc['name']} {json.dumps(tc.get('args') or {})}]\n{result}")
+            for tc, result in zip(planned_calls, results):
+                calls.append({"tool": tc["name"], "args": tc["args"]})
+                blocks.append(f"[{tc['name']} {json.dumps(tc['args'])}]\n{result}")
                 messages.append(ToolMessage(content=result[:20000], tool_call_id=tc["id"]))
     except Exception as e:  # noqa: BLE001
         print(f"Ask tool phase failed (non-fatal): {e}")
