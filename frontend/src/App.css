@@ -1941,6 +1941,59 @@ hr {
     margin-bottom: 1.5rem;
 }
 
+.admin-preview-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.admin-preview-panel h2,
+.admin-preview-panel p {
+    margin: 0;
+}
+
+.admin-preview-panel p {
+    margin-top: 6px;
+    color: #6c757d;
+}
+
+.admin-preview-panel .admin-view-switcher {
+    flex: 0 0 auto;
+}
+
+.admin-preview-panel .admin-view-trigger {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 18px;
+    background: #26221d;
+    color: white;
+    font-weight: 700;
+}
+
+.admin-preview-panel .admin-view-start,
+.admin-preview-panel .admin-view-stop {
+    width: 100%;
+    margin-top: 15px;
+    border: 0;
+    border-radius: 7px;
+    padding: 10px 12px;
+    background: #26221d;
+    color: white;
+    font-weight: 700;
+}
+
+@media (max-width: 700px) {
+    .admin-preview-panel {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
 .users-table {
     width: 100%;
     border-collapse: collapse;

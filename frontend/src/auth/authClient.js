@@ -9,6 +9,31 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+const ADMIN_VIEW_STORAGE_KEY = 'romalume-admin-view';
+const ADMIN_VIEW_SEPARATOR = '::romalume-view::';
+
+export function getAdminViewSession() {
+  try {
+    const session = JSON.parse(localStorage.getItem(ADMIN_VIEW_STORAGE_KEY) || 'null');
+    if (!session?.token || !session?.expiresAt || session.expiresAt * 1000 <= Date.now()) {
+      localStorage.removeItem(ADMIN_VIEW_STORAGE_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    localStorage.removeItem(ADMIN_VIEW_STORAGE_KEY);
+    return null;
+  }
+}
+
+export function setAdminViewSession(token, expiresAt) {
+  localStorage.setItem(ADMIN_VIEW_STORAGE_KEY, JSON.stringify({ token, expiresAt }));
+}
+
+export function clearAdminViewSession() {
+  localStorage.removeItem(ADMIN_VIEW_STORAGE_KEY);
+}
+
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -27,7 +52,9 @@ function wrapUser(session) {
     school: null,
     async getIdToken() {
       const { data } = await supabase.auth.getSession();
-      return data.session?.access_token || session.access_token;
+      const accessToken = data.session?.access_token || session.access_token;
+      const adminView = getAdminViewSession();
+      return adminView ? `${accessToken}${ADMIN_VIEW_SEPARATOR}${adminView.token}` : accessToken;
     },
     async getIdTokenResult() {
       const token = await this.getIdToken();
@@ -71,6 +98,7 @@ export function onAuthStateChanged(_auth, callback) {
 }
 
 export async function signOut() {
+  clearAdminViewSession();
   unwrap(await supabase.auth.signOut());
   auth.currentUser = null;
 }

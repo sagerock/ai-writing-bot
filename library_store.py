@@ -12,7 +12,7 @@ from typing import Any
 
 import db
 
-AUDIENCES = ("staff", "leadership", "board", "finance")
+AUDIENCES = ("staff", "marketing", "leadership", "board", "finance")
 
 
 def get_school(client_id: str) -> dict | None:
@@ -111,15 +111,17 @@ def list_documents(client_id: str, audiences: list[str]) -> list[dict[str, Any]]
     return [dict(r) for r in rows]
 
 
-def summary(client_id: str) -> dict:
+def summary(client_id: str, audiences: list[str] | None = None) -> dict:
+    audience_filter = "and audience = any(%s)" if audiences is not None else ""
+    params = (client_id, list(audiences)) if audiences is not None else (client_id,)
     row = db.fetch_one(
-        """
+        f"""
         select count(*) filter (where status = 'indexed') as documents,
                coalesce(sum(chunk_count) filter (where status = 'indexed'), 0) as chunks,
                count(*) filter (where status = 'error') as errors,
                max(indexed_at) as last_indexed_at
-        from romalume.library_documents where client_id = %s
+        from romalume.library_documents where client_id = %s {audience_filter}
         """,
-        (client_id,),
+        params,
     )
     return dict(row or {})

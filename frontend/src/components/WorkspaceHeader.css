@@ -51,6 +51,112 @@ header.project-app-header {
   gap: 10px;
 }
 
+.admin-view-switcher {
+  position: relative;
+}
+
+.project-app-header .admin-view-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 230px;
+  border: 1px solid var(--line, #ded6c9);
+  background: var(--paper-deep, #eee8dc);
+  color: var(--ink, #26221d);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: .78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-app-header .admin-view-trigger.active {
+  border-color: #b78331;
+  background: #d4a853;
+  color: #20170b;
+}
+
+.admin-view-menu {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(340px, calc(100vw - 24px));
+  padding: 18px;
+  border: 1px solid var(--line, #ded6c9);
+  border-radius: 12px;
+  background: var(--panel, #fffdf9);
+  box-shadow: 0 16px 42px rgba(24, 19, 13, .2);
+  color: var(--ink, #26221d);
+  text-align: left;
+}
+
+.admin-view-menu-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 15px;
+}
+
+.admin-view-menu-heading span,
+.admin-view-menu label,
+.admin-view-active > span {
+  color: var(--muted, #766e62);
+  font-size: .75rem;
+}
+
+.admin-view-menu label {
+  display: block;
+  margin: 12px 0 5px;
+  font-weight: 700;
+}
+
+.admin-view-menu select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line, #ded6c9);
+  border-radius: 7px;
+  padding: 9px;
+  background: var(--panel, #fffdf9);
+  color: var(--ink, #26221d);
+}
+
+.admin-view-description,
+.admin-view-count,
+.admin-view-error {
+  margin: 9px 0 0;
+  font-size: .78rem;
+  color: var(--muted, #766e62);
+}
+
+.admin-view-error {
+  color: #b42318;
+}
+
+.admin-view-active {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 7px 10px;
+  margin: 8px 0 16px;
+}
+
+.project-app-header .admin-view-start,
+.project-app-header .admin-view-stop {
+  width: 100%;
+  margin-top: 15px;
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #26221d;
+  color: #fffdf9;
+  font-weight: 700;
+}
+
+.project-app-header .admin-view-stop {
+  background: #7f241f;
+}
+
 .project-app-header .user-controls > button:last-child {
   border: 1px solid var(--line, #ded6c9);
   background: transparent;
@@ -84,6 +190,10 @@ header.project-app-header {
   .project-app-header .user-controls > span {
     display: none;
   }
+
+  .project-app-header .admin-view-trigger {
+    max-width: 150px;
+  }
 }
 
 @media (max-width: 700px) {
@@ -109,5 +219,11 @@ header.project-app-header {
   .project-app-header .account-button,
   .project-app-header .user-controls > button:last-child {
     display: none;
+  }
+
+  .project-app-header .admin-view-trigger {
+    max-width: 115px;
+    font-size: .7rem;
+    padding: 6px 8px;
   }
 }

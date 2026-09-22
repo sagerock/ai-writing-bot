@@ -185,14 +185,20 @@ function App() {
                     if (res.ok) {
                         const me = await res.json();
                         currentUser.isAdmin = me.is_admin === true;
+                        currentUser.canAdmin = me.can_admin === true;
                         currentUser.school = me.school || null;
+                        currentUser.viewAs = me.view_as || null;
                         currentUser.displayName = me.display_name || currentUser.displayName;
                     } else {
                         currentUser.isAdmin = false;
+                        currentUser.canAdmin = false;
+                        currentUser.viewAs = null;
                     }
                 } catch (err) {
                     console.error('Error loading account:', err);
                     currentUser.isAdmin = false;
+                    currentUser.canAdmin = false;
+                    currentUser.viewAs = null;
                 }
                 setUser(currentUser);
                 fetchProjects();
@@ -305,6 +311,7 @@ function App() {
         return (
             <div className={`App quick-chat-shell ${userSettings.darkMode ? 'dark' : ''}`}>
                 <WorkspaceHeader
+                    auth={auth}
                     user={user}
                     isSubscriber={isSubscriber}
                     darkMode={userSettings.darkMode}
@@ -408,7 +415,7 @@ function App() {
             } />
             <Route path="/admin" element={
                 <AdminRoute user={user}>
-                    <AdminPage auth={auth} />
+                    <AdminPage auth={auth} user={user} />
                 </AdminRoute>
             } />
             <Route path="/admin/users" element={

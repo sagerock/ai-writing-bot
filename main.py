@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, AsyncGenerator, List, Literal, Optional
 import asyncio
 import time
-from uuid import uuid4
+from uuid import UUID, uuid4
 import io
 import sys
 import json
@@ -41,6 +41,7 @@ import user_store
 import blob_store
 import library_store
 import ask_tools
+import admin_preview
 from fastapi.encoders import jsonable_encoder
 from langchain_cohere import ChatCohere
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -398,8 +399,21 @@ async def get_current_user(authorization: str = Header(...)):
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization scheme.")
-    token = authorization.split("Bearer ")[1]
-    return await supabase_auth.verify_supabase_token(token)
+    raw_token = authorization.split("Bearer ", 1)[1]
+    token, view_token = admin_preview.split_bearer_token(raw_token)
+    user = await supabase_auth.verify_supabase_token(token)
+    if view_token:
+        preview = admin_preview.verify_view_token(view_token, actor=user)
+        user = {
+            **user,
+            "client_id": preview["client_id"],
+            "audience_override": preview["audiences"],
+            "view_as": {
+                "client_id": preview["client_id"],
+                "audiences": preview["audiences"],
+            },
+        }
+    return user
 
 # Allow CORS for frontend
 main_app.add_middleware(
@@ -1127,7 +1141,14 @@ async def generate_gpt5_response(
         traceback.print_exc()
         yield json.dumps("ERROR: The model provider could not complete this request. Please try again.")
 
-async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str | None = None, is_super_admin: bool = False, requester_email: str | None = None):
+async def generate_chat_response(
+    req: ChatRequest,
+    user_id: str,
+    client_id: str | None = None,
+    is_super_admin: bool = False,
+    requester_email: str | None = None,
+    audience_override: list[str] | None = None,
+):
     # Send a heartbeat before project/source loading, which can take several seconds.
     yield ": ping\n\n"
 
@@ -1354,7 +1375,9 @@ async def generate_chat_response(req: ChatRequest, user_id: str, client_id: str 
             school_full = library_store.get_school(client_id) or {}
             school_voice = (school_full.get("voice_notes") or "").strip()
             collection = school_full.get("qdrant_collection")
-            audiences = library_store.user_audiences(user_id, client_id, is_super_admin=is_super_admin)
+            audiences = audience_override or library_store.user_audiences(
+                user_id, client_id, is_super_admin=is_super_admin
+            )
             last_user_msg = next((m.content for m in reversed(req.history) if m.role == "user"), None)
             rag = get_rag_service() if collection and audiences and isinstance(last_user_msg, str) else None
             if rag:
@@ -1702,7 +1725,14 @@ async def chat_stream_endpoint(
     }
     
     return StreamingResponse(
-        generate_chat_response(req, user_id, user.get("client_id"), bool(user.get("is_super_admin")), user.get("email")),
+        generate_chat_response(
+            req,
+            user_id,
+            user.get("client_id"),
+            bool(user.get("is_super_admin")),
+            user.get("email"),
+            user.get("audience_override"),
+        ),
         media_type="text/event-stream",
         headers=headers
     )
@@ -2163,10 +2193,12 @@ async def get_me(user: dict = Depends(get_current_user)):
         "user_id": user["user_id"],
         "email": user.get("email"),
         "display_name": row.get("display_name"),
-        "is_admin": bool(user.get("is_super_admin")),
+        "is_admin": admin_preview.is_romalume_admin(user) and not bool(user.get("view_as")),
+        "can_admin": admin_preview.is_romalume_admin(user),
         "role": user.get("role"),
         "client_id": client_id,
         "school": school,
+        "view_as": user.get("view_as"),
         "subscription_status": (
             "active" if school_is_entitled(school_entitlement(client_id))
             else effective_subscription_status(row)
@@ -2181,12 +2213,14 @@ async def get_library(user: dict = Depends(get_current_user)):
     client_id = user.get("client_id")
     if not client_id:
         return {"school": None, "documents": [], "audiences": []}
-    audiences = library_store.user_audiences(user["user_id"], client_id, is_super_admin=bool(user.get("is_super_admin")))
+    audiences = user.get("audience_override") or library_store.user_audiences(
+        user["user_id"], client_id, is_super_admin=bool(user.get("is_super_admin"))
+    )
     school = library_store.get_school(client_id) or {}
     return {
         "school": {"name": school.get("name"), "brand_name": school.get("brand_name")},
         "audiences": audiences,
-        "summary": library_store.summary(client_id),
+        "summary": library_store.summary(client_id, audiences),
         "documents": library_store.list_documents(client_id, audiences),
     }
 
@@ -3041,8 +3075,8 @@ def save_conversation(user_id: str, messages: List[dict]):
     user_store.save_current_messages(user_id, messages)
 
 async def get_current_admin_user(user: dict = Depends(get_current_user)):
-    """Verifies that the current user is a super admin (public.admin_users)."""
-    if not user.get("is_super_admin"):
+    """RomaLume administration is currently restricted to Sage."""
+    if not admin_preview.is_romalume_admin(user):
         raise HTTPException(status_code=403, detail="Forbidden: User does not have admin privileges.")
     return user
 
@@ -3056,6 +3090,73 @@ class UserUpdate(BaseModel):
     display_name: Optional[str] = Field(default=None, max_length=120)
     credits: Optional[int] = Field(default=None, ge=0, le=1_000_000)
     is_admin: Optional[bool] = None
+
+
+class AdminPreviewRequest(BaseModel):
+    client_id: UUID
+    profile_id: Literal["staff", "marketing", "leadership", "board", "finance", "full"]
+
+
+@main_app.get("/admin/preview/options")
+async def admin_preview_options(_: dict = Depends(get_current_admin_user)):
+    """Clients with RomaLume enabled and the access profiles Sage can preview."""
+    schools = db.fetch_all(
+        """
+        select c.id::text as client_id, c.name,
+               coalesce(s.brand_name, c.name, 'RomaLume') as brand_name,
+               s.slug, s.persona_email, s.plan_status,
+               coalesce((
+                 select jsonb_object_agg(counts.audience, counts.document_count)
+                 from (
+                   select d.audience, count(*)::integer as document_count
+                   from romalume.library_documents d
+                   where d.client_id = s.client_id and d.status = 'indexed'
+                   group by d.audience
+                 ) counts
+               ), '{}'::jsonb) as document_counts
+        from romalume.school_settings s
+        join public.clients c on c.id = s.client_id
+        order by coalesce(s.brand_name, c.name)
+        """
+    )
+    return {
+        "schools": [dict(school) for school in schools],
+        "profiles": list(admin_preview.ACCESS_PROFILES),
+    }
+
+
+@main_app.post("/admin/preview")
+async def start_admin_preview(
+    request_body: AdminPreviewRequest,
+    admin: dict = Depends(get_current_admin_user),
+):
+    school = db.fetch_one(
+        """
+        select c.id::text as client_id, c.name,
+               coalesce(s.brand_name, c.name, 'RomaLume') as brand_name
+        from romalume.school_settings s
+        join public.clients c on c.id = s.client_id
+        where s.client_id = %s
+        """,
+        (request_body.client_id,),
+    )
+    if not school:
+        raise HTTPException(status_code=404, detail="This client does not have a RomaLume workspace.")
+    profile = next(
+        profile for profile in admin_preview.ACCESS_PROFILES
+        if profile["id"] == request_body.profile_id
+    )
+    token = admin_preview.create_view_token(
+        actor=admin,
+        client_id=str(request_body.client_id),
+        audiences=profile["audiences"],
+    )
+    return {
+        "token": token,
+        "expires_at": int(time.time()) + admin_preview.VIEW_TOKEN_MAX_AGE,
+        "school": dict(school),
+        "profile": profile,
+    }
 
 
 def delete_user_data(user_id: str):
@@ -3113,7 +3214,10 @@ async def list_users(_: dict = Depends(get_current_admin_user)):
                 "uid": row["uid"],
                 "email": row.get("email"),
                 "displayName": row.get("display_name") or "",
-                "isAdmin": bool(row.get("is_admin")),
+                "isAdmin": bool(
+                    row.get("is_admin")
+                    and (row.get("email") or "").lower() == admin_preview.ADMIN_EMAIL
+                ),
                 "credits": int(row.get("credits") or 0),
                 "credits_used": int(row.get("credits_used") or 0),
                 "subscriptionStatus": "active" if row.get("comped") else row.get("subscription_status", "none"),
@@ -3133,23 +3237,22 @@ async def update_user_credits(user_id: str, credit_update: CreditUpdate, _: dict
 
 @main_app.post("/admin/users/{user_id}/role")
 async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depends(get_current_admin_user)):
-    try:
-        user_store.set_super_admin(user_id, role_update.is_admin)
-        return {"message": f"User role updated successfully. Admin: {role_update.is_admin}"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    del user_id, role_update
+    raise HTTPException(status_code=409, detail="RomaLume administration is fixed to sage@sagerock.com.")
 
 @main_app.put("/admin/users/{user_id}")
 async def update_user(user_id: str, user_update: UserUpdate, _: dict = Depends(get_current_admin_user)):
     """Update user fields (display_name, credits, is_admin)."""
     try:
+        if user_update.is_admin is not None:
+            raise HTTPException(status_code=409, detail="RomaLume administration is fixed to sage@sagerock.com.")
         if user_update.display_name is not None:
             user_store.update_user(user_id, display_name=user_update.display_name)
         if user_update.credits is not None:
             user_store.update_user(user_id, credits=user_update.credits)
-        if user_update.is_admin is not None:
-            user_store.set_super_admin(user_id, user_update.is_admin)
         return {"message": "User updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

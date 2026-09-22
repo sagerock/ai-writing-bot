@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import './WorkspaceHeader.css';
+import AdminViewSwitcher from './AdminViewSwitcher';
 
 export default function WorkspaceHeader({
+  auth,
   user,
   darkMode,
   onToggleDarkMode,
@@ -32,6 +34,7 @@ export default function WorkspaceHeader({
         <Link to="/chat">Quick Chat</Link>
       </nav>
       <div className="user-controls">
+        <AdminViewSwitcher user={user} auth={auth} />
         <button
           className="theme-toggle-btn"
           onClick={onToggleDarkMode}
@@ -39,7 +42,7 @@ export default function WorkspaceHeader({
         >
           {darkMode ? '☀️' : '🌙'}
         </button>
-        {user?.isAdmin && <Link to="/admin" className="account-button">⚙️</Link>}
+        {user?.canAdmin && !user?.viewAs && <Link to="/admin" className="account-button">⚙️</Link>}
         <Link to="/account" className="account-button">👤</Link>
         <button onClick={onLogout}>Logout</button>
       </div>

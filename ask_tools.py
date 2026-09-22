@@ -27,7 +27,7 @@ ASK_TOOL_API_TOKEN = os.getenv("ASK_TOOL_API_TOKEN") or ""
 TOOL_PHASE_MODEL = os.getenv("ASK_TOOL_PHASE_MODEL", "claude-sonnet-5")
 MAX_TOOL_ROUNDS = 3
 
-_AUDIENCE_RANK = {"staff": 0, "leadership": 1, "board": 1, "finance": 2}
+_AUDIENCE_RANK = {"staff": 0, "marketing": 1, "leadership": 1, "board": 1, "finance": 2}
 _catalog_cache: dict[str, tuple[float, list[dict]]] = {}
 
 

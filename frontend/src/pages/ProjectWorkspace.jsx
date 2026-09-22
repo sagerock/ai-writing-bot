@@ -588,6 +588,7 @@ export default function ProjectWorkspace({
   return (
     <div className={`App project-shell ${darkMode ? 'dark' : ''}`}>
       <WorkspaceHeader
+        auth={auth}
         user={user}
         isSubscriber={isSubscriber}
         darkMode={darkMode}

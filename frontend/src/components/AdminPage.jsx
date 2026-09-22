@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../apiConfig';
+import AdminViewSwitcher from './AdminViewSwitcher';
 
-const AdminPage = ({ auth }) => {
+const AdminPage = ({ auth, user }) => {
     // Email functionality
     const [emailForm, setEmailForm] = useState({
         subject: '',
@@ -205,6 +206,14 @@ const AdminPage = ({ auth }) => {
                 <Link to="/">&larr; Back to Chat</Link>
             </nav>
 
+            <div className="admin-panel admin-preview-panel">
+                <div>
+                    <h2>Preview a client workspace</h2>
+                    <p>Switch branding and content access to verify exactly what each audience can retrieve.</p>
+                </div>
+                <AdminViewSwitcher auth={auth} user={user} />
+            </div>
+
             {/* Analytics Dashboard - First Panel */}
             <div className="admin-panel analytics-panel">
                 <h2>Usage Analytics</h2>
@@ -308,7 +317,7 @@ const AdminPage = ({ auth }) => {
 
             <div className="admin-panel">
                 <h2>User Management</h2>
-                <p>Manage users, update credits, and control admin access.</p>
+                <p>Manage user accounts, credits, and subscription access. RomaLume administration is fixed to Sage.</p>
                 <Link to="/admin/users" className="admin-nav-button">
                     Manage Users &rarr;
                 </Link>

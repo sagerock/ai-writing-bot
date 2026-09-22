@@ -53,14 +53,17 @@ async def _get_membership(user_id: str) -> dict:
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.get(
             f"{SUPABASE_URL}/rest/v1/admin_users",
-            params={"select": "role,client_id", "user_id": f"eq.{user_id}", "limit": "1"},
+            params={"select": "role,client_id", "user_id": f"eq.{user_id}"},
             headers={
                 "apikey": SUPABASE_SERVICE_KEY,
                 "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
             },
         )
     rows = response.json() if response.status_code == 200 else []
-    row = rows[0] if rows else {}
+    # A person may be both the global RomaLume administrator and a member of a
+    # client in the shared identity table. Never let an arbitrary REST row
+    # order hide the super-admin role.
+    row = next((item for item in rows if item.get("role") == "super_admin"), rows[0] if rows else {})
     membership = {
         "role": row.get("role"),
         "client_id": row.get("client_id"),

@@ -135,34 +135,6 @@ const AdminUsersPage = ({ auth }) => {
         }
     };
 
-    const toggleAdmin = async (uid, currentIsAdmin) => {
-        if (!window.confirm(`Are you sure you want to ${currentIsAdmin ? 'revoke' : 'grant'} admin rights?`)) {
-            return;
-        }
-
-        setSaving(true);
-        try {
-            const token = await auth.currentUser.getIdToken();
-            await fetch(`${API_URL}/admin/users/${uid}/role`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_admin: !currentIsAdmin })
-            });
-
-            // Update local state
-            setUsers(prev => prev.map(u =>
-                u.uid === uid ? { ...u, isAdmin: !currentIsAdmin } : u
-            ));
-        } catch (err) {
-            alert('Failed to update role: ' + err.message);
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
             saveEdit();
@@ -407,17 +379,9 @@ const AdminUsersPage = ({ auth }) => {
                                     {/* Credits Used - Read only */}
                                     <td>{user.credits_used || 0}</td>
 
-                                    {/* Admin Toggle */}
+                                    {/* RomaLume intentionally has one administrator. */}
                                     <td className="admin-toggle-cell">
-                                        <label className="toggle-switch">
-                                            <input
-                                                type="checkbox"
-                                                checked={user.isAdmin}
-                                                onChange={() => toggleAdmin(user.uid, user.isAdmin)}
-                                                disabled={saving}
-                                            />
-                                            <span className="toggle-slider"></span>
-                                        </label>
+                                        {user.isAdmin ? 'Sage' : '—'}
                                     </td>
 
                                     {/* Actions Dropdown */}
