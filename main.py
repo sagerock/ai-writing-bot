@@ -627,8 +627,8 @@ ANTHROPIC_NO_SAMPLING_PREFIXES = (
 def get_llm(model_name: str, temperature: float = 0.7):
     """Factory function to get the LLM instance."""
     # Clamp temperature to the provider's supported range
-    if model_name.startswith("gpt-5"):
-        # GPT-5 models only support temperature = 1.0
+    if is_gpt5_model(model_name):
+        # GPT-5 and GPT-6 models only support temperature = 1.0
         temperature = 1.0
     elif model_name.startswith("claude-") or model_name.startswith("command-") or model_name.startswith("gemini-") or model_name.startswith("sonar-"):
         # Anthropic, Cohere, Google, and Perplexity support 0.0-1.0
@@ -703,8 +703,11 @@ def get_llm(model_name: str, temperature: float = 0.7):
         raise ValueError(f"Unknown model provider for {model_name}")
 
 def is_gpt5_model(model_name: str) -> bool:
-    """Check whether a model uses the direct GPT-5 streaming path."""
-    return model_name.startswith("gpt-5")
+    """Check whether a model uses the direct OpenAI Responses streaming path.
+
+    Covers the GPT-5 and GPT-6 families; the name predates GPT-6.
+    """
+    return model_name.startswith(("gpt-5", "gpt-6"))
 
 # Model routing configuration - verified against current provider catalogs
 # Costs per ~2K tokens:
@@ -712,11 +715,11 @@ def is_gpt5_model(model_name: str) -> bool:
 #   Haiku 4.5: $0.006
 #   Gemini 3.7 Flash: $0.0045 (introductory pricing through 2026)
 #   Sonnet 5: $0.012
-#   Opus 5: $0.03 (premium quality)
+#   Opus 5.5: $0.024 (premium quality)
 ROUTING_MODELS = {
     "simple": "gemini-3.5-flash-lite", # Quick facts - current low-cost GA model
     "general": "claude-sonnet-5",      # Everyday tasks - speed/intelligence balance
-    "coding": "claude-opus-5",         # Complex coding and agentic work
+    "coding": "claude-opus-5-5",       # Complex coding and agentic work
     "writing": "claude-sonnet-5",      # Creative and tone-sensitive writing
     "analysis": "gemini-3.7-flash",    # Current GA reasoning workhorse
     "science": "gemini-3.7-flash",     # Complex explanations and quantitative work
@@ -3427,11 +3430,14 @@ async def fix_user_credits(user_id: str, credit_amount: int, _: dict = Depends(g
 # Cost estimates per request (in dollars, based on ~2K tokens average)
 # Formula: (input_price * 1K + output_price * 1K) / 1M = cost per 2K tokens
 MODEL_COSTS = {
-    # Current OpenAI GPT-5.6 family
+    # Current OpenAI GPT-6 family
+    "gpt-6-astra": 0.06,        # $10 input / $50 output
+    "gpt-6-sol": 0.012,         # $2 input / $10 output
+    "gpt-6-luna": 0.0006,       # $0.10 input / $0.50 output
+    # Historical/background OpenAI models
     "gpt-5.6-sol": 0.024,       # $4 input / $20 output
     "gpt-5.6-terra": 0.014,     # $2 input / $12 output
     "gpt-5.6-luna": 0.0014,     # $0.20 input / $1.20 output
-    # Historical/background OpenAI models
     "gpt-4o-mini": 0.00075,
     "gpt-5-nano": 0.0005,       # $0.05 input / $0.40 output
     "gpt-5-mini": 0.002,        # $0.25 input / $2.00 output
@@ -3441,7 +3447,8 @@ MODEL_COSTS = {
     # Anthropic Claude
     "claude-fable-5-1": 0.06,  # $10 input / $50 output
     "claude-fable-5": 0.06,    # retired alias, same price
-    "claude-opus-5": 0.03,     # $5 input / $25 output
+    "claude-opus-5-5": 0.024,  # $4 input / $20 output
+    "claude-opus-5": 0.03,     # $5 input / $25 output (superseded by Opus 5.5)
     "claude-sonnet-5": 0.012,  # $2 input / $10 output
     "claude-opus-4-6": 0.03,   # historical
     "claude-opus-4-5": 0.03,   # $5 input / $25 output (legacy)

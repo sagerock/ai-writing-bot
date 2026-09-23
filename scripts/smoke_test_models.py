@@ -13,16 +13,16 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import db  # noqa: E402
 from cost_tracker import get_models_catalog  # noqa: E402
 from llm_content import stream_chunk_text  # noqa: E402
 from main import (  # noqa: E402
     AsyncOpenAI,
     BASE_SYSTEM_PROMPT,
     ProjectStore,
-    bucket,
-    db,
     get_llm,
     get_rag_service,
+    get_storage_bucket,
     is_gpt5_model,
 )
 from project_context import ProjectContext, load_project_context  # noqa: E402
@@ -60,29 +60,15 @@ async def _iter(llm):
 
 
 def _find_project_owner(project_id: str) -> str:
+    row = db.fetch_one(
+        "select user_id from romalume.projects where id = %s", (project_id,)
+    )
+    if not row:
+        raise ValueError("Project was not found.")
     configured_user = os.getenv("SMOKE_TEST_USER_ID")
-    if configured_user:
-        snapshot = (
-            db.collection("users")
-            .document(configured_user)
-            .collection("projects")
-            .document(project_id)
-            .get()
-        )
-        if snapshot.exists:
-            return configured_user
+    if configured_user and str(row["user_id"]) != configured_user:
         raise ValueError("Project was not found for SMOKE_TEST_USER_ID.")
-
-    matches = []
-    for user in db.collection("users").stream():
-        project = user.reference.collection("projects").document(project_id).get()
-        if project.exists:
-            matches.append(user.id)
-    if len(matches) != 1:
-        raise ValueError(
-            "Project ID must match exactly one user, or set SMOKE_TEST_USER_ID."
-        )
-    return matches[0]
+    return str(row["user_id"])
 
 
 def _load_project_fixture(project_id: str):
@@ -143,12 +129,12 @@ def _load_project_fixture(project_id: str):
         user_id = "model-smoke-fixture"
     else:
         user_id = _find_project_owner(project_id)
-        store = ProjectStore(db)
+        store = ProjectStore()
         project = store.get_project_record(user_id, project_id)
         rag = get_rag_service() if project.get("context_mode") == "retrieval" else None
         context = load_project_context(
             store=store,
-            bucket=bucket,
+            bucket=get_storage_bucket(),
             rag=rag,
             user_id=user_id,
             project_id=project_id,

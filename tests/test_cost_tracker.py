@@ -25,11 +25,11 @@ class CostTrackerTests(unittest.TestCase):
         self.assertEqual(
             ids,
             {
-                "gpt-5.6-sol",
-                "gpt-5.6-terra",
-                "gpt-5.6-luna",
+                "gpt-6-astra",
+                "gpt-6-sol",
+                "gpt-6-luna",
                 "claude-fable-5-1",
-                "claude-opus-5",
+                "claude-opus-5-5",
                 "claude-sonnet-5",
                 "claude-haiku-4-5-20251001",
                 "gemini-3.7-flash",
@@ -57,7 +57,10 @@ class CostTrackerTests(unittest.TestCase):
             normalize_model_id("gemini-3-pro-preview"),
             "gemini-3.1-pro-preview",
         )
-        self.assertEqual(normalize_model_id("gpt-5.5"), "gpt-5.6-sol")
+        self.assertEqual(normalize_model_id("gpt-5.5"), "gpt-6-sol")
+        self.assertEqual(normalize_model_id("gpt-5.6-terra"), "gpt-6-sol")
+        self.assertEqual(normalize_model_id("gpt-5.6-luna"), "gpt-6-luna")
+        self.assertEqual(normalize_model_id("claude-opus-5"), "claude-opus-5-5")
         self.assertEqual(normalize_model_id("sonar-pro"), "sonar-pro")
 
 

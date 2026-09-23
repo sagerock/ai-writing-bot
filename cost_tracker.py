@@ -8,16 +8,19 @@ try:
 except ImportError:  # Keep pricing helpers usable in lightweight maintenance jobs.
     tiktoken = None
 
-# Pricing per 1 MILLION tokens (verified August 24, 2026).
+# Pricing per 1 MILLION tokens (verified September 23, 2026).
 # Optional ``request`` is a flat provider fee per request.
 MODEL_PRICING = {
-    # Current OpenAI GPT-5.6 family
+    # Current OpenAI GPT-6 family (Sol and Luna released September 22, 2026)
+    "gpt-6-astra": {"input": 10.00, "output": 50.00},
+    "gpt-6-sol": {"input": 2.00, "output": 10.00},
+    "gpt-6-luna": {"input": 0.10, "output": 0.50},
+
+    # Supported OpenAI models retained for background jobs and historical logs
     "gpt-5.6-sol": {"input": 4.00, "output": 20.00},
     "gpt-5.6-terra": {"input": 2.00, "output": 12.00},
     "gpt-5.6-luna": {"input": 0.20, "output": 1.20},
     "gpt-5.6": {"input": 4.00, "output": 20.00},
-
-    # Supported OpenAI models retained for background jobs and historical logs
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "gpt-5.5": {"input": 5.00, "output": 30.00},
     "gpt-5-nano": {"input": 0.05, "output": 0.40},
@@ -28,12 +31,13 @@ MODEL_PRICING = {
 
     # Current Anthropic Claude family
     "claude-fable-5-1": {"input": 10.00, "output": 50.00},
-    "claude-opus-5": {"input": 5.00, "output": 25.00},
+    "claude-opus-5-5": {"input": 4.00, "output": 20.00},
     "claude-sonnet-5": {"input": 2.00, "output": 10.00},
     "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
 
     # Historical Claude models
     "claude-fable-5": {"input": 10.00, "output": 50.00},
+    "claude-opus-5": {"input": 5.00, "output": 25.00},
     "claude-opus-4-7": {"input": 5.00, "output": 25.00},
     "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-opus-4-5": {"input": 5.00, "output": 25.00},
@@ -59,38 +63,38 @@ MODEL_PRICING = {
 # Full model catalog with metadata for the Models page
 # This is the single source of truth for all available models
 MODELS_CATALOG = [
-    # OpenAI GPT-5.6
+    # OpenAI GPT-6
     {
-        "id": "gpt-5.6-sol",
-        "name": "GPT-5.6 Sol",
+        "id": "gpt-6-astra",
+        "name": "GPT-6 Astra",
         "provider": "OpenAI",
-        "category": "GPT-5.6",
-        "description": "Frontier model for complex professional work and demanding coding",
-        "input_price": 4.00,
-        "output_price": 20.00,
+        "category": "GPT-6",
+        "description": "OpenAI's most capable model for the hardest end-to-end work",
+        "input_price": 10.00,
+        "output_price": 50.00,
+        "context_window": 1050000,
+        "best_for": ["Deep reasoning", "Complex agents", "Critical work"],
+    },
+    {
+        "id": "gpt-6-sol",
+        "name": "GPT-6 Sol",
+        "provider": "OpenAI",
+        "category": "GPT-6",
+        "description": "Frontier model for complex coding, agentic workflows, and professional work",
+        "input_price": 2.00,
+        "output_price": 10.00,
         "context_window": 1050000,
         "best_for": ["Complex reasoning", "Professional work", "Coding"],
         "badge": "Latest",
     },
     {
-        "id": "gpt-5.6-terra",
-        "name": "GPT-5.6 Terra",
+        "id": "gpt-6-luna",
+        "name": "GPT-6 Luna",
         "provider": "OpenAI",
-        "category": "GPT-5.6",
-        "description": "Balanced intelligence, latency, and cost for everyday professional work",
-        "input_price": 2.00,
-        "output_price": 12.00,
-        "context_window": 1050000,
-        "best_for": ["General chat", "Analysis", "Coding"],
-    },
-    {
-        "id": "gpt-5.6-luna",
-        "name": "GPT-5.6 Luna",
-        "provider": "OpenAI",
-        "category": "GPT-5.6",
-        "description": "Fast, cost-sensitive GPT-5.6 model for high-volume workloads",
-        "input_price": 0.20,
-        "output_price": 1.20,
+        "category": "GPT-6",
+        "description": "OpenAI's most efficient model for focused, high-volume tasks",
+        "input_price": 0.10,
+        "output_price": 0.50,
         "context_window": 1050000,
         "best_for": ["Quick answers", "Summarization", "High volume"],
     },
@@ -105,18 +109,18 @@ MODELS_CATALOG = [
         "output_price": 50.00,
         "context_window": 1000000,
         "best_for": ["Deep reasoning", "Complex agents", "Critical work"],
-        "badge": "Latest",
     },
     {
-        "id": "claude-opus-5",
-        "name": "Claude Opus 5",
+        "id": "claude-opus-5-5",
+        "name": "Claude Opus 5.5",
         "provider": "Anthropic",
         "category": "Claude",
-        "description": "High-capability model for complex agentic and enterprise work",
-        "input_price": 5.00,
-        "output_price": 25.00,
+        "description": "Near-Fable quality at Opus pricing for long-running coding and knowledge work",
+        "input_price": 4.00,
+        "output_price": 20.00,
         "context_window": 1000000,
         "best_for": ["Agents", "Complex coding", "Deep reasoning"],
+        "badge": "Latest",
     },
     {
         "id": "claude-sonnet-5",
@@ -191,21 +195,28 @@ MODELS_CATALOG = [
     },
 ]
 
-# Compatibility aliases for clients that still have the pre-August-2026 model
-# catalog cached. Keep these at the API boundary; retired IDs never reach a
+# Compatibility aliases for clients that still have an older model catalog
+# cached. Keep these at the API boundary; retired IDs never reach a
 # provider and are never shown in the current catalog.
 MODEL_ID_ALIASES = {
-    "gpt-5.5": "gpt-5.6-sol",
-    "gpt-5-nano-2025-08-07": "gpt-5.6-luna",
-    "gpt-5-mini-2025-08-07": "gpt-5.6-terra",
-    "gpt-5.2-2025-12-11": "gpt-5.6-terra",
-    "gpt-5.2-pro-2025-12-11": "gpt-5.6-sol",
-    "gpt-5.2-codex-2025-12-11": "gpt-5.6-sol",
+    # GPT-6 Sol and Luna (2026-09-22) halve GPT-5.6 pricing; Terra has no
+    # GPT-6 counterpart and Sol is cheaper and stronger than it.
+    "gpt-5.6-sol": "gpt-6-sol",
+    "gpt-5.6-terra": "gpt-6-sol",
+    "gpt-5.6-luna": "gpt-6-luna",
+    "gpt-5.5": "gpt-6-sol",
+    "gpt-5-nano-2025-08-07": "gpt-6-luna",
+    "gpt-5-mini-2025-08-07": "gpt-6-sol",
+    "gpt-5.2-2025-12-11": "gpt-6-sol",
+    "gpt-5.2-pro-2025-12-11": "gpt-6-sol",
+    "gpt-5.2-codex-2025-12-11": "gpt-6-sol",
     # Fable 5 refuses RomaLume's citation contract (reasoning_extraction);
     # Fable 5.1 answers it at the same price. Verified 2026-09-19.
     "claude-fable-5": "claude-fable-5-1",
-    "claude-opus-4-7": "claude-opus-5",
-    "claude-opus-4-6": "claude-opus-5",
+    # Opus 5.5 (2026-09-22) matches Fable 5.1 on most work at $4/$20.
+    "claude-opus-5": "claude-opus-5-5",
+    "claude-opus-4-7": "claude-opus-5-5",
+    "claude-opus-4-6": "claude-opus-5-5",
     "claude-sonnet-4-6": "claude-sonnet-5",
     "claude-haiku-4-5": "claude-haiku-4-5-20251001",
     "gemini-3.1-flash-lite-preview": "gemini-3.5-flash-lite",

@@ -168,7 +168,7 @@ class ProjectGenerationPostgresTests(unittest.TestCase):
             self.project["id"],
             title="GPT record question",
             mode="brainstorm",
-            model="gpt-5.6-sol",
+            model="gpt-6-sol",
         )
         captured = {}
 
@@ -205,7 +205,7 @@ class ProjectGenerationPostgresTests(unittest.TestCase):
         ):
             events = self._collect(
                 self.main.generate_chat_response(
-                    self._request("gpt-5.6-sol", chat["id"]),
+                    self._request("gpt-6-sol", chat["id"]),
                     self.user_id,
                 )
             )

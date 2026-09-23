@@ -25,8 +25,8 @@ const ChatControls = ({ model, setModel, modelOptions, searchWeb, setSearchWeb, 
     if (model === 'auto') {
       return 1.0;
     }
-    // GPT-5 models only support temperature = 1
-    if (model.startsWith('gpt-5')) {
+    // GPT-5 and GPT-6 models only support temperature = 1
+    if (model.startsWith('gpt-5') || model.startsWith('gpt-6')) {
       return 1.0;
     }
     // Claude, Cohere, and Gemini models max at 1.0
@@ -37,7 +37,8 @@ const ChatControls = ({ model, setModel, modelOptions, searchWeb, setSearchWeb, 
     return 1.5;
   }, [model]);
 
-  const temperatureManagedByModel = model.startsWith('gpt-5.6') || model.startsWith('gemini-3.');
+  const temperatureManagedByModel =
+    model.startsWith('gpt-5.6') || model.startsWith('gpt-6') || model.startsWith('gemini-3.');
 
   const groupedModels = (modelOptions || [])
     .filter((option) => option.id !== 'auto')
