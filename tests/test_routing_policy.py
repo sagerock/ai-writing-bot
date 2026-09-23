@@ -33,7 +33,7 @@ class InternalClientDataPolicyTests(unittest.TestCase):
         ))
 
     def test_internal_route_bypasses_llm_classifier_and_web_model(self):
-        with patch.object(main, "ChatGoogleGenerativeAI") as router:
+        with patch.object(main, "AsyncOpenAI") as router:
             model, category = asyncio.run(main.route_to_best_model(
                 "How much money have we made in the last 30 days?",
                 has_client_context=True,

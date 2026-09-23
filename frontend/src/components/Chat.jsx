@@ -693,8 +693,6 @@ const Chat = ({
           modelOptions={modelOptions}
           searchWeb={searchWeb}
           setSearchWeb={setSearchWeb}
-          temperature={temperature}
-          setTemperature={setTemperature}
         />
         <ArchiveControls
           onSave={handleSave}

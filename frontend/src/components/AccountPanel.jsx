@@ -1047,29 +1047,6 @@ const AccountPanel = ({ auth }) => {
                             ))}
                         </select>
                     </label>
-
-                    <label className="slider-label">
-                        <span>Default Creativity Level</span>
-                        <div className="slider-container">
-                            <input
-                                type="range"
-                                min="0"
-                                max="1.5"
-                                step="0.1"
-                                value={chatSettings.default_temperature}
-                                onChange={(e) => setChatSettings(prev => ({
-                                    ...prev,
-                                    default_temperature: parseFloat(e.target.value)
-                                }))}
-                            />
-                            <span className="slider-value">
-                                {chatSettings.default_temperature <= 0.3 ? 'Focused' :
-                                 chatSettings.default_temperature <= 0.7 ? 'Balanced' :
-                                 chatSettings.default_temperature <= 1.2 ? 'Creative' : 'Wild'}
-                                ({chatSettings.default_temperature})
-                            </span>
-                        </div>
-                    </label>
                 </div>
 
                 <button type="submit">Update Chat Settings</button>

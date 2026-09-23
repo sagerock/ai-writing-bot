@@ -61,137 +61,46 @@ MODEL_PRICING = {
 }
 
 # Full model catalog with metadata for the Models page
-# This is the single source of truth for all available models
+# This is the single source of truth for all available models.
+# Trimmed to three on 2026-09-23: RomaLume is primarily a writing tool, and
+# the eleven-model picker was more choice than anyone wanted. Two vendors
+# keep an outage or a refusal from taking the app down.
 MODELS_CATALOG = [
-    # OpenAI GPT-6
     {
-        "id": "gpt-6-astra",
-        "name": "GPT-6 Astra",
-        "provider": "OpenAI",
-        "category": "GPT-6",
-        "description": "OpenAI's most capable model for the hardest end-to-end work",
-        "input_price": 10.00,
-        "output_price": 50.00,
-        "context_window": 1050000,
-        "best_for": ["Deep reasoning", "Complex agents", "Critical work"],
-    },
-    {
-        "id": "gpt-6-sol",
-        "name": "GPT-6 Sol",
-        "provider": "OpenAI",
-        "category": "GPT-6",
-        "description": "Frontier model for complex coding, agentic workflows, and professional work",
-        "input_price": 2.00,
-        "output_price": 10.00,
-        "context_window": 1050000,
-        "best_for": ["Complex reasoning", "Professional work", "Coding"],
-        "badge": "Latest",
-    },
-    {
-        "id": "gpt-6-luna",
-        "name": "GPT-6 Luna",
-        "provider": "OpenAI",
-        "category": "GPT-6",
-        "description": "OpenAI's most efficient model for focused, high-volume tasks",
-        "input_price": 0.10,
-        "output_price": 0.50,
-        "context_window": 1050000,
-        "best_for": ["Quick answers", "Summarization", "High volume"],
-    },
-    # Anthropic Claude
-    {
-        "id": "claude-fable-5-1",
-        "name": "Claude Fable 5.1",
+        "id": "claude-sonnet-5",
+        "name": "Claude Sonnet 5",
         "provider": "Anthropic",
         "category": "Claude",
-        "description": "Anthropic's most capable widely released model",
-        "input_price": 10.00,
-        "output_price": 50.00,
+        "description": "The default: Anthropic's best balance of writing quality, speed, and cost",
+        "input_price": 2.00,
+        "output_price": 10.00,
         "context_window": 1000000,
-        "best_for": ["Deep reasoning", "Complex agents", "Critical work"],
+        "best_for": ["Writing", "Analysis", "Everyday work"],
+        "badge": "Default",
     },
     {
         "id": "claude-opus-5-5",
         "name": "Claude Opus 5.5",
         "provider": "Anthropic",
         "category": "Claude",
-        "description": "Near-Fable quality at Opus pricing for long-running coding and knowledge work",
+        "description": "The step up for hard analysis, long documents, and demanding drafts",
         "input_price": 4.00,
         "output_price": 20.00,
         "context_window": 1000000,
-        "best_for": ["Agents", "Complex coding", "Deep reasoning"],
-        "badge": "Latest",
+        "best_for": ["Deep analysis", "Complex drafts", "Long documents"],
+        "badge": "Most capable",
     },
     {
-        "id": "claude-sonnet-5",
-        "name": "Claude Sonnet 5",
-        "provider": "Anthropic",
-        "category": "Claude",
-        "description": "Anthropic's best balance of speed and intelligence",
-        "input_price": 2.00,
-        "output_price": 10.00,
-        "context_window": 1000000,
-        "best_for": ["Writing", "Analysis", "Coding"],
-    },
-    {
-        "id": "claude-haiku-4-5-20251001",
-        "name": "Claude Haiku 4.5",
-        "provider": "Anthropic",
-        "category": "Claude",
-        "description": "Fastest model with near-frontier intelligence",
-        "input_price": 1.00,
-        "output_price": 5.00,
-        "context_window": 200000,
-        "best_for": ["Fast responses", "High volume", "Cost-effective"],
-    },
-    # Google Gemini
-    {
-        "id": "gemini-3.7-flash",
-        "name": "Gemini 3.7 Flash",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Google's latest GA workhorse for coding, agents, and multimodal reasoning",
-        "input_price": 0.75,
-        "output_price": 3.75,
-        "context_window": 1000000,
-        "best_for": ["Coding", "Agentic workflows", "Multimodal reasoning"],
-        "badge": "Latest",
-    },
-    {
-        "id": "gemini-3.5-flash-lite",
-        "name": "Gemini 3.5 Flash-Lite",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Google's most cost-efficient GA model for high-volume tasks",
-        "input_price": 0.30,
-        "output_price": 2.50,
-        "context_window": 1000000,
-        "best_for": ["Fast tasks", "High volume", "Cost-effective"],
-    },
-    {
-        "id": "gemini-3.1-pro-preview",
-        "name": "Gemini 3.1 Pro",
-        "provider": "Google",
-        "category": "Gemini",
-        "description": "Premium preview for advanced multimodal, coding, and agentic work",
-        "input_price": 2.00,
-        "output_price": 12.00,
-        "context_window": 1000000,
-        "best_for": ["Complex reasoning", "Agentic workflows", "Coding"],
-        "badge": "Preview",
-    },
-    # Perplexity
-    {
-        "id": "sonar-pro",
-        "name": "Sonar Pro",
-        "provider": "Perplexity",
-        "category": "Perplexity",
-        "description": "Real-time web search with AI synthesis",
-        "input_price": 3.00,
-        "output_price": 15.00,
-        "context_window": 200000,
-        "best_for": ["Current events", "Research", "Fact-checking"],
-        "badge": "Web Search",
+        "id": "gpt-6-luna",
+        "name": "GPT-6 Luna",
+        "provider": "OpenAI",
+        "category": "GPT-6",
+        "description": "Fast and inexpensive for quick questions and high-volume work",
+        "input_price": 0.10,
+        "output_price": 0.50,
+        "context_window": 1050000,
+        "best_for": ["Quick answers", "Summaries", "High volume"],
+        "badge": "Fastest",
     },
 ]
 
@@ -199,32 +108,43 @@ MODELS_CATALOG = [
 # cached. Keep these at the API boundary; retired IDs never reach a
 # provider and are never shown in the current catalog.
 MODEL_ID_ALIASES = {
-    # GPT-6 Sol and Luna (2026-09-22) halve GPT-5.6 pricing; Terra has no
-    # GPT-6 counterpart and Sol is cheaper and stronger than it.
-    "gpt-5.6-sol": "gpt-6-sol",
-    "gpt-5.6-terra": "gpt-6-sol",
+    # OpenAI. GPT-6 Sol/Astra and every GPT-5.x ID fold into the lineup.
+    "gpt-6-astra": "claude-opus-5-5",
+    "gpt-6-sol": "claude-sonnet-5",
+    "gpt-5.6-sol": "claude-sonnet-5",
+    "gpt-5.6-terra": "claude-sonnet-5",
     "gpt-5.6-luna": "gpt-6-luna",
-    "gpt-5.5": "gpt-6-sol",
+    "gpt-5.5": "claude-sonnet-5",
     "gpt-5-nano-2025-08-07": "gpt-6-luna",
-    "gpt-5-mini-2025-08-07": "gpt-6-sol",
-    "gpt-5.2-2025-12-11": "gpt-6-sol",
-    "gpt-5.2-pro-2025-12-11": "gpt-6-sol",
-    "gpt-5.2-codex-2025-12-11": "gpt-6-sol",
-    # Fable 5 refuses RomaLume's citation contract (reasoning_extraction);
-    # Fable 5.1 answers it at the same price. Verified 2026-09-19.
-    "claude-fable-5": "claude-fable-5-1",
-    # Opus 5.5 (2026-09-22) matches Fable 5.1 on most work at $4/$20.
+    "gpt-5-mini-2025-08-07": "gpt-6-luna",
+    "gpt-5.2-2025-12-11": "claude-sonnet-5",
+    "gpt-5.2-pro-2025-12-11": "claude-opus-5-5",
+    "gpt-5.2-codex-2025-12-11": "claude-sonnet-5",
+    # Anthropic. Fable refused RomaLume's citation contract on 5 and cost
+    # 2.5x Opus 5.5 on 5.1; Opus 5.5 matches it on most work. Haiku 4.5
+    # gave way to GPT-6 Luna as the free-tier model.
+    "claude-fable-5-1": "claude-opus-5-5",
+    "claude-fable-5": "claude-opus-5-5",
     "claude-opus-5": "claude-opus-5-5",
     "claude-opus-4-7": "claude-opus-5-5",
     "claude-opus-4-6": "claude-opus-5-5",
     "claude-sonnet-4-6": "claude-sonnet-5",
-    "claude-haiku-4-5": "claude-haiku-4-5-20251001",
-    "gemini-3.1-flash-lite-preview": "gemini-3.5-flash-lite",
-    "gemini-3-pro-preview": "gemini-3.1-pro-preview",
-    "gemini-3-flash-preview": "gemini-3.7-flash",
-    "gemini-2.5-pro": "gemini-3.7-flash",
-    "gemini-2.5-flash": "gemini-3.7-flash",
-    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+    "claude-haiku-4-5-20251001": "gpt-6-luna",
+    "claude-haiku-4-5": "gpt-6-luna",
+    # Google and Perplexity left the lineup on 2026-09-23. Web search runs
+    # through RomaLume's own search step on any model, so Sonar has no
+    # dedicated replacement.
+    "gemini-3.7-flash": "claude-sonnet-5",
+    "gemini-3.5-flash-lite": "gpt-6-luna",
+    "gemini-3.1-pro-preview": "claude-opus-5-5",
+    "gemini-3.1-pro": "claude-opus-5-5",
+    "gemini-3.1-flash-lite-preview": "gpt-6-luna",
+    "gemini-3-pro-preview": "claude-opus-5-5",
+    "gemini-3-flash-preview": "claude-sonnet-5",
+    "gemini-2.5-pro": "claude-sonnet-5",
+    "gemini-2.5-flash": "claude-sonnet-5",
+    "gemini-2.5-flash-lite": "gpt-6-luna",
+    "sonar-pro": "claude-sonnet-5",
 }
 
 

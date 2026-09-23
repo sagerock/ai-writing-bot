@@ -4,40 +4,22 @@ import { Link } from 'react-router-dom';
 const ModelDocsPage = () => {
     const providers = [
         {
-            name: 'Google Gemini',
-            description: 'Multimodal AI models with strong reasoning and coding capabilities.',
-            links: [
-                { label: 'Models Overview', url: 'https://ai.google.dev/gemini-api/docs/models' },
-                { label: 'Pricing', url: 'https://ai.google.dev/gemini-api/docs/pricing' }
-            ],
-            models: ['Gemini 3.7 Flash', 'Gemini 3.5 Flash-Lite', 'Gemini 3.1 Pro Preview']
-        },
-        {
             name: 'Anthropic Claude',
             description: 'Thoughtful AI assistants known for nuanced writing and careful reasoning.',
             links: [
                 { label: 'Models Overview', url: 'https://platform.claude.com/docs/en/about-claude/models/overview' },
                 { label: 'Pricing', url: 'https://platform.claude.com/docs/en/about-claude/pricing' }
             ],
-            models: ['Claude Fable 5', 'Claude Opus 5', 'Claude Sonnet 5', 'Claude Haiku 4.5'],
+            models: ['Claude Sonnet 5', 'Claude Opus 5.5'],
         },
         {
             name: 'OpenAI GPT',
-            description: 'Versatile language models with strong general-purpose capabilities.',
+            description: 'Fast, inexpensive models for quick questions and high-volume work.',
             links: [
                 { label: 'Models Overview', url: 'https://developers.openai.com/api/docs/models' },
-                { label: 'Latest Model Guide', url: 'https://developers.openai.com/api/docs/guides/latest-model' }
+                { label: 'Pricing', url: 'https://developers.openai.com/api/docs/pricing' }
             ],
-            models: ['GPT-5.6 Sol', 'GPT-5.6 Terra', 'GPT-5.6 Luna']
-        },
-        {
-            name: 'Perplexity Sonar',
-            description: 'Search-grounded AI for current information and source-backed research.',
-            links: [
-                { label: 'Models Overview', url: 'https://docs.perplexity.ai/docs/sonar/models' },
-                { label: 'Pricing', url: 'https://docs.perplexity.ai/docs/getting-started/pricing' }
-            ],
-            models: ['Sonar Pro']
+            models: ['GPT-6 Luna']
         }
     ];
 

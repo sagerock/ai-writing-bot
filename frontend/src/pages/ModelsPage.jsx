@@ -87,7 +87,7 @@ const ModelsPage = () => {
                 <div className="models-container">
                     <h1>AI Models</h1>
                     <p className="models-subtitle">
-                        {models.length}+ models from leading providers — all included in your subscription
+                        Three models, chosen for writing — all included in your subscription
                     </p>
 
                     {autoRoutingInfo && (

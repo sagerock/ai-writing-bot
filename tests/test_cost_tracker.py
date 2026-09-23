@@ -1,6 +1,7 @@
 import unittest
 
 from cost_tracker import (
+    MODEL_ID_ALIASES,
     calculate_cost,
     calculate_cost_cents,
     get_model_pricing,
@@ -24,19 +25,7 @@ class CostTrackerTests(unittest.TestCase):
         ids = {model["id"] for model in get_models_catalog()}
         self.assertEqual(
             ids,
-            {
-                "gpt-6-astra",
-                "gpt-6-sol",
-                "gpt-6-luna",
-                "claude-fable-5-1",
-                "claude-opus-5-5",
-                "claude-sonnet-5",
-                "claude-haiku-4-5-20251001",
-                "gemini-3.7-flash",
-                "gemini-3.5-flash-lite",
-                "gemini-3.1-pro-preview",
-                "sonar-pro",
-            },
+            {"claude-sonnet-5", "claude-opus-5-5", "gpt-6-luna"},
         )
 
     def test_dated_model_uses_prefix_pricing(self):
@@ -53,15 +42,22 @@ class CostTrackerTests(unittest.TestCase):
         self.assertAlmostEqual(calculate_cost("sonar-pro", 0, 0), 0.006)
 
     def test_retired_model_ids_map_to_current_replacements(self):
-        self.assertEqual(
-            normalize_model_id("gemini-3-pro-preview"),
-            "gemini-3.1-pro-preview",
-        )
-        self.assertEqual(normalize_model_id("gpt-5.5"), "gpt-6-sol")
-        self.assertEqual(normalize_model_id("gpt-5.6-terra"), "gpt-6-sol")
+        self.assertEqual(normalize_model_id("gemini-3-pro-preview"), "claude-opus-5-5")
+        self.assertEqual(normalize_model_id("gemini-3.5-flash-lite"), "gpt-6-luna")
+        self.assertEqual(normalize_model_id("gpt-5.5"), "claude-sonnet-5")
+        self.assertEqual(normalize_model_id("gpt-6-sol"), "claude-sonnet-5")
         self.assertEqual(normalize_model_id("gpt-5.6-luna"), "gpt-6-luna")
         self.assertEqual(normalize_model_id("claude-opus-5"), "claude-opus-5-5")
-        self.assertEqual(normalize_model_id("sonar-pro"), "sonar-pro")
+        self.assertEqual(normalize_model_id("claude-fable-5-1"), "claude-opus-5-5")
+        self.assertEqual(normalize_model_id("claude-haiku-4-5-20251001"), "gpt-6-luna")
+        self.assertEqual(normalize_model_id("sonar-pro"), "claude-sonnet-5")
+        self.assertEqual(normalize_model_id("claude-sonnet-5"), "claude-sonnet-5")
+
+    def test_every_alias_targets_a_catalog_model(self):
+        ids = {model["id"] for model in get_models_catalog()}
+        for alias, target in MODEL_ID_ALIASES.items():
+            with self.subTest(alias=alias):
+                self.assertIn(target, ids)
 
 
 if __name__ == "__main__":

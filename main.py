@@ -44,7 +44,6 @@ import ask_tools
 import admin_preview
 from fastapi.encoders import jsonable_encoder
 from langchain_cohere import ChatCohere
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from openai import AsyncOpenAI
 from cost_tracker import (
@@ -609,7 +608,6 @@ async def record_signup(
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
@@ -630,8 +628,8 @@ def get_llm(model_name: str, temperature: float = 0.7):
     if is_gpt5_model(model_name):
         # GPT-5 and GPT-6 models only support temperature = 1.0
         temperature = 1.0
-    elif model_name.startswith("claude-") or model_name.startswith("command-") or model_name.startswith("gemini-") or model_name.startswith("sonar-"):
-        # Anthropic, Cohere, Google, and Perplexity support 0.0-1.0
+    elif model_name.startswith("claude-") or model_name.startswith("command-"):
+        # Anthropic and Cohere support 0.0-1.0
         temperature = max(0.0, min(1.0, float(temperature)))
     else:
         # OpenAI GPT-4, xAI, etc. support up to 2.0, but we'll cap at 1.5 for better results
@@ -679,26 +677,6 @@ def get_llm(model_name: str, temperature: float = 0.7):
             cohere_api_key=os.getenv("COHERE_API_KEY"),
             max_tokens=4096
         )
-    elif model_name.startswith("gemini-"):
-        gemini_options = {
-            "model": model_name,
-            "google_api_key": os.getenv("GOOGLE_API_KEY"),
-            "max_output_tokens": 4096,
-        }
-        # Gemini 3's current generation manages sampling itself. Newer releases
-        # reject legacy temperature/top-p/top-k parameters entirely.
-        if not model_name.startswith("gemini-3."):
-            gemini_options["temperature"] = temperature
-        return ChatGoogleGenerativeAI(**gemini_options)
-    elif model_name.startswith("sonar-"):
-        # Perplexity uses OpenAI-compatible API
-        return ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=4096,
-            openai_api_key=os.getenv("PERPLEXITY_API_KEY"),
-            openai_api_base="https://api.perplexity.ai",
-        )
     else:
         raise ValueError(f"Unknown model provider for {model_name}")
 
@@ -709,23 +687,23 @@ def is_gpt5_model(model_name: str) -> bool:
     """
     return model_name.startswith(("gpt-5", "gpt-6"))
 
-# Model routing configuration - verified against current provider catalogs
-# Costs per ~2K tokens:
-#   Gemini 3.5 Flash-Lite: $0.0028
-#   Haiku 4.5: $0.006
-#   Gemini 3.7 Flash: $0.0045 (introductory pricing through 2026)
-#   Sonnet 5: $0.012
-#   Opus 5.5: $0.024 (premium quality)
+# Model routing configuration. Three-model lineup since 2026-09-23:
+# Sonnet 5 is the default, Opus 5.5 the step up, GPT-6 Luna the fast lane.
+# Costs per ~2K tokens: Luna $0.0006, Sonnet 5 $0.012, Opus 5.5 $0.024.
 ROUTING_MODELS = {
-    "simple": "gemini-3.5-flash-lite", # Quick facts - current low-cost GA model
-    "general": "claude-sonnet-5",      # Everyday tasks - speed/intelligence balance
+    "simple": "gpt-6-luna",            # Quick facts and short answers
+    "general": "claude-sonnet-5",      # Everyday tasks
     "coding": "claude-opus-5-5",       # Complex coding and agentic work
     "writing": "claude-sonnet-5",      # Creative and tone-sensitive writing
-    "analysis": "gemini-3.7-flash",    # Current GA reasoning workhorse
-    "science": "gemini-3.7-flash",     # Complex explanations and quantitative work
-    "internal_data": "gemini-3.7-flash", # Private client documents and tools
-    "realtime": "sonar-pro",           # Current events, live data - needs web search
+    "analysis": "claude-opus-5-5",     # Deep analysis and research synthesis
+    "science": "claude-sonnet-5",      # Explanations and quantitative work
+    "internal_data": "claude-opus-5-5", # Private client documents and tools
+    "realtime": "claude-sonnet-5",     # Current events; web search is auto-enabled
 }
+
+# Classifier for the auto-router. Luna with reasoning off answers in about a
+# second and costs a fraction of a cent per call.
+ROUTER_MODEL = "gpt-6-luna"
 
 ROUTER_PROMPT = """Classify this message into ONE category. Return ONLY the category name.
 
@@ -795,7 +773,7 @@ async def route_to_best_model(
     has_client_context: bool = False,
 ) -> tuple[str, str]:
     """
-    Use Gemini Flash-Lite to quickly classify the message and route to the best model.
+    Use a fast classifier to pick a category and route to the best model.
     Returns (model_name, category) tuple.
     """
     if is_internal_client_data_query(
@@ -804,13 +782,15 @@ async def route_to_best_model(
         return ROUTING_MODELS["internal_data"], "internal_data"
 
     try:
-        model = ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash-lite",
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = await client.responses.create(
+            model=ROUTER_MODEL,
+            input=ROUTER_PROMPT.format(message=user_message[:500]),
             max_output_tokens=20,
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            reasoning={"effort": "none"},
+            store=False,
         )
-        response = await model.ainvoke(ROUTER_PROMPT.format(message=user_message[:500]))
-        raw_response = content_as_text(response.content).strip().lower()
+        raw_response = (response.output_text or "").strip().lower()
         print(f"Router raw response: '{raw_response}'")
 
         # Extract category from response - handle various formats
@@ -1284,7 +1264,7 @@ async def generate_chat_response(
             req = req.model_copy(update={"model": ROUTING_MODELS["general"]})
 
     # --- Free-tier model cap: every non-subscriber uses the bounded free model ---
-    FREE_TIER_MODEL = "claude-haiku-4-5-20251001"
+    FREE_TIER_MODEL = "gpt-6-luna"
     if not access_info["is_subscriber"] and req.model != FREE_TIER_MODEL:
         req = req.model_copy(update={"model": FREE_TIER_MODEL})
         yield f"data: {json.dumps({'free_tier_model': FREE_TIER_MODEL})}\n\n"

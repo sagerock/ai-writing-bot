@@ -246,7 +246,7 @@ class ProjectRoutesPostgresTests(unittest.TestCase):
                 get_rag_service=lambda: cls.rag,
                 safe_filename=lambda filename: filename.rsplit("/", 1)[-1],
                 estimate_tokens=lambda text: max(1, len(text) // 4),
-                allowed_model_ids={"claude-sonnet-5", "claude-opus-5"},
+                allowed_model_ids={"claude-sonnet-5", "claude-opus-5-5"},
                 max_upload_bytes=1_000_000,
                 max_pdf_pages=20,
                 full_context_tokens=100,
@@ -289,10 +289,10 @@ class ProjectRoutesPostgresTests(unittest.TestCase):
         response = self.client.patch(
             f"/projects/{project_id}",
             headers=self.headers,
-            json={"name": "Smith limitations memo", "default_model": "claude-opus-5"},
+            json={"name": "Smith limitations memo", "default_model": "claude-opus-5-5"},
         )
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()["default_model"], "claude-opus-5")
+        self.assertEqual(response.json()["default_model"], "claude-opus-5-5")
 
         response = self.client.post(
             f"/projects/{project_id}/sources",
