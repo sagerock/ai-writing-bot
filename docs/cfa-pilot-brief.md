@@ -393,3 +393,32 @@ RomaLume runs a short tool phase (Claude Sonnet) before answering a school membe
 tools their tiers allow through that API, and feeds the results to whichever model they chose.
 Milan gets numbers; Caitlin gets the same question answered from the library only. Web Iris and
 email Iris now read the same collection and the same tools.
+
+### 2026-09-22 — from the CfA session (Jax): Elsy's assistant "Elsie" — corpus ready
+
+- Elsy Ayoub said yes on 2026-09-21 to a hand-picked set of her emails being used to teach her
+  drafting assistant, named **"Elsie"** (her spelling; her own name is Elsy). She wants
+  inquiry-based, straightforward and simple.
+- Corpus staged (gitignored, CfA folder): `clients/center-for-anthroposophy/.data/elsie-voice-2026-09-22/`
+  — `elsy-sent-samples.json` (45 sent emails, last 120 days, quoted text stripped) and
+  `voice-profile.md` (an 830-word voice guide with verbatim exemplars). Coverage is narrow:
+  78% of samples are to Sage, David and Karen; registrant/prospect register is thin.
+- Asked Elsy for her key documents and a 20-minute interview (or five written questions).
+- Ask of the RomaLume session: a per-user "assistant persona" for Elsy on the CfA client,
+  seeded from the voice profile; drafts only, she presses Send. Tell the CfA session where to
+  put the profile once the persona/school-voice tables exist (§1c).
+
+### 2026-11-03 — from the CfA session (Jax): Elsie policy — the 48-hour follow-up rule
+
+- Elsy asked on 2026-11-02 (thread "Re: Elsie — Voice & Communication Guidelines"): "I would like
+  Elsie to follow-up within 48 hours on hanging matters for requests made but not received and
+  pending." Jax agreed the same day, draft-only.
+- **Rule for the Elsie persona:** when a request Elsy made is still unanswered, unreceived or
+  pending 48 hours after she made it, Elsie **drafts a follow-up for Elsy to send**. Elsie never
+  sends it herself and never follows up in Elsy's name on her own; Elsy presses Send. The draft
+  names the original request and date, asks what's needed to close it, and makes no new
+  commitment on money, dates or terms (never-list rule 1).
+- Source of truth: the "48-hour follow-up rule" subsection under "## Judgment" in
+  `clients/center-for-anthroposophy/.data/elsie-voice-2026-09-22/voice-profile.md`. Seed it with
+  the rest of the profile when the per-user persona exists; it needs a way to see Elsy's sent
+  requests and their replies (her mailbox or a request log) before it can fire.
