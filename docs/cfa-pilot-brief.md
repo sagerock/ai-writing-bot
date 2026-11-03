@@ -422,3 +422,23 @@ email Iris now read the same collection and the same tools.
   `clients/center-for-anthroposophy/.data/elsie-voice-2026-09-22/voice-profile.md`. Seed it with
   the rest of the profile when the per-user persona exists; it needs a way to see Elsy's sent
   requests and their replies (her mailbox or a request log) before it can fire.
+
+### 2026-11-03 — from the CfA session (Jax): Elsie knowledge — Elsy's key documents (offer-design reference)
+
+- Elsy shared Drive folder `1KPcWVYV9bsiIIN2aHRJ9xSBhLozE_ry6` on 2026-11-02 (subfolders Mod.26, Mod. 27,
+  Mod. 28) as the key documents she was asked for in September. 34 files (18 PDFs, 16 PNG slide
+  screenshots read as images; `.DS_Store` skipped): modules 24 and 26-28 of Alyssa Nobriga's
+  *Coaching Mastery Certification*, the course Elsy is taking (copyright Alyssa Nobriga International).
+- Staged (gitignored, CfA folder): `clients/center-for-anthroposophy/.data/elsie-voice-2026-09-22/key-docs/`
+  — `README.md` (file-by-file summary by module), `manifest.tsv` (Drive ids, md5, modified times),
+  `originals/` and `text/` (extracted text; PNGs transcribed). `voice-profile.md` has a matching
+  section beside the job description.
+- **Rule for the Elsie persona:** these are *method* reference for Elsy's offer-design and
+  lifecycle-growth work (job-description role D): sales conversations, following up on maybes,
+  handling a no, launches, webinars, challenges, sales/About page structure, naming, ad copy.
+  Never copy course text into CfA mail or public copy, never use the coaching-income math as CfA
+  targets, and keep CfA's own rules above them (Elsy's never-list and register; Caitlin owns
+  campaigns/social/site copy; CfA public copy is written by people).
+- Seed with the voice profile when the per-user persona exists. Copyrighted course material: load
+  it as Elsy's private reference for her persona only, never into a shared or school-wide collection.
+- Elsy's folder is checked weekly on Fridays for new files (CfA item #2315; baseline is `manifest.tsv`).
