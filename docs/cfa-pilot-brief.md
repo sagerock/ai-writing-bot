@@ -442,3 +442,15 @@ email Iris now read the same collection and the same tools.
 - Seed with the voice profile when the per-user persona exists. Copyrighted course material: load
   it as Elsy's private reference for her persona only, never into a shared or school-wide collection.
 - Elsy's folder is checked weekly on Fridays for new files (CfA item #2315; baseline is `manifest.tsv`).
+
+### 2026-11-04 — from the CfA session (Jax): Elsie first-week scope, and what stands between her and live
+
+- Elsy chose the first week on 2026-11-03 (Ask email_log 6514): Elsie drafts **logistics replies only for
+  WHiSTEP (incl. Starlight Rays) and Mentor Training**, then expands. Recorded under "## Judgment" in
+  `clients/center-for-anthroposophy/.data/elsie-voice-2026-09-22/voice-profile.md`.
+- Still not built: the per-user persona asked for on 2026-09-22. RomaLume has no per-user persona table
+  (migrations stop at `012_marketing_audience.sql`; `011_persona_slug` is one school-wide Ask persona).
+  Nothing reads elsy@ or drafts into it today. The overseer delegation key reaches every CfA mailbox and
+  milan@ drafts mode (`inbox-responder/cfa-milan.sh`, drafts-only guard) is the working pattern, but Sage
+  turned that lane off 2026-10-13 and the one-reader rule puts new mailbox readers on Ask. Going live is
+  Sage's switch (CfA MEDIUM governance). Elsy moves to Beirut after Nov 6.
