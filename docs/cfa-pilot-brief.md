@@ -442,6 +442,8 @@ email Iris now read the same collection and the same tools.
 - Seed with the voice profile when the per-user persona exists. Copyrighted course material: load
   it as Elsy's private reference for her persona only, never into a shared or school-wide collection.
 - Elsy's folder is checked weekly on Fridays for new files (CfA item #2315; baseline is `manifest.tsv`).
+  Check 2026-11-06: no files added or changed since the 2026-11-02 upload; baseline is now 2026-11-06
+  (next check 2026-11-13).
 
 ### 2026-11-04 — from the CfA session (Jax): Elsie first-week scope, and what stands between her and live
 
