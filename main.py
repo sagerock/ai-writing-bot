@@ -17,7 +17,7 @@ load_dotenv()
 from fastapi import FastAPI, File, Form, HTTPException, Depends, Header, UploadFile, Query, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from starlette.responses import StreamingResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pypdf import PdfReader
@@ -123,7 +123,8 @@ main_app = FastAPI()
 
 MAX_REQUEST_BYTES = int(os.getenv("MAX_REQUEST_BYTES", str(12 * 1024 * 1024)))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
-MAX_CHAT_HISTORY_MESSAGES = 100
+MAX_CHAT_HISTORY_MESSAGES = 100  # most recent messages sent to the model
+MAX_ARCHIVE_HISTORY_MESSAGES = 2000
 MAX_CHAT_CONTENT_CHARS = 8_000_000
 PAID_DAILY_MESSAGE_LIMIT = int(os.getenv("PAID_DAILY_MESSAGE_LIMIT", "500"))
 MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "200"))
@@ -467,8 +468,39 @@ class Message(BaseModel):
     role: Literal["user", "assistant", "context"]
     content: str = Field(max_length=MAX_CHAT_CONTENT_CHARS)
 
+def trim_chat_history(history):
+    """Keep long conversations working: send only the most recent messages.
+
+    Earlier 'context' messages (uploaded documents) are kept, and the trimmed
+    window never starts with an assistant reply.
+    """
+    if not isinstance(history, list) or len(history) <= MAX_CHAT_HISTORY_MESSAGES:
+        return history
+
+    def role_of(message):
+        if isinstance(message, dict):
+            return message.get("role")
+        return getattr(message, "role", None)
+
+    # Uploaded documents from earlier in the chat keep up to 10 slots.
+    early_context = [
+        i for i in range(len(history) - MAX_CHAT_HISTORY_MESSAGES)
+        if role_of(history[i]) == "context"
+    ][-10:]
+    cut = len(history) - (MAX_CHAT_HISTORY_MESSAGES - len(early_context))
+    recent = history[cut:]
+    while recent and role_of(recent[0]) == "assistant":
+        recent = recent[1:]
+    return [history[i] for i in early_context if i < cut] + recent
+
+
 class ChatRequest(BaseModel):
     history: List[Message] = Field(min_length=1, max_length=MAX_CHAT_HISTORY_MESSAGES)
+
+    @field_validator("history", mode="before")
+    @classmethod
+    def trim_history(cls, value):
+        return trim_chat_history(value)
     model: str = Field(min_length=1, max_length=100)
     search_web: bool = False
     search_docs: bool = False
@@ -490,7 +522,7 @@ class ChatRequest(BaseModel):
         return self
 
 class ArchiveRequest(BaseModel):
-    history: List[Message] = Field(min_length=1, max_length=MAX_CHAT_HISTORY_MESSAGES)
+    history: List[Message] = Field(min_length=1, max_length=MAX_ARCHIVE_HISTORY_MESSAGES)
     model: str = Field(min_length=1, max_length=100)
     archive_name: str | None = Field(default=None, max_length=120)
     project_name: str | None = Field(default="General", max_length=120)
