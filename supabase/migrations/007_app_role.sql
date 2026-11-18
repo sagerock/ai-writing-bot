@@ -5,7 +5,8 @@
 -- the romalume schema, read public.clients, manage public.admin_users rows
 -- (reduced to read-only by migration 013, 2026-11-18),
 -- read auth.users, and (for the Postgres test suites) insert and delete
--- throwaway auth.users rows. Row level security still applies, so explicit
+-- throwaway auth.users rows (direct auth.users access revoked by migration 014;
+-- the app and tests use the 008 security-definer functions). Row level security still applies, so explicit
 -- policies grant the role full access to romalume tables.
 --
 -- The password is not in this file. It lives in Railway (DATABASE_URL) and in
