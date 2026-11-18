@@ -141,24 +141,9 @@ def get_auth_user(user_id: str) -> dict | None:
     ))
 
 
-def set_super_admin(user_id: str, is_admin: bool) -> None:
-    """Grant or revoke super_admin in public.admin_users (the shared role table)."""
-    if is_admin:
-        email = (get_auth_user(user_id) or {}).get("email") or ""
-        db.execute(
-            """
-            insert into public.admin_users (user_id, email, role)
-            values (%s, %s, 'super_admin')
-            on conflict do nothing
-            """,
-            (user_id, email),
-        )
-        db.execute(
-            "update public.admin_users set role = 'super_admin' where user_id = %s and role <> 'super_admin' and client_id is null",
-            (user_id,),
-        )
-    else:
-        db.execute("delete from public.admin_users where user_id = %s and role = 'super_admin'", (user_id,))
+# public.admin_users belongs to the email tool and is read-only for RomaLume
+# (migration 013). Super admin is granted deliberately in the database, never
+# from this app.
 
 
 # -------------------------------------------------------------- documents
@@ -428,8 +413,13 @@ def release_stripe_event(event_id: str) -> None:
 # ------------------------------------------------------------ user removal
 
 def delete_user_rows(user_id: str) -> None:
+    """Delete the user's RomaLume rows.
+
+    public.admin_users is not touched here: its user_id references auth.users
+    with ON DELETE CASCADE, so removing the auth user (supabase_auth.delete_auth_user)
+    removes those rows. RomaLume has no write access to that table (migration 013).
+    """
     with db.transaction() as conn:
         for table in ("usage_logs", "feedback", "documents", "conversations", "projects", "user_settings"):
             db.execute(f"delete from romalume.{table} where user_id = %s", (user_id,), conn=conn)
         db.execute("delete from romalume.member_audiences where user_id = %s", (user_id,), conn=conn)
-        db.execute("delete from public.admin_users where user_id = %s", (user_id,), conn=conn)

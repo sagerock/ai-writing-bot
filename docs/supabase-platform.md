@@ -12,6 +12,7 @@ administrator has one identity across RomaLume, the email tool, and Ask.
 | Where RomaLume tables live | A dedicated `romalume` schema. Nothing in `public` changes. |
 | What a "school" is | A row in `public.clients`. Center for Anthroposophy is `22500cd6-052a-42ff-a0cb-4f3ba9125dfd`. |
 | What an "administrator" is | A row in `public.admin_users` with `role = 'client_admin'` and `client_id` set. Super admins see every school. |
+| Who writes `public.admin_users` | Not RomaLume. The table is the email tool's, and `super_admin` opens every client of every app. Since migration 013 (2026-11-18) `romalume_app` can only select it; the app has no super-admin toggle, and account deletion relies on `admin_users.user_id ... on delete cascade` from `auth.users`. The owner grants or revokes roles in the database. |
 | Row security | Every RomaLume table carries `client_id` and is protected by the existing `public.can_access_client(client_id)` function. Personal rows also carry `user_id`. |
 | Document text for search | Stays in Qdrant (Railway "Qdrant General", the same instance Ask reads). Supabase holds the registry, never the chunks. |
 | Uploaded files | Supabase Storage bucket `romalume-sources`, path `<client_id>/<project_id>/<source_id>/<filename>`. |
