@@ -3142,13 +3142,11 @@ async def get_current_admin_user(user: dict = Depends(get_current_user)):
 class CreditUpdate(BaseModel):
     amount: int = Field(ge=-10_000, le=10_000)
 
-class RoleUpdate(BaseModel):
-    is_admin: bool
-
 class UserUpdate(BaseModel):
+    # Super admin lives in public.admin_users (the email tool's table), which
+    # RomaLume can only read. There is no role field here on purpose.
     display_name: Optional[str] = Field(default=None, max_length=120)
     credits: Optional[int] = Field(default=None, ge=0, le=1_000_000)
-    is_admin: Optional[bool] = None
 
 
 class AdminPreviewRequest(BaseModel):
@@ -3294,17 +3292,10 @@ async def update_user_credits(user_id: str, credit_update: CreditUpdate, _: dict
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@main_app.post("/admin/users/{user_id}/role")
-async def update_user_role(user_id: str, role_update: RoleUpdate, _: dict = Depends(get_current_admin_user)):
-    del user_id, role_update
-    raise HTTPException(status_code=409, detail="RomaLume administration is fixed to sage@sagerock.com.")
-
 @main_app.put("/admin/users/{user_id}")
 async def update_user(user_id: str, user_update: UserUpdate, _: dict = Depends(get_current_admin_user)):
-    """Update user fields (display_name, credits, is_admin)."""
+    """Update user fields (display_name, credits). Roles are not editable here."""
     try:
-        if user_update.is_admin is not None:
-            raise HTTPException(status_code=409, detail="RomaLume administration is fixed to sage@sagerock.com.")
         if user_update.display_name is not None:
             user_store.update_user(user_id, display_name=user_update.display_name)
         if user_update.credits is not None:

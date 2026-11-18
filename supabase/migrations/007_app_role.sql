@@ -2,7 +2,8 @@
 --
 -- The API connects through the Supabase pooler as romalume_app rather than
 -- the postgres superuser. It owns nothing in public; it can read and write
--- the romalume schema, read public.clients, manage public.admin_users rows,
+-- the romalume schema, read public.clients, manage public.admin_users rows
+-- (reduced to read-only by migration 013, 2026-11-18),
 -- read auth.users, and (for the Postgres test suites) insert and delete
 -- throwaway auth.users rows. Row level security still applies, so explicit
 -- policies grant the role full access to romalume tables.
