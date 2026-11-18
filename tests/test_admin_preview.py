@@ -56,6 +56,18 @@ class AdminPreviewTests(unittest.TestCase):
             ("supabase.jwt", "signed-preview"),
         )
 
+    def test_preview_requires_its_own_secret(self):
+        env = {k: v for k, v in os.environ.items() if k != "ADMIN_VIEW_SECRET"}
+        env["SUPABASE_SERVICE_KEY"] = "not-a-preview-secret"
+        with patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(HTTPException) as raised:
+                admin_preview.create_view_token(
+                    actor=self.admin,
+                    client_id="22222222-2222-2222-2222-222222222222",
+                    audiences=["staff"],
+                )
+        self.assertEqual(raised.exception.status_code, 503)
+
 
 if __name__ == "__main__":
     unittest.main()

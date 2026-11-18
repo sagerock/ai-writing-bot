@@ -69,9 +69,8 @@ def is_romalume_admin(user: dict) -> bool:
 
 
 def _secret() -> str:
-    # SUPABASE_SERVICE_KEY already exists in every deployed API environment and
-    # never leaves the server. ADMIN_VIEW_SECRET permits independent rotation.
-    secret = os.getenv("ADMIN_VIEW_SECRET") or os.getenv("SUPABASE_SERVICE_KEY")
+    # A dedicated signing secret, so preview links never depend on another credential.
+    secret = os.getenv("ADMIN_VIEW_SECRET")
     if not secret:
         raise HTTPException(status_code=503, detail="Admin preview is not configured.")
     return secret
