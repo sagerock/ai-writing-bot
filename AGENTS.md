@@ -59,3 +59,11 @@ without deliberately reviewing the diff and required environment variables.
 Backend `.env`, frontend `.env`, `.firebase-export/` (the 2026-09-20 Firestore
 and Storage snapshot), and user exports must remain untracked. Deployed
 credentials belong in Railway and Supabase secret configuration.
+
+## Private local notes
+
+Files matching `docs/*.md.local` are private working notes, kept out of Git by
+`.git/info/exclude` because this repository is public. Read any that exist before
+starting work here; they carry state and decisions from earlier sessions. Never
+commit them, force-add them, or quote or summarize their contents in commit
+messages, pull requests, issues, or tracked files.
