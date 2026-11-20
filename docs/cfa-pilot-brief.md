@@ -445,6 +445,7 @@ email Iris now read the same collection and the same tools.
   Check 2026-11-06: no files added or changed since the 2026-11-02 upload; baseline is now 2026-11-06
   (next check 2026-11-13).
   Check 2026-11-13 (item #2911): still no files added or changed; baseline is now 2026-11-13 (next check 2026-11-20).
+  Check 2026-11-20 (item #3809): still no files added or changed; baseline is now 2026-11-20 (next check 2026-11-27).
 
 ### 2026-11-04 — from the CfA session (Jax): Elsie first-week scope, and what stands between her and live
 
